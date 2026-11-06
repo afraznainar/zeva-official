@@ -1,0 +1,18 @@
+# Local secrets — the print bridge token must never be committed
+deploy/.print-token
+.print-token
+*.secret
+
+# Dependencies
+node_modules/
+
+# Agent / tooling scratch
+.agents/
+.freebuff/
+
+# Logs and OS junk
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+desktop.ini
