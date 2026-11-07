@@ -36,6 +36,7 @@ MENU HIGHLIGHTS (prices in Rs, exclusive of GST)
 - Classic Chicken Mandi 250 / 520 / 740 / 980.
 - Masala Grill Mandi 260 / 540 / 780 / 1040.
 - Peri Peri Alfam Mandi 260 / 540 / 780 / 1040.
+- Chilly Garlic Mandi 260 / 540 / 780 / 1040.
 - Grill Mutton Mandi 420 / 860 / 1300 / 1800.
 - Peri Peri Mutton Mandi 460 / 920 / 1450 / 1850.
 - Prawns Mandi: HALF 750, FULL 1490. Fish Mandi: FULL 1500.
