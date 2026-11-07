@@ -201,7 +201,7 @@ RESTAURANT
 - Address: Shop no G03 Jeppu, Arfa Mirage tower, Morgans Gate Rd, Bolar, Mangaluru, Karnataka 575001. Landmark: near Zudio, Bolar.
 - Phone / WhatsApp: 070227 71888 (+91 70227 71888).
 - Open every day of the week, 12:00 PM to 11:00 PM.
-- Rating: 4.7 out of 5 from 82 Google reviews.
+- Rating: 4.7 out of 5 from 108 Google reviews.
 - Instagram: @zevarestaurant.
 - Google Maps: https://www.google.com/maps?cid=16420937955802426277
 - Google review link: https://search.google.com/local/writereview?placeid=ChIJTaZXDbtbozsRpStVphHk4uM
