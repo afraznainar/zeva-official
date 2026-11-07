@@ -229,6 +229,7 @@ MENU HIGHLIGHTS (prices in Rs, exclusive of GST)
 - Peri Peri Mutton Mandi 460 / 920 / 1450 / 1850.
 - Prawns Mandi: HALF 750, FULL 1490. Fish Mandi: FULL 1500.
 - Extra Mandi Rice 140 / 280 / 550. Mutton piece (250 g) 390. Mutton ribs (500 g) 950.
+- Fish: Hamour 600, Sheri 600, White Pomfret 800.
 - Starters: Drums of Heaven 220, Chilli Garlic Wings 220, Chicken Pepper Dry 220, Dragon Chicken 240, Chicken 65 250, Kung Pao Chicken 260, Honey Chicken 280, Tiger Wings 290, Oriental Chinese 270, Thai Chilly Basil Chicken 300, Leefu Chicken 320, Mutton Ghee Roast 340, Mutton Pepper Dry 340, Prawns Ghee Roast 360, Mutton Chops 3 pcs 650 / 6 pcs 1300.
 - Tandoor: Chicken Tikka 290, Malai Tikka (6 pcs) 290, Peri Peri Wings 290, Pahadi Chicken Tikka (6 pcs) 320, Spicy Wings (8 pcs) 320, Sufiyani Tikka 350, Tandoori Prawns (6 pcs) 360, Sheekh Mutton Kebab 400, Mixed Platter (24 pcs) 1300. Tandoori Pomfret and BBQ Fish are seasonal specials (SL) - ask the restaurant.
 - Veg starters: Mushroom Salt & Pepper 190, Chilli Mushroom 190, Chilli Paneer 210, Mushroom Ghee Roast 210, Mushroom Tikka 220, Paneer Ghee Roast 240, Paneer Tikka 240, Paneer Malai Tikka 270.
