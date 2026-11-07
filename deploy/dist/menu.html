@@ -1101,6 +1101,7 @@
   var gateNote = false;           // show the "above 480" note on the cart step
   var formErr = false;            // show form validation errors on the details step
   var modeMsg = '';               // status message on the pickup/delivery step
+  var geoMsg = '';                // '' | locating | denied | failed | unsupported — geolocation status
   var printState = 'idle';        // idle | sending | ok | fail
   var printErr = '';              // why the counter bill could not be printed
 
@@ -1149,7 +1150,7 @@
     save(); render();
   }
   function removeLine(id) { cart = cart.filter(function (l) { return l.id !== id; }); save(); render(); }
-  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, source: null }; mode = ''; pay = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; printState = 'idle'; printErr = ''; save(); render(); }
+  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; pay = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; printState = 'idle'; printErr = ''; save(); render(); }
 
   function distanceKnown() { return pos.metres !== null; }
   // Delivery is never gated on distance: when the guest types a distance the fee
@@ -1172,6 +1173,40 @@
     pos.source = 'manual';
     modeMsg = '';
     render();
+  }
+  // Great-circle distance in metres — good enough for a 3.5 km delivery radius.
+  function haversineM(lat1, lon1, lat2, lon2) {
+    var R = 6371008.8, rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+  function distSrcTag() {
+    if (pos.source !== 'gps') return '';
+    return ' (GPS' + (pos.accuracy ? ' \u00b1' + pos.accuracy + ' m' : '') + ')';
+  }
+  // "Check my distance": read the guest's position and measure it against the
+  // restaurant, so nobody has to guess how far they are from Bolar.
+  function useGeolocation() {
+    if (!navigator.geolocation) { geoMsg = 'unsupported'; render(); return; }
+    geoMsg = 'locating'; render();
+    navigator.geolocation.getCurrentPosition(function (p) {
+      var metres = Math.max(1, Math.round(haversineM(
+        p.coords.latitude, p.coords.longitude, REST.lat, REST.lon)));
+      pos.state = 'ok';
+      pos.lat = p.coords.latitude;
+      pos.lon = p.coords.longitude;
+      pos.metres = metres;
+      pos.accuracy = Math.round(p.coords.accuracy || 0);
+      pos.source = 'gps';
+      geoMsg = '';
+      modeMsg = '';
+      render();
+    }, function (err) {
+      geoMsg = (err && err.code === 1) ? 'denied' : 'failed';
+      render();
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   }
   function feeApplies() {
     if (mode === 'pickup') return false;
@@ -1196,7 +1231,7 @@
     var n = 0;
     cart.forEach(function (l) { n += 1; lines.push(n + '. ' + l.name + (l.variant ? ' (' + l.variant + ')' : '') + ' x' + l.qty + ' \u2014 ' + rupee(l.price * l.qty)); });
     var distTxt;
-    if (pos.state === 'ok' && pos.metres !== null) {       distTxt = pos.metres + ' m from restaurant';
+    if (pos.state === 'ok' && pos.metres !== null) {       distTxt = pos.metres + ' m from restaurant' + (pos.source === 'gps' ? ' (GPS checked)' : '');
     } else if (mode === 'pickup') {
       distTxt = 'PICKUP ORDER \u2014 customer collecting in person (no delivery distance needed)';
     } else {
@@ -1350,15 +1385,19 @@
     h += '<div class="co-field"><label for="co-addr">Delivery address</label><textarea id="co-addr" rows="2" placeholder="Flat / house, street, landmark">' + esc(order.addr) + '</textarea></div>';
     h += '<div class="co-field"><label for="co-note">Note (optional)</label><input id="co-note" type="text" value="' + esc(order.note) + '" placeholder="Less spicy, no onion, etc."></div>';
     h += '<div class="co-block"><h3>Delivery distance</h3>';
-    h += '<div class="co-hint">Optional \u2014 type the distance in metres and we\u2019ll add the right delivery charge to your bill.</div>';
+    h += '<div class="co-hint">Tap <strong>Check my distance</strong> at the delivery address and we\u2019ll measure it from the restaurant \u2014 or type it in metres if you already know it. Either way the right delivery charge is added to your bill.</div>';
     h += '<div class="co-field"><label for="co-dist">Delivery distance (metres)</label><input id="co-dist" type="number" inputmode="numeric" min="0" step="50" value="' + (pos.metres !== null ? pos.metres : '') + '" placeholder="e.g. 1250"></div>';
-    h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="use-dist">Save distance</button></div>';
+    h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="geo-dist">\ud83d\udccd Check my distance</button><button class="btn btn-outline" data-act="use-dist">Save typed distance</button></div>';
+    if (geoMsg === 'locating') h += '<div class="co-status">\ud83d\udce1 Finding your location\u2026</div>';
+    else if (geoMsg === 'denied') h += '<div class="co-status bad">Location access was blocked \u2014 allow it for this site in your browser settings, or type the distance above.</div>';
+    else if (geoMsg === 'failed') h += '<div class="co-status bad">We couldn\u2019t read your location. Turn on location services, or type the distance above.</div>';
+    else if (geoMsg === 'unsupported') h += '<div class="co-status bad">This browser can\u2019t share your location \u2014 please type the distance above.</div>';
     if (pos.metres !== null && pos.metres <= FREE_DELIVERY_M) {
-      h += '<div class="co-status ok">\u2705 ' + pos.metres + ' m \u2014 free delivery.</div>';
+      h += '<div class="co-status ok">\u2705 ' + pos.metres + ' m' + distSrcTag() + ' \u2014 free delivery.</div>';
     } else if (outsideRadius()) {
       h += '<div class="co-status bad">\u26a0\ufe0f ' + pos.metres + ' m is outside our 3.5 km delivery radius. Choose pickup, or call <a href="tel:+917022771888">070227 71888</a> and we\u2019ll see what we can do.</div>';
     } else if (pos.metres !== null) {
-      h += '<div class="co-status ok">\u2705 ' + pos.metres + ' m \u2014 a delivery charge of &#8377;' + deliveryFeeFor(pos.metres) + ' will be added to the total.</div>';
+      h += '<div class="co-status ok">\u2705 ' + pos.metres + ' m' + distSrcTag() + ' \u2014 a delivery charge of &#8377;' + deliveryFeeFor(pos.metres) + ' will be added to the total.</div>';
     } else {
       h += '<div class="co-hint">No distance entered \u2014 the delivery charge will be confirmed on your bill.</div>';
     }
@@ -1603,6 +1642,7 @@
       var distInput = document.getElementById('co-dist');
       setManualDistance(distInput ? distInput.value : '');
     }
+    else if (act === 'geo-dist') useGeolocation();
     else if (act === 'mode') {
       var mv = t.getAttribute('data-val');
       var bhEl = t.closest('.bh-opt');
