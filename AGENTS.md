@@ -16,7 +16,7 @@ uncommitted. Leave unrelated in-flight edits out of the commit.
 
 ## Never commit secrets
 
-`.tools/`, `deploy/.print-token`, `.env*`, `node_modules/` and log files are
+`.tools/`, `deploy/.print-token`, `deploy/*.secret`, `.env*`, `.dev.vars`, `node_modules/`, `*.sqlite` and log files are
 gitignored and must stay that way. Credentials live on disk, never in the repo.
 
 ## Deploys
@@ -34,6 +34,51 @@ menu straight out of `menu.html` at runtime, so a menu edit needs no app change.
 offline. Its icons come from `deploy/make-favicon.ps1` (rerun it after a logo
 change) and its `start_url` is absolute, so a move to a custom domain means
 updating the manifest too.
+
+## Accounts, Zeva Gold and orders (D1)
+
+Customer accounts, orders, wallet and Gold live in the Worker module
+`deploy/worker/accounts.js` (imported by `deploy/worker/index.js`, both listed in
+`deploy/sites.manifest.json`) against the D1 binding `DB`.
+
+- Sign-in is Google OAuth. Until `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+  are set in Sites → Secrets, `/api/config` reports `google:false` and the app
+  shows a setup notice instead of the Google button. Authorised redirect URIs:
+  `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/api/auth/google/callback`
+  and `http://localhost:4173/api/auth/google/callback`.
+- Sessions are HMAC-signed cookies (`zeva_sid`, 90 days; `zeva_admin`, 30 days)
+  signed with `SESSION_SECRET` — there is no session table. Rotating that secret
+  signs everybody out.
+- Zeva Gold: `GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 }`
+  at the top of `accounts.js`. Free delivery inside 5 km and ₹5 cashback per
+  order are applied **server-side** in `createOrder`, never trusted from the
+  browser. Joining is a request (`gold.status = 'pending'`) that staff activate
+  once paid; cancelling an order reverses its cashback with a negative wallet row.
+- Local development: `wrangler` cannot run on this laptop (Device Guard blocks
+  workerd), so `/api/*` is served by `deploy/server.js` through
+  `deploy/local-accounts.js`, a `node:sqlite` shim of the D1 API using
+  `deploy/.local-zeva.sqlite` (gitignored). Test data in that file is disposable.
+
+## Staff dashboard
+
+`deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),
+order feed polled every 8 seconds with a WebAudio chime, desktop notification
+and tab-title counter, order status buttons, and Zeva Gold approvals.
+
+Sound only plays after someone taps **Enable sound** once on the device (browser
+autoplay rules); the choice is remembered per device. Nothing here is in the
+public nav — share `/admin` and the passcode with staff only. The passcode is
+kept on disk at `deploy/admin-passcode.secret` (gitignored).
+
+## Android APK (Capacitor)
+
+`apk/` wraps the same live `/app` page in a Capacitor WebView (`com.zeva.mandi`);
+`.github/workflows/android-apk.yml` builds `app-debug.apk` on GitHub Actions
+because there is no Android SDK here — Actions → **Android APK** → Run workflow,
+then download the artifact. See `apk/README.md`. Google sign-in does not work
+inside a WebView; the Worker already has the `?app=1` → `zeva://auth?code=` →
+`/api/auth/exchange` escape hatch, but the Android intent filter and in-app
+handler are still to be built.
 
 ## Menu spreadsheet
 

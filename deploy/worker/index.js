@@ -3,8 +3,11 @@
    Serves the static site from env.ASSETS and answers
    POST /api/ask through OpenRouter. The API key is a Worker
    secret (OPENROUTER_API_KEY) and never reaches the browser.
-   Routes: /api/ask, /api/orders, /api/print
+   Routes: /api/ask, /api/orders, /api/print, plus the accounts API
+   (sign-in, profile, wallet, Zeva Gold, admin) in ./accounts.js
    ============================================================ */
+
+import { handleAccounts } from "./accounts.js";
 
 const SITE = "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page";
 
@@ -174,6 +177,10 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Accounts, orders, wallet, Zeva Gold and the staff dashboard.
+    const accounts = await handleAccounts(request, env, url);
+    if (accounts) return accounts;
+
     if (url.pathname === "/api/ask") {
       if (request.method !== "POST") return json(405, { error: "method not allowed" });
       if (!env.OPENROUTER_API_KEY) return json(503, { error: "assistant is not configured" });
@@ -196,18 +203,6 @@ export default {
       } catch (error) {
         console.error("ask failed", error.message);
         return json(502, { error: "assistant unavailable" });
-      }
-    }
-
-    if (url.pathname === "/api/orders" && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const orderId = body && body.id ? String(body.id) : "unknown";
-        console.log("[order] id=" + orderId);
-        return json(200, { ok: true, id: orderId });
-      } catch (error) {
-        console.error("orders failed", error.message);
-        return json(500, { error: "orders failed" });
       }
     }
 

@@ -19,3 +19,9 @@ desktop.ini
 
 # local tooling and credentials
 .tools/
+
+# local test database
+*.sqlite
+
+# Wrangler dev variables (never commit)
+.dev.vars

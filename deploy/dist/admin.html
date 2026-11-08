@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0e0a08">
+<title>Zeva counter &mdash; orders</title>
+<link rel="icon" href="/icon-192.png" sizes="192x192">
+<style>
+  :root {
+    --ink-950: #0e0a08; --ink-900: #15100d; --ink-850: #1b1512; --ink-800: #241c17;
+    --line: rgba(255, 244, 230, .09); --line-strong: rgba(255, 244, 230, .18);
+    --paper: #f6ede1; --text-2: #cdbfae; --text-3: #93826f;
+    --brass: #c08536; --brass-2: #e6b877;
+    --good: #6fbf8b; --bad: #e27a6a; --warn: #e0a94f;
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ink-950); color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  a { color: var(--brass-2); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px calc(28px + var(--safe-b)); }
+
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(14, 10, 8, .95);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .brand { font-family: var(--display); font-size: 18px; letter-spacing: .01em; }
+  .brand small { display: block; font-family: inherit; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(111,191,139,.5); animation: pulse 2.2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(111,191,139,.45); } 70% { box-shadow: 0 0 0 9px rgba(111,191,139,0); } 100% { box-shadow: 0 0 0 0 rgba(111,191,139,0); } }
+  .grow { flex: 1; }
+  .topbtn {
+    padding: 8px 13px; border-radius: 9px; border: 1px solid var(--line-strong);
+    font-size: 12.5px; font-weight: 600; color: var(--text-2); white-space: nowrap;
+  }
+  .topbtn.on { border-color: rgba(111,191,139,.55); color: var(--good); }
+  .topbtn.alerting { border-color: var(--warn); color: var(--warn); }
+
+  /* -------- gate -------- */
+  .gate { min-height: 92vh; display: grid; place-items: center; padding: 24px 16px; }
+  .gate .box { width: 100%; max-width: 360px; }
+  .gate h1 { font-family: var(--display); font-size: 26px; margin: 0 0 6px; font-weight: 600; }
+  .gate p { color: var(--text-3); font-size: 13px; margin: 0 0 18px; }
+  input[type=password], input[type=text] {
+    width: 100%; padding: 13px 14px; border-radius: 11px;
+    background: var(--ink-850); border: 1px solid var(--line);
+    color: var(--paper); font-size: 16px; outline: 0;
+  }
+  input:focus { border-color: rgba(192,133,54,.6); }
+  .btn {
+    display: block; width: 100%; padding: 13px; border-radius: 11px; margin-top: 10px;
+    background: linear-gradient(135deg, var(--brass) 0%, #d99d55 100%);
+    color: #1a1008; font-weight: 700; font-size: 14px; text-align: center;
+  }
+  .btn.ghost { background: none; border: 1px solid var(--line-strong); color: var(--paper); font-weight: 600; }
+  .btn:disabled { opacity: .5; }
+  .err { color: var(--bad); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+
+  /* -------- stats -------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; padding: 16px 0 4px; }
+  .stat { border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; background: var(--ink-900); }
+  .stat b { display: block; font-family: var(--display); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+  .stat.gold { border-color: rgba(192,133,54,.45); }
+
+  h2.sect { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 24px 0 10px; font-weight: 600; }
+
+  /* -------- order cards -------- */
+  .order {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--ink-900);
+    padding: 13px 14px; margin-bottom: 10px;
+  }
+  .order.fresh { border-color: rgba(224,169,79,.6); background: linear-gradient(180deg, rgba(224,169,79,.1), var(--ink-900) 70%); }
+  .order.flash { animation: flash 1.4s ease-out 3; }
+  @keyframes flash { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,169,79,0); } 50% { box-shadow: 0 0 0 3px rgba(224,169,79,.5); } }
+  .order .head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .order .ref { font-weight: 700; font-size: 14px; letter-spacing: .04em; }
+  .order .time { font-size: 11.5px; color: var(--text-3); }
+  .badge { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; font-weight: 700; }
+  .badge.new { background: rgba(224,169,79,.18); color: var(--warn); }
+  .badge.preparing { background: rgba(192,133,54,.16); color: var(--brass-2); }
+  .badge.ready { background: rgba(111,191,139,.16); color: var(--good); }
+  .badge.done { background: rgba(147,130,111,.16); color: var(--text-3); }
+  .badge.cancelled { background: rgba(226,122,106,.16); color: var(--bad); }
+  .badge.gold { background: var(--brass); color: #170f09; }
+  .order .who { font-size: 13px; margin-top: 6px; color: var(--text-2); }
+  .order .who b { color: var(--paper); }
+  .order .addr { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+  .order ul.items { list-style: none; margin: 9px 0 0; padding: 9px 0 0; border-top: 1px dashed var(--line); font-size: 12.5px; color: var(--text-2); }
+  .order ul.items li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .order .totals { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-3); margin-top: 9px; font-variant-numeric: tabular-nums; }
+  .order .totals .sum { color: var(--paper); font-weight: 700; font-size: 14px; }
+  .order .note { margin-top: 8px; font-size: 12.5px; color: var(--brass-2); background: rgba(192,133,54,.1); padding: 6px 9px; border-radius: 8px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+  .acts button {
+    padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line-strong);
+    font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  }
+  .acts button:hover { border-color: var(--brass); color: var(--brass-2); }
+  .acts button.primary { background: var(--brass); border-color: var(--brass); color: #1a1008; }
+  .acts button.danger { color: var(--bad); border-color: rgba(226,122,106,.4); }
+  .empty { text-align: center; color: var(--text-3); font-size: 13.5px; padding: 34px 10px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  /* -------- gold -------- */
+  .goldrow {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    border: 1px solid rgba(192,133,54,.35); border-radius: 12px;
+    padding: 11px 13px; margin-bottom: 8px; background: rgba(192,133,54,.06);
+  }
+  .goldrow .info { flex: 1; min-width: 180px; }
+  .goldrow .nm { font-size: 13.5px; font-weight: 600; }
+  .goldrow .sub { font-size: 11.5px; color: var(--text-3); }
+  .goldrow .acts { margin: 0; }
+  .foot { margin-top: 34px; font-size: 11.5px; color: var(--text-3); line-height: 1.7; text-align: center; }
+  .foot a { color: var(--text-2); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate" hidden>
+  <div class="box">
+    <div class="brand" style="margin-bottom:14px">Zeva Mandi &amp; Grills<small>Counter dashboard</small></div>
+    <h1>Staff sign-in</h1>
+    <p>Enter the counter passcode. It is shared with the team, not the public.</p>
+    <input id="pass" type="password" placeholder="Passcode" autocomplete="current-password" inputmode="text">
+    <button class="btn" id="gatebtn" type="button">Open dashboard</button>
+    <div class="err" id="gateerr"></div>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">Zeva counter<small>Live orders</small></div>
+      <span class="dot" id="livedot" title="Polling every 8 seconds"></span>
+      <span class="grow"></span>
+      <button class="topbtn" id="soundbtn" type="button">Enable sound</button>
+      <button class="topbtn" id="notifybtn" type="button">Alerts</button>
+      <button class="topbtn" id="testbtn" type="button">Test</button>
+      <button class="topbtn" id="outbtn" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="stats" id="stats"></div>
+
+    <h2 class="sect" id="goldhead" hidden>Zeva Gold requests</h2>
+    <div id="goldlist"></div>
+
+    <h2 class="sect">Orders</h2>
+    <div id="orders"></div>
+
+    <div class="foot">
+      Sound and desktop alerts fire on the first new order picked up by polling.
+      Keep this tab open on the counter tablet &mdash; <a href="/app">customer app</a> &middot; <a href="/">website</a>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var POLL_MS = 8000;
+  var orders = [];          // newest first
+  var newest = 0;           // newest created_at we have alerted for
+  var stats = null;
+  var gold = [];
+  var soundOn = false;
+  var audio = null;
+  var timer = null;
+  var firstLoad = true;
+  var unseen = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function rupee(n) {
+    var v = Number(n) || 0;
+    return '\u20b9' + (v % 1 === 0 ? String(v) : v.toFixed(2));
+  }
+  function clock(ts) {
+    try {
+      return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+  function ago(ts) {
+    var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago';
+  }
+
+  /* ---------------- alert sound ---------------- */
+  function ensureAudio() {
+    if (audio) return audio;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audio = new Ctx();
+    return audio;
+  }
+
+  function tone(ctx, freq, startAt, dur, gainVal) {
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(gainVal, startAt + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(startAt);
+    osc.stop(startAt + dur + 0.05);
+  }
+
+  function chime() {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var t = ctx.currentTime + 0.02;
+    // three rounds of a two-note doorbell: bright and hard to miss
+    for (var i = 0; i < 3; i++) {
+      tone(ctx, 880, t + i * 0.62, 0.3, 0.35);
+      tone(ctx, 1174.7, t + i * 0.62 + 0.28, 0.42, 0.3);
+    }
+    if (navigator.vibrate) { try { navigator.vibrate([220, 90, 220, 90, 260]); } catch (e) {} }
+  }
+
+  function setSound(on) {
+    soundOn = on;
+    try { localStorage.setItem('zeva_admin_sound', on ? '1' : '0'); } catch (e) {}
+    var btn = $('soundbtn');
+    if (!btn) return;
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? 'Sound on' : 'Enable sound';
+  }
+
+  $('soundbtn').addEventListener('click', function () {
+    var next = !soundOn;
+    setSound(next);
+    if (next) {
+      var ctx = ensureAudio();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+      chime();
+    }
+  });
+
+  $('testbtn').addEventListener('click', function () {
+    if (!soundOn) setSound(true);
+    chime();
+    if (window.Notification && Notification.permission === 'granted') {
+      new Notification('Test alert', { body: 'New order alerts look like this.', icon: '/icon-192.png', tag: 'zeva-test' });
+    }
+  });
+
+  $('notifybtn').addEventListener('click', function () {
+    if (!('Notification' in window)) { alert('This browser cannot show desktop notifications.'); return; }
+    Notification.requestPermission().then(function (p) { paintNotify(p); });
+  });
+
+  function paintNotify(permission) {
+    var btn = $('notifybtn');
+    if (!btn) return;
+    var p = permission || ('Notification' in window ? Notification.permission : 'denied');
+    btn.classList.toggle('on', p === 'granted');
+    btn.textContent = p === 'granted' ? 'Alerts on' : p === 'denied' ? 'Alerts blocked' : 'Alerts';
+  }
+
+  function notifyNew(order) {
+    if (!window.Notification || Notification.permission !== 'granted') return;
+    var body = (order.mode === 'pickup' ? 'Pickup' : 'Delivery') + ' \u00b7 ' + rupee(order.total) +
+      (order.items && order.items.length ? ' \u00b7 ' + order.items.length + ' item' + (order.items.length === 1 ? '' : 's') : '');
+    var n = new Notification('New order #' + order.id, { body: body + ' \u2014 ' + order.name, icon: '/icon-192.png', tag: 'zeva-' + order.id, renotify: true });
+    n.onclick = function () { window.focus(); n.close(); };
+  }
+
+  /* ---------------- gate ---------------- */
+  function showGate(configured) {
+    $('gate').hidden = false;
+    $('app').hidden = true;
+    if (configured === false) {
+      $('gateerr').textContent = 'The passcode is not set on the server yet. Add ADMIN_PASSCODE in Sites \u2192 Secrets.';
+    }
+    var pass = $('pass');
+    if (pass) pass.focus();
+  }
+
+  function showApp() {
+    $('gate').hidden = true;
+    $('app').hidden = false;
+    if (!timer) {
+      load(true);
+      timer = setInterval(function () { load(false); }, POLL_MS);
+    }
+  }
+
+  $('gatebtn').addEventListener('click', function () { signIn(); });
+  $('pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') signIn(); });
+
+  function signIn() {
+    var pass = $('pass').value.trim();
+    if (!pass) { $('gateerr').textContent = 'Enter the passcode.'; return; }
+    $('gatebtn').disabled = true;
+    $('gateerr').textContent = '';
+    fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ passcode: pass })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        $('gatebtn').disabled = false;
+        if (!res.ok) { $('gateerr').textContent = res.d.error || 'That passcode did not work.'; return; }
+        $('pass').value = '';
+        showApp();
+      })
+      .catch(function () { $('gatebtn').disabled = false; $('gateerr').textContent = 'Could not reach the server.'; });
+  }
+
+  $('outbtn').addEventListener('click', function () {
+    fetch('/api/admin/logout', { method: 'POST' }).finally(function () {
+      if (timer) { clearInterval(timer); timer = null; }
+      orders = []; gold = []; newest = 0; firstLoad = true;
+      location.reload();
+    });
+  });
+
+  /* ---------------- data ---------------- */
+  function load(refreshStatsOnly) {
+    var url = '/api/admin/orders' + (firstLoad ? '' : '?after=' + newest);
+    return fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { showGate(); throw new Error('signed out'); }
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d || !d.orders) return;
+        stats = d.stats || stats;
+        var incoming = d.orders;
+        if (firstLoad) {
+          // the API already returns newest first
+          orders = incoming.slice();
+          newest = Math.max.apply(null, orders.map(function (o) { return o.created_at; }).concat([0]));
+          firstLoad = false;
+        } else if (incoming.length) {
+          // incremental rows arrive oldest first, so the newest belongs on top
+          var fresh = incoming.filter(function (o) { return o.created_at > newest; });
+          orders = incoming.slice().reverse().concat(orders);
+          if (orders.length > 60) orders.length = 60;
+          if (fresh.length) {
+            newest = Math.max.apply(null, fresh.map(function (o) { return o.created_at; }));
+            alertFor(fresh);
+          }
+        }
+        if (d.stats && d.stats.newest) newest = Math.max(newest, d.stats.newest);
+        render();
+        loadGold();
+        loadTabTitle();
+      })
+      .catch(function () {});
+  }
+
+  var flashIds = {};
+
+  function alertFor(fresh) {
+    chime();
+    fresh.forEach(notifyNew);
+    unseen += fresh.length;
+    document.title = '(' + unseen + ') New order \u00b7 Zeva counter';
+    fresh.forEach(function (o) { flashIds[o.id] = true; });
+  }
+
+  function loadTabTitle() {
+    if (unseen > 0) document.title = '(' + unseen + ') New order \u00b7 Zeva counter';
+    else document.title = 'Zeva counter \u2014 orders';
+  }
+
+  window.addEventListener('focus', function () { unseen = 0; loadTabTitle(); });
+
+  function loadGold() {
+    fetch('/api/admin/gold', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) return;
+        gold = d.members || [];
+        renderGold();
+      })
+      .catch(function () {});
+  }
+
+  /* ---------------- render ---------------- */
+  function render() {
+    var s = stats || {};
+    $('stats').innerHTML =
+      stat(s.live_orders || 0, 'Live orders') +
+      stat(rupee(s.live_value || 0), 'Live value') +
+      stat(s.today_orders || 0, 'Orders today') +
+      stat(rupee(s.today_value || 0), "Today's sales") +
+      '<div class="stat gold"><b>' + (s.gold_pending || 0) + '</b><span>Gold to approve</span></div>';
+
+    $('orders').innerHTML = orders.length ? orders.map(card).join('') : '<div class="empty">No orders yet. When one arrives this page rings.</div>';
+  }
+
+  function stat(v, label) {
+    return '<div class="stat"><b>' + esc(v) + '</b><span>' + esc(label) + '</span></div>';
+  }
+
+  function card(o) {
+    var items = (o.items || []).map(function (i) {
+      return '<li><span>' + i.qty + ' \u00d7 ' + esc(i.name) + (i.variant ? ' <span style="color:var(--text-3)">' + esc(i.variant) + '</span>' : '') + '</span><span>' + rupee((Number(i.price) || 0) * (Number(i.qty) || 0)) + '</span></li>';
+    }).join('');
+    var acts = [];
+    if (o.status === 'new') acts.push('<button class="primary" data-set="' + esc(o.id) + '|preparing">Accept &middot; start cooking</button>');
+    if (o.status === 'new' || o.status === 'preparing') acts.push('<button data-set="' + esc(o.id) + '|ready">Ready</button>');
+    if (o.status === 'ready') acts.push('<button class="primary" data-set="' + esc(o.id) + '|done">Handed over</button>');
+    if (o.status !== 'done' && o.status !== 'cancelled') acts.push('<button class="danger" data-set="' + esc(o.id) + '|cancelled">Cancel</button>');
+    if (o.status === 'cancelled' || o.status === 'done') acts.push('<button data-set="' + esc(o.id) + '|new">Reopen</button>');
+
+    var flash = flashIds[o.id] ? ' flash' : '';
+    delete flashIds[o.id];
+    return '<div class="order' + (o.status === 'new' ? ' fresh' : '') + flash + '" data-order="' + esc(o.id) + '">' +
+      '<div class="head"><span class="ref">#' + esc(o.id) + '</span>' +
+        '<span class="badge ' + esc(o.status) + '">' + esc(o.status) + '</span>' +
+        (o.gold_delivery ? '<span class="badge gold">Gold delivery</span>' : '') +
+        '<span class="grow"></span>' +
+        '<span class="time" title="' + esc(new Date(o.created_at).toLocaleString('en-IN')) + '">' + clock(o.created_at) + ' \u00b7 ' + ago(o.created_at) + '</span>' +
+      '</div>' +
+      '<div class="who"><b>' + esc(o.name) + '</b> \u00b7 <a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> \u00b7 ' +
+        (o.mode === 'pickup' ? 'Pickup at counter' : 'Delivery') + ' \u00b7 ' + (o.payment === 'upi' ? 'UPI' : 'Cash') +
+        (o.distance_m ? ' \u00b7 ' + o.distance_m + ' m' : '') + '</div>' +
+      (o.mode === 'pickup' ? '' : '<div class="addr">' + esc(o.address) + '</div>') +
+      (items ? '<ul class="items">' + items + '</ul>' : '') +
+      '<div class="totals">' +
+        '<span>Items ' + rupee(o.items_total) + '</span>' +
+        '<span>GST ' + rupee(Number(o.cgst || 0) + Number(o.sgst || 0)) + '</span>' +
+        '<span>Delivery ' + (Number(o.delivery) === 0 ? 'free' : rupee(o.delivery)) + '</span>' +
+        '<span class="sum">' + rupee(o.total) + '</span>' +
+      '</div>' +
+      (o.note ? '<div class="note">' + esc(o.note) + '</div>' : '') +
+      '<div class="acts">' + acts.join('') + '</div>' +
+    '</div>';
+  }
+
+  function renderGold() {
+    var pending = gold.filter(function (m) { return m.status === 'pending'; });
+    var active = gold.filter(function (m) { return m.status === 'active'; });
+    var head = $('goldhead');
+    if (!pending.length && !active.length) { head.hidden = true; $('goldlist').innerHTML = ''; return; }
+    head.hidden = false;
+    head.textContent = 'Zeva Gold' + (pending.length ? ' \u00b7 ' + pending.length + ' waiting' : '');
+
+    $('goldlist').innerHTML =
+      pending.map(function (m) {
+        return '<div class="goldrow"><div class="info"><div class="nm">' + esc(m.name || 'Customer') + ' <span class="badge new">pending</span></div>' +
+          '<div class="sub">' + esc(m.email || '') + (m.phone ? ' \u00b7 ' + esc(m.phone) : '') + ' \u00b7 asked ' + ago(m.requested_at) + '</div></div>' +
+          '<div class="acts">' +
+            '<button class="primary" data-gold="' + esc(m.user_id) + '|activate">Activate \u20b9499</button>' +
+            '<button class="danger" data-gold="' + esc(m.user_id) + '|reject">Reject</button>' +
+          '</div></div>';
+      }).join('') +
+      active.map(function (m) {
+        return '<div class="goldrow"><div class="info"><div class="nm">' + esc(m.name || 'Customer') + ' <span class="badge ready">active</span></div>' +
+          '<div class="sub">' + esc(m.email || '') + (m.expires_at ? ' \u00b7 until ' + new Date(m.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '') + '</div></div>' +
+          '<div class="acts"><button class="danger" data-gold="' + esc(m.user_id) + '|cancel">Stop Gold</button></div></div>';
+      }).join('');
+  }
+
+  /* ---------------- actions ---------------- */
+  document.addEventListener('click', function (e) {
+    var set = e.target.closest('[data-set]');
+    if (set) {
+      var bits = set.getAttribute('data-set').split('|');
+      set.disabled = true;
+      fetch('/api/admin/order', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: bits[0], status: bits[1] })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { firstLoad = true; load(false); })
+        .catch(function () { set.disabled = false; });
+      return;
+    }
+    var g = e.target.closest('[data-gold]');
+    if (g) {
+      var parts = g.getAttribute('data-gold').split('|');
+      g.disabled = true;
+      fetch('/api/admin/gold', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user_id: parts[0], action: parts[1] })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadGold(); load(false); })
+        .catch(function () { g.disabled = false; });
+    }
+  });
+
+  /* ---------------- boot ---------------- */
+  try { setSound(localStorage.getItem('zeva_admin_sound') === '1'); } catch (e) { setSound(false); }
+  paintNotify();
+
+  fetch('/api/admin/session', { headers: { accept: 'application/json' }, cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.signed_in) showApp();
+      else showGate(d ? d.configured : true);
+    })
+    .catch(function () { showGate(true); });
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && timer) load(true);
+  });
+})();
+</script>
+</body>
+</html>

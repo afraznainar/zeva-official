@@ -305,6 +305,30 @@
   .done .ref { margin: 16px 0 6px; font-size: 13px; letter-spacing: .06em; color: var(--brass-2); font-weight: 600; }
   .done .mini { font-size: 11.5px; color: var(--text-3); }
 
+  /* ---------- you / profile ---------- */
+  .who { display: flex; align-items: center; gap: 12px; padding: 14px 0 6px; }
+  .who .av {
+    width: 52px; height: 52px; border-radius: 50%; flex: none;
+    background: var(--ink-800); border: 1px solid var(--line-strong);
+    display: grid; place-items: center; overflow: hidden;
+    font-family: var(--display); font-size: 22px; color: var(--brass-2);
+  }
+  .who .av img { width: 100%; height: 100%; object-fit: cover; }
+  .who .nm { font-size: 16px; font-weight: 600; }
+  .who .em { font-size: 12px; color: var(--text-3); word-break: break-all; }
+  .card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin: 12px 0; background: var(--ink-900); }
+  .card.gold { border-color: rgba(192, 133, 54, .55); background: linear-gradient(145deg, rgba(192, 133, 54, .2), rgba(21, 16, 13, .92)); }
+  .card h3 { margin: 0 0 5px; font-family: var(--display); font-size: 17.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+  .card ul { margin: 8px 0 0; padding-left: 17px; font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+  .bal { font-family: var(--display); font-size: 30px; color: var(--brass-2); margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+  .ledger, .hist { list-style: none; margin: 10px 0 0; padding: 0; }
+  .ledger li, .hist li { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--text-2); padding: 8px 0; border-top: 1px dashed var(--line); }
+  .hist li { border-top: 1px solid var(--line); }
+  .hist .st { font-size: 10.5px; color: var(--text-3); text-transform: capitalize; display: block; margin-top: 2px; }
+  .gold-pill { padding: 3px 9px; border-radius: 999px; background: var(--brass); color: #170f09; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; }
+  .muted { font-size: 11.5px; color: var(--text-3); line-height: 1.55; margin-top: 8px; }
+
   .foot-note { font-size: 11px; color: var(--text-3); text-align: center; padding: 18px 16px 6px; line-height: 1.6; }
   .skel { height: 58px; border-radius: 10px; background: linear-gradient(90deg, var(--ink-850), var(--ink-800), var(--ink-850)); background-size: 200% 100%; animation: sh 1.2s infinite; margin: 10px 0; }
   @keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
@@ -385,6 +409,10 @@
       Cart
       <span class="badge" id="tabbadge" hidden>0</span>
     </button>
+    <button class="tab" type="button" data-tab="you">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+      You
+    </button>
     <button class="tab" type="button" data-tab="call">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg>
       Call
@@ -407,6 +435,15 @@
   </header>
   <div class="body" id="cartBody"></div>
   <div class="foot" id="cartFoot"></div>
+</div>
+
+<div class="screen" id="youScreen" aria-hidden="true">
+  <header>
+    <h2>You</h2>
+    <button class="x" type="button" data-close="you" aria-label="Close">&times;</button>
+  </header>
+  <div class="body" id="youBody"></div>
+  <div class="foot" id="youFoot"></div>
 </div>
 
 <script>
@@ -436,6 +473,10 @@
   var printState = 'idle';
   var activeSizeCat = '';
   var activeSizeItem = '';
+  var ACCT = null;        // /api/me — profile, wallet, Gold, past orders
+  var GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 };
+  var GOLD_FREE_M = 5000;
+  var cashbackNote = '';
 
   function read(key, fallback) {
     try { var v = JSON.parse(localStorage.getItem(key)); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; }
@@ -544,9 +585,16 @@
   function total() { return cart.reduce(function (s, l) { return s + l.qty * l.price; }, 0); }
   function cgst() { return round2(total() * CGST_RATE); }
   function sgst() { return round2(total() * SGST_RATE); }
-  function outsideRadius() { return pos.metres !== null && pos.metres > DELIVERY_RADIUS_M; }
+  function goldActive() { return !!(ACCT && ACCT.gold && ACCT.gold.active); }
+  function signedIn() { return !!(ACCT && ACCT.user); }
+  function outsideRadius() {
+    if (pos.metres === null) return false;
+    return pos.metres > (goldActive() ? GOLD_FREE_M : DELIVERY_RADIUS_M);
+  }
   function deliveryFeeFor(m) {
     if (m === null) return null;
+    // Zeva Gold: delivery is free anywhere inside 5 km.
+    if (goldActive() && m <= GOLD_FREE_M) return 0;
     if (m <= FREE_DELIVERY_M) return 0;
     if (m <= 1000) return 25;
     if (m <= 2000) return 40;
@@ -652,18 +700,22 @@
     openScreen('size');
   }
 
+  function screenEl(which) {
+    return document.getElementById(which === 'size' ? 'sizeScreen' : which === 'you' ? 'youScreen' : 'cartScreen');
+  }
   function openScreen(which) {
-    var el = document.getElementById(which === 'size' ? 'sizeScreen' : 'cartScreen');
+    var el = screenEl(which);
     el.classList.add('open');
     el.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
   }
   function closeScreen(which) {
-    var el = document.getElementById(which === 'size' ? 'sizeScreen' : 'cartScreen');
+    var el = screenEl(which);
     el.classList.remove('open');
     el.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
     if (which === 'cart') screen = 'home';
+    if (which === 'you') selectTab('home');
   }
 
   /* ---------------- cart + checkout screens ---------------- */
@@ -675,12 +727,17 @@
     if (mode === 'delivery') {
       var label = 'Delivery';
       if (pos.metres !== null) label += ' &middot; ' + pos.metres + ' m';
+      if (goldActive() && pos.metres !== null && pos.metres <= GOLD_FREE_M) label = 'Delivery &middot; Zeva Gold';
       var value;
       if (outsideRadius()) value = '<span style="color:#f0b0a5">to be confirmed</span>';
       else if (pos.metres === null) value = '<span style="color:var(--text-3)">confirmed by us</span>';
+      else if (goldActive() && pos.metres <= GOLD_FREE_M) value = '<span style="color:var(--good);font-weight:600">FREE</span>';
       else if (deliveryFee() === 0) value = '<span style="color:var(--good);font-weight:600">FREE</span>';
       else value = rupee(deliveryFee());
       html += '<div class="row"><span>' + label + '</span><span class="v">' + value + '</span></div>';
+    }
+    if (goldActive() && cart.length) {
+      html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to wallet</span></div>';
     }
     html += '<div class="row total"><span>To pay' + (pay === 'cash' ? ' (cash)' : pay === 'upi' ? ' (UPI)' : '') + '</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
     return html;
@@ -694,8 +751,8 @@
     if (pos.state === 'locating') html += '<div class="status warn">Finding you&hellip;</div>';
     if (pos.state === 'denied') html += '<div class="status bad">Location is blocked. Type your address and we will confirm the delivery charge.</div>';
     if (pos.state === 'failed') html += '<div class="status bad">Could not read your location. We will confirm the delivery charge.</div>';
-    if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our 3.5 km delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
-    else if (pos.metres !== null) html += '<div class="status ok">Inside our 3.5 km radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
+    if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our ' + (goldActive() ? '5 km Gold' : '3.5 km') + ' delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
+    else if (pos.metres !== null) html += '<div class="status ok">Inside our ' + (goldActive() ? '5 km Zeva Gold' : '3.5 km') + ' radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
     return html;
   }
 
@@ -712,6 +769,7 @@
         '<p>It stays <b>pending</b> until our team replies <b>CONFIRM</b> on WhatsApp. Preparation takes about 20 minutes after that.</p>' +
         '<div class="ref">#' + esc(orderRef) + '</div>' +
         '<div class="mini">' + (printState === 'ok' ? 'Counter copy printed.' : printState === 'fail' ? 'Counter copy not printed &mdash; the kitchen still has your order on WhatsApp.' : 'Sending the counter copy&hellip;') + '</div>' +
+        (cashbackNote ? '<div class="mini" style="color:var(--good);margin-top:7px">' + esc(cashbackNote) + '</div>' : '') +
         '</div>';
       foot.innerHTML =
         '<a class="btn" href="https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent('Hi Zeva, my order is #' + orderRef) + '" rel="noopener">Open WhatsApp</a>' +
@@ -762,6 +820,13 @@
         '<button type="button" class="' + (pay === 'cash' ? 'on' : '') + '" data-pay="cash">Cash</button>' +
         '<button type="button" class="' + (pay === 'upi' ? 'on' : '') + '" data-pay="upi">UPI</button>' +
       '</div></div>' + bills() +
+      (goldActive()
+        ? '<div class="status ok">Zeva Gold: free delivery inside 5 km and ' + rupee(GOLD.cashback) + ' cashback goes to your wallet with this order.</div>'
+        : signedIn()
+          ? '<div class="status warn">Zeva Gold gives free delivery inside 5 km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
+          : (ACCT && ACCT.google
+            ? '<a class="geo" href="/api/auth/google/start?next=/app" style="text-decoration:none;justify-content:center">Sign in with Google &mdash; save this order and earn cashback</a>'
+            : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>')) +
       '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes to our WhatsApp and stays <b>pending</b> until the team replies CONFIRM.</p>';
 
     var canPay = !!(mode && pay && form.name.trim().length > 1 &&
@@ -811,10 +876,12 @@
 
   function sendOrder() {
     orderRef = ref();
+    cashbackNote = '';
     var payload = {
       id: orderRef,
       mode: mode,
       pay: pay,
+      payment: pay,
       name: form.name,
       phone: form.phone,
       address: mode === 'pickup' ? 'Pickup at the counter' : form.addr,
@@ -822,8 +889,23 @@
       distance_m: pos.metres,
       items: cart.map(function (l) { return { name: l.name, variant: l.variant, qty: l.qty, price: l.price }; })
     };
+    var totals = {
+      items_total: total(), cgst: cgst(), sgst: sgst(), delivery: deliveryFee(), total: grandTotal(), tip: 0
+    };
     try {
-      fetch('/api/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload), keepalive: true })
+      fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, payload, totals)),
+        keepalive: true
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.cashback) cashbackNote = rupee(d.cashback) + ' cashback added to your Zeva wallet.';
+          if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
+          if (d && d.ok) loadAccount();
+          if (screen === 'done') renderCartScreen();
+        })
         .catch(function () {});
     } catch (e) {}
 
@@ -831,7 +913,7 @@
     var printPayload = {
       id: payload.id, mode: payload.mode, pay: payload.pay, name: payload.name, phone: payload.phone,
       address: payload.address, note: payload.note, distance_m: payload.distance_m, items: payload.items,
-      items_total: total(), total: grandTotal(), cgst: cgst(), sgst: sgst(), tip: 0,
+      items_total: totals.items_total, total: totals.total, cgst: totals.cgst, sgst: totals.sgst, tip: 0,
       outside_radius: outsideRadius(), date: new Date().toISOString()
     };
     try {
@@ -980,9 +1062,152 @@
       if (which === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
       else if (which === 'search') { document.getElementById('q').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
       else if (which === 'cart') { screen = 'cart'; renderCartScreen(); openScreen('cart'); }
+      else if (which === 'you') { renderYou(); openScreen('you'); loadAccount(); }
       else if (which === 'call') window.location.href = 'tel:+917022771888';
     });
   });
+
+  document.getElementById('youScreen').addEventListener('click', function (e) {
+    var close = e.target.closest('[data-close]');
+    if (close) { closeScreen(close.getAttribute('data-close')); return; }
+    var act = e.target.closest('[data-act]');
+    if (!act) return;
+    var what = act.getAttribute('data-act');
+    if (what === 'logout') {
+      fetch('/api/auth/logout', { method: 'POST' }).then(function () { ACCT = null; loadAccount(); }).catch(function () {});
+    } else if (what === 'devlogin') {
+      fetch('/api/auth/dev').then(function () { loadAccount(); }).catch(function () {});
+    } else if (what === 'goldjoin') {
+      act.disabled = true;
+      act.textContent = 'Sending your request\u2026';
+      fetch('/api/gold/join', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadAccount(); })
+        .catch(function () { act.disabled = false; renderYou(); });
+    } else if (what === 'savephone') {
+      var nameEl = document.getElementById('u-name');
+      var phoneEl = document.getElementById('u-phone');
+      act.disabled = true;
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: nameEl ? nameEl.value : '', phone: phoneEl ? phoneEl.value : '' })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () {
+          form.name = nameEl ? nameEl.value : form.name;
+          form.phone = phoneEl ? phoneEl.value : form.phone;
+          write(FORM_KEY, form);
+          act.disabled = false;
+          act.textContent = 'Saved';
+          loadAccount();
+        })
+        .catch(function () { act.disabled = false; });
+    }
+  });
+
+  /* ---------------- you: profile, wallet, Zeva Gold ---------------- */
+  function selectTab(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      t.classList.toggle('on', t.getAttribute('data-tab') === name);
+    });
+  }
+
+  function loadAccount() {
+    fetch('/api/me', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d) return;
+        ACCT = d;
+        if (d.gold_plan) GOLD = d.gold_plan;
+        if (d.user) {
+          var touched = false;
+          if (!form.name && d.user.name) { form.name = d.user.name; touched = true; }
+          if (!form.phone && d.user.phone) { form.phone = d.user.phone; touched = true; }
+          if (touched) write(FORM_KEY, form);
+        }
+        renderYou();
+        if (screen === 'checkout') renderCartScreen();
+      })
+      .catch(function () { renderYou(); });
+  }
+
+  function dateText(ts) {
+    if (!ts) return '';
+    try { return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return ''; }
+  }
+
+  function renderYou() {
+    var body = document.getElementById('youBody');
+    var foot = document.getElementById('youFoot');
+    if (!body || !foot) return;
+    if (!ACCT) {
+      body.innerHTML = '<div class="empty">Loading your account&hellip;</div>';
+      foot.innerHTML = '';
+      return;
+    }
+
+    if (!ACCT.user) {
+      body.innerHTML =
+        '<div class="card"><h3>Sign in to Zeva</h3>' +
+          '<p>Your orders, your wallet and Zeva Gold &mdash; all in one place.</p>' +
+          '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside 5 km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
+          (ACCT.google
+            ? '<a class="btn" style="margin-top:12px" href="/api/auth/google/start?next=/app">Continue with Google</a>'
+            : '<div class="status warn" style="margin-top:12px">Google sign-in is being connected to this site &mdash; the button appears here as soon as the keys are in place.</div>') +
+          (ACCT.dev ? '<button class="btn ghost" type="button" data-act="devlogin">Local test sign-in</button>' : '') +
+          '<p class="muted">We only keep your name, email and photo from Google. No password is stored.</p>' +
+        '</div>' +
+        '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
+          '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside 5 km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
+        '</div>';
+      foot.innerHTML = '<a class="btn ghost" href="tel:+917022771888">Call the counter</a>';
+      return;
+    }
+
+    var u = ACCT.user;
+    var gold = ACCT.gold || { status: 'none' };
+    var goldCard;
+    if (gold.active) {
+      goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">ACTIVE</span></h3>' +
+        '<p>Free delivery on every order inside 5 km, and ' + rupee(GOLD.cashback) + ' cashback into your wallet each time.</p>' +
+        (gold.expires_at ? '<p class="muted">Valid until ' + dateText(gold.expires_at) + '</p>' : '') + '</div>';
+    } else if (gold.status === 'pending') {
+      goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill" style="background:var(--ink-800);color:var(--brass-2)">PENDING</span></h3>' +
+        '<p>Request received. Pay ' + rupee(GOLD.price) + ' at the counter (or on the payment link once it is live) and we switch Gold on for ' + GOLD.months + ' months right here.</p></div>';
+    } else {
+      goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
+        '<ul><li>Free delivery on every order inside 5 km</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
+        '<button class="btn" type="button" data-act="goldjoin" style="margin-top:12px">Join Zeva Gold &middot; ' + rupee(GOLD.price) + '</button>' +
+        '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p></div>';
+    }
+
+    var history = (ACCT.orders || []).map(function (o) {
+      return '<li><span>#' + esc(o.id) + '<span class="st">' + esc(o.status) + ' &middot; ' + (o.mode === 'pickup' ? 'pickup' : 'delivery') + ' &middot; ' + dateText(o.created_at) + '</span></span>' +
+        '<span style="color:var(--brass-2);font-variant-numeric:tabular-nums">' + rupee(o.total) + '</span></li>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="who"><div class="av">' + (u.picture ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">' : esc((u.name || 'Z').slice(0, 1).toUpperCase())) + '</div>' +
+        '<div><div class="nm">' + esc(u.name || 'Zeva guest') + '</div><div class="em">' + esc(u.email || '') + '</div></div></div>' +
+      goldCard +
+      '<div class="card"><h3>Zeva wallet</h3>' +
+        '<div class="bal">' + rupee(ACCT.wallet.balance) + '</div>' +
+        '<p class="muted">Cashback collects here. Show it at the counter to use it on your bill.</p>' +
+        ((ACCT.wallet.entries || []).length
+          ? '<ul class="ledger">' + ACCT.wallet.entries.map(function (e) {
+              return '<li><span>' + esc(e.note || e.kind) + '<span class="st">' + dateText(e.created_at) + '</span></span><span style="color:' + (e.amount < 0 ? 'var(--bad)' : 'var(--good)') + '">' + (e.amount > 0 ? '+' : '') + rupee(e.amount) + '</span></li>';
+            }).join('') + '</ul>'
+          : '') +
+      '</div>' +
+      '<div class="card"><h3>Your details</h3>' +
+        '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
+        '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
+        '<button class="btn ghost" type="button" data-act="savephone">Save details</button>' +
+      '</div>' +
+      '<div class="card"><h3>Orders</h3>' + (history ? '<ul class="hist">' + history + '</ul>' : '<p class="muted">No orders yet. Your first one will show up here.</p>') + '</div>';
+    foot.innerHTML = '<button class="btn ghost" type="button" data-act="logout">Log out</button>';
+  }
 
   /* ---------------- install prompt ---------------- */
   var installEvent = null;
@@ -1012,6 +1237,7 @@
   /* ---------------- boot ---------------- */
   renderCartChrome();
   loadMenu(false);
+  loadAccount();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
   }

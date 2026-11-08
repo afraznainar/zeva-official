@@ -1,0 +1,13 @@
+{
+  "appId": "com.zeva.mandi",
+  "appName": "Zeva Mandi & Grills",
+  "webDir": "www",
+  "server": {
+    "url": "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/app",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0e0a08"
+  }
+}

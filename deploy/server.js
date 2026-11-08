@@ -22,6 +22,14 @@ const PORT = process.env.PORT || 4173;
 const ROOT = path.resolve(__dirname, "dist");
 const ENV_FILE = path.resolve(__dirname, ".env");
 
+// The accounts API (sign-in, orders, wallet, Zeva Gold, admin) is the real
+// Worker module, run on Node through a SQLite-backed D1 shim.
+let accountsModule = null;
+function accountsApi() {
+  if (!accountsModule) accountsModule = import("./local-accounts.js");
+  return accountsModule;
+}
+
 function readEnv() {
   const env = {};
   if (fs.existsSync(ENV_FILE)) {
@@ -87,10 +95,16 @@ const server = http.createServer(async (req, res) => {
   const ip = req.socket.remoteAddress;
 
   try {
+    // ---- accounts API ----
+    const api = await accountsApi();
+    if (await api.handle(req, res, url)) return;
+
     // ---- static ----
     if (req.method === "GET" || req.method === "HEAD") {
       let p = decodeURIComponent(url.pathname);
       if (p === "/") p = "/index.html";
+      // Deployed assets answer /app and /admin; mirror that locally.
+      if (!path.extname(p) && fs.existsSync(path.join(ROOT, p + ".html"))) p = p + ".html";
       const filePath = path.normalize(path.join(ROOT, p));
       if (!filePath.startsWith(ROOT)) return send(res, 403, { error: "forbidden" });
       let stat;
@@ -138,13 +152,6 @@ const server = http.createServer(async (req, res) => {
         : "";
       if (!answer) return send(res, 502, { error: "empty completion" });
       return send(res, 200, { answer: answer, sources: pickSources(question, answer) });
-    }
-
-    if (url.pathname === "/api/orders" && req.method === "POST") {
-      const body = JSON.parse(await readBody(req));
-      const orderId = body && body.id ? String(body.id) : "unknown";
-      console.log("[order] id=" + orderId + " items=" + ((body && body.items ? body.items.length : 0)));
-      return send(res, 200, { ok: true, id: orderId });
     }
 
     if (url.pathname === "/api/print" && req.method === "POST") {

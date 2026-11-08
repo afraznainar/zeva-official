@@ -2,7 +2,8 @@
   "entrypoint": "worker/index.js",
   "compatibilityDate": "2026-11-01",
   "modules": [
-    { "name": "worker/index.js", "type": "esm", "path": "./worker/index.js" }
+    { "name": "worker/index.js", "type": "esm", "path": "./worker/index.js" },
+    { "name": "worker/accounts.js", "type": "esm", "path": "./worker/accounts.js" }
   ],
   "assetsDirectory": "./dist"
 }
