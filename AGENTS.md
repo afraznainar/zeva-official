@@ -30,6 +30,8 @@ if the site moves to a custom domain, run `node .tools/fix-og.js <new-origin>`.
 
 `deploy/dist/app.html` is the installable ordering app at `/app`; it reads the
 menu straight out of `menu.html` at runtime, so a menu edit needs no app change.
+Its You tab opens with the tilting foil profile card (photo, name, saved
+address, Zeva mark) driven by pointer CSS variables in `tiltCard()`.
 `manifest.webmanifest` and `sw.js` make it installable and keep it readable
 offline. Its icons come from `deploy/make-favicon.ps1` (rerun it after a logo
 change) and its `start_url` is absolute, so a move to a custom domain means
@@ -49,6 +51,18 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Sessions are HMAC-signed cookies (`zeva_sid`, 90 days; `zeva_admin`, 30 days)
   signed with `SESSION_SECRET` — there is no session table. Rotating that secret
   signs everybody out.
+- Order statuses: `pending` (customer sees "Pending confirmation") → `preparing`
+  (staff pressed **Accept order**) → `out` → `done`, plus `cancelled`. The
+  schema batch also rewrites legacy `new`/`ready` rows into the new names.
+- Zeva Money is the cashback wallet (`wallet` table). Cashback is credited in
+  `adminSetStatus` when an order becomes `done`, never at order time, and a
+  cancellation writes the matching negative row. Only once per order.
+- Order updates: every status change inserts a row in `notices` for that
+  customer, and the dashboard can send free-text messages (`/api/admin/notify`,
+  all customers or one order's customer). The app polls `/api/notices?after=`
+  and raises a system notification — the Capacitor LocalNotifications plugin in
+  the APK, the Notification API in a browser. Delivery therefore needs the app
+  open or the tab alive; true background push would need FCM.
 - Zeva Gold: `GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 }`
   at the top of `accounts.js`. Free delivery inside 5 km and ₹5 cashback per
   order are applied **server-side** in `createOrder`, never trusted from the
@@ -63,7 +77,8 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 
 `deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),
 order feed polled every 8 seconds with a WebAudio chime, desktop notification
-and tab-title counter, order status buttons, and Zeva Gold approvals.
+and tab-title counter, the Accept → Out for delivery → Delivered buttons, the
+message composer that reaches customer phones, and Zeva Gold approvals.
 
 Sound only plays after someone taps **Enable sound** once on the device (browser
 autoplay rules); the choice is remembered per device. Nothing here is in the

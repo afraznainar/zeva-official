@@ -32,7 +32,11 @@ customers directly or for testing, but Play Store uploads need a release keystor
 ## The APK you can hand out
 
 `apk/Zeva-Mandi-and-Grills.apk` is a signed debug build (package
-`com.zeva.mandi`, label "Zeva Mandi & Grills", min Android 5.1, target 34).
+`com.zeva.mandi`, label "Zeva Mandi & Grills", min Android 5.1, target 34,
+version 1.1). It bundles `@capacitor/local-notifications`, so order updates and
+counter messages arrive as real Android notifications while the app is running;
+that plugin is the one dependency a rebuild needs, and reinstall the APK after
+`npm install` because the native side changed.
 Copy it to a phone, tap it, allow "install unknown apps" once. It loads the live
 `/app` page, so menu and price changes reach installed phones with no new build.
 

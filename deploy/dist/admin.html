@@ -93,9 +93,10 @@
   .order .ref { font-weight: 700; font-size: 14px; letter-spacing: .04em; }
   .order .time { font-size: 11.5px; color: var(--text-3); }
   .badge { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; font-weight: 700; }
-  .badge.new { background: rgba(224,169,79,.18); color: var(--warn); }
+  .badge.pending { background: rgba(224,169,79,.18); color: var(--warn); animation: pulseBadge 2.4s ease-in-out infinite; }
+  @keyframes pulseBadge { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
   .badge.preparing { background: rgba(192,133,54,.16); color: var(--brass-2); }
-  .badge.ready { background: rgba(111,191,139,.16); color: var(--good); }
+  .badge.out { background: rgba(111,191,139,.16); color: var(--good); }
   .badge.done { background: rgba(147,130,111,.16); color: var(--text-3); }
   .badge.cancelled { background: rgba(226,122,106,.16); color: var(--bad); }
   .badge.gold { background: var(--brass); color: #170f09; }
@@ -116,6 +117,15 @@
   .acts button.primary { background: var(--brass); border-color: var(--brass); color: #1a1008; }
   .acts button.danger { color: var(--bad); border-color: rgba(226,122,106,.4); }
   .empty { text-align: center; color: var(--text-3); font-size: 13.5px; padding: 34px 10px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  /* -------- message composer -------- */
+  .compose {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--ink-900);
+    padding: 13px 14px;
+  }
+  .compose input { width: 100%; margin-bottom: 7px; }
+  .compose .acts { align-items: center; }
+  .hint { font-size: 11.5px; color: var(--text-3); }
 
   /* -------- gold -------- */
   .goldrow {
@@ -163,6 +173,16 @@
 
     <h2 class="sect" id="goldhead" hidden>Zeva Gold requests</h2>
     <div id="goldlist"></div>
+
+    <h2 class="sect">Message a customer's phone</h2>
+    <div class="compose">
+      <input id="n_title" type="text" maxlength="80" placeholder="Title \u2014 e.g. Zeva is closing at 11pm tonight">
+      <input id="n_body" type="text" maxlength="200" placeholder="Message (optional)">
+      <div class="acts" style="margin-top:9px">
+        <button class="primary" type="button" id="notifyall">Send to every customer</button>
+        <span class="hint" id="notifystate">Goes to the app on their phone.</span>
+      </div>
+    </div>
 
     <h2 class="sect">Orders</h2>
     <div id="orders"></div>
@@ -428,17 +448,18 @@
       return '<li><span>' + i.qty + ' \u00d7 ' + esc(i.name) + (i.variant ? ' <span style="color:var(--text-3)">' + esc(i.variant) + '</span>' : '') + '</span><span>' + rupee((Number(i.price) || 0) * (Number(i.qty) || 0)) + '</span></li>';
     }).join('');
     var acts = [];
-    if (o.status === 'new') acts.push('<button class="primary" data-set="' + esc(o.id) + '|preparing">Accept &middot; start cooking</button>');
-    if (o.status === 'new' || o.status === 'preparing') acts.push('<button data-set="' + esc(o.id) + '|ready">Ready</button>');
-    if (o.status === 'ready') acts.push('<button class="primary" data-set="' + esc(o.id) + '|done">Handed over</button>');
+    if (o.status === 'pending') acts.push('<button class="primary" data-set="' + esc(o.id) + '|preparing">Accept order</button>');
+    if (o.status === 'pending' || o.status === 'preparing') acts.push('<button data-set="' + esc(o.id) + '|out">' + (o.mode === 'pickup' ? 'Ready for pickup' : 'Out for delivery') + '</button>');
+    if (o.status === 'out') acts.push('<button class="primary" data-set="' + esc(o.id) + '|done">Delivered</button>');
     if (o.status !== 'done' && o.status !== 'cancelled') acts.push('<button class="danger" data-set="' + esc(o.id) + '|cancelled">Cancel</button>');
-    if (o.status === 'cancelled' || o.status === 'done') acts.push('<button data-set="' + esc(o.id) + '|new">Reopen</button>');
+    if (o.status === 'cancelled' || o.status === 'done') acts.push('<button data-set="' + esc(o.id) + '|pending">Reopen</button>');
+    if (o.user_id) acts.push('<button data-notify="' + esc(o.id) + '">Message this customer</button>');
 
     var flash = flashIds[o.id] ? ' flash' : '';
     delete flashIds[o.id];
-    return '<div class="order' + (o.status === 'new' ? ' fresh' : '') + flash + '" data-order="' + esc(o.id) + '">' +
+    return '<div class="order' + (o.status === 'pending' ? ' fresh' : '') + flash + '" data-order="' + esc(o.id) + '">' +
       '<div class="head"><span class="ref">#' + esc(o.id) + '</span>' +
-        '<span class="badge ' + esc(o.status) + '">' + esc(o.status) + '</span>' +
+        '<span class="badge ' + esc(o.status) + '">' + esc(statusWord(o.status)) + '</span>' +
         (o.gold_delivery ? '<span class="badge gold">Gold delivery</span>' : '') +
         '<span class="grow"></span>' +
         '<span class="time" title="' + esc(new Date(o.created_at).toLocaleString('en-IN')) + '">' + clock(o.created_at) + ' \u00b7 ' + ago(o.created_at) + '</span>' +
@@ -458,6 +479,36 @@
       '<div class="acts">' + acts.join('') + '</div>' +
     '</div>';
   }
+
+  function statusWord(s) {
+    return ({ pending: 'Pending confirmation', preparing: 'Preparing', out: 'On the way', done: 'Delivered', cancelled: 'Cancelled' })[s] || s;
+  }
+
+  /* ---------------- messages to the customer's phone ---------------- */
+  function sendNotice(payload, done) {
+    var note = $('notifystate');
+    if (note) note.textContent = 'Sending\u2026';
+    return fetch('/api/admin/notify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        if (note) note.textContent = d && d.ok ? 'Sent to ' + (d.to === 'all' ? 'every customer' : 'the customer') + '\u2019s phone.' : (d && d.error) || 'Could not send.';
+        if (done) done(d);
+      })
+      .catch(function () { if (note) note.textContent = 'Could not reach the server.'; });
+  }
+
+  $('notifyall').addEventListener('click', function () {
+    var title = $('n_title').value.trim();
+    var body = $('n_body').value.trim();
+    if (!title) { $('n_title').focus(); return; }
+    sendNotice({ title: title, body: body }, function (d) {
+      if (d && d.ok) { $('n_title').value = ''; $('n_body').value = ''; }
+    });
+  });
 
   function renderGold() {
     var pending = gold.filter(function (m) { return m.status === 'pending'; });
@@ -496,6 +547,13 @@
       }).then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function () { firstLoad = true; load(false); })
         .catch(function () { set.disabled = false; });
+      return;
+    }
+    var msg = e.target.closest('[data-notify]');
+    if (msg) {
+      var orderId = msg.getAttribute('data-notify');
+      var text = window.prompt('Message to send to this customer\u2019s phone:', 'Your order is taking a little longer \u2014 about 10 more minutes.');
+      if (text && text.trim()) sendNotice({ order_id: orderId, title: 'Update on #' + orderId, body: text.trim() });
       return;
     }
     var g = e.target.closest('[data-gold]');

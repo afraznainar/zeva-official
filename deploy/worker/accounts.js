@@ -27,6 +27,7 @@ const DB_SCHEMA = [
      name TEXT,
      picture TEXT,
      phone TEXT,
+     address TEXT,
      created_at INTEGER NOT NULL,
      last_seen_at INTEGER
    )`,
@@ -46,7 +47,7 @@ const DB_SCHEMA = [
      delivery REAL NOT NULL DEFAULT 0,
      total REAL NOT NULL DEFAULT 0,
      distance_m INTEGER,
-     status TEXT NOT NULL DEFAULT 'new',
+     status TEXT NOT NULL DEFAULT 'pending',
      gold_delivery INTEGER NOT NULL DEFAULT 0,
      created_at INTEGER NOT NULL,
      updated_at INTEGER
@@ -76,8 +77,37 @@ const DB_SCHEMA = [
      user_id TEXT NOT NULL,
      expires_at INTEGER NOT NULL,
      used_at INTEGER
-   )`
+   )`,
+  // Messages the counter sends down to a customer's phone. user_id NULL = everyone.
+  `CREATE TABLE IF NOT EXISTS notices (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id TEXT,
+     title TEXT NOT NULL,
+     body TEXT,
+     order_id TEXT,
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS notices_created ON notices (created_at DESC)`,
+  // Status rename: an order now waits for the counter ('pending') and leaves
+  // the kitchen for 'out' — no more 'new' / 'ready'.
+  `UPDATE orders SET status = 'pending' WHERE status = 'new'`,
+  `UPDATE orders SET status = 'out' WHERE status = 'ready'`
 ];
+
+/* The customer's saved address arrived after the first release, so the column
+   is added on demand instead of another schema table. */
+let userColumnsPromise = null;
+
+async function ensureUserColumns(env) {
+  if (!userColumnsPromise) {
+    userColumnsPromise = env.DB.prepare("ALTER TABLE users ADD COLUMN address TEXT")
+      .run()
+      .catch(function () {
+        /* already there */
+      });
+  }
+  await userColumnsPromise;
+}
 
 /* ------------------------------------------------------------
    Small helpers
@@ -201,6 +231,7 @@ export async function database(env) {
       });
   }
   await schemaPromise;
+  await ensureUserColumns(env);
   return env.DB;
 }
 
@@ -280,6 +311,7 @@ export function publicUser(user) {
     email: user.email || "",
     picture: user.picture || "",
     phone: user.phone || "",
+    address: user.address || "",
     created_at: user.created_at
   };
 }
@@ -420,20 +452,20 @@ export async function createOrder(request, env, body) {
       delivery,
       total,
       Math.round(distance),
-      "new",
+      "pending",
       freeDelivery ? 1 : 0,
       now
     )
     .run();
 
-  let cashback = 0;
-  if (user && gold.active && itemsTotal > 0) {
-    cashback = GOLD.cashback;
-    await db
-      .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(user.id, cashback, "cashback", id, "Zeva Gold cashback", now)
-      .run();
+  // Keep the delivery address on the profile so the next order is one tap.
+  const orderAddress = String(body.address || "").slice(0, 400);
+  if (user && orderAddress && !user.address && mode === "delivery") {
+    await db.prepare("UPDATE users SET address = ? WHERE id = ?").bind(orderAddress, user.id).run();
   }
+
+  // Zeva Money is credited when the order is marked delivered, not now.
+  const cashbackDue = user && gold.active && itemsTotal > 0 ? GOLD.cashback : 0;
 
   return json(200, {
     ok: true,
@@ -441,7 +473,7 @@ export async function createOrder(request, env, body) {
     total: total,
     delivery: delivery,
     free_delivery: freeDelivery,
-    cashback: cashback,
+    cashback_due: cashbackDue,
     wallet_balance: user ? await walletBalance(env, user.id) : 0
   });
 }
@@ -473,6 +505,7 @@ export function shapeOrder(row) {
     total: row.total,
     distance_m: row.distance_m,
     status: row.status,
+    user_id: row.user_id || null,
     gold_delivery: Boolean(row.gold_delivery),
     created_at: row.created_at
   };
@@ -512,7 +545,8 @@ export async function profilePayload(request, env) {
       balance: user ? await walletBalance(env, user.id) : 0,
       entries: entries
     },
-    orders: await myOrders(env, user && user.id, 20)
+    orders: await myOrders(env, user && user.id, 20),
+    notices: (await myNotices(env, user && user.id, 0)).last
   };
 }
 
@@ -538,8 +572,9 @@ export async function updateProfile(request, env, body) {
   const db = await database(env);
   const phone = String((body && body.phone) || "").replace(/[^\d+]/g, "").slice(0, 16);
   const name = String((body && body.name) || user.name || "").slice(0, 80);
-  await db.prepare("UPDATE users SET phone = ?, name = ? WHERE id = ?").bind(phone, name, user.id).run();
-  return json(200, { ok: true });
+  const address = String((body && body.address !== undefined ? body.address : user.address) || "").slice(0, 400);
+  await db.prepare("UPDATE users SET phone = ?, name = ?, address = ? WHERE id = ?").bind(phone, name, address, user.id).run();
+  return json(200, { ok: true, user: publicUser({ ...user, phone: phone, name: name, address: address }) });
 }
 
 /* ------------------------------------------------------------
@@ -575,7 +610,7 @@ export async function adminOrders(env, after) {
     ? await db.prepare("SELECT " + ORDER_FIELDS + " FROM orders WHERE created_at > ? ORDER BY created_at ASC LIMIT 60").bind(since).all()
     : await db.prepare("SELECT " + ORDER_FIELDS + " FROM orders ORDER BY created_at DESC LIMIT 60").all();
   const live = await db
-    .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS sum FROM orders WHERE status IN ('new','preparing','ready')")
+    .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS sum FROM orders WHERE status IN ('pending','preparing','out')")
     .first();
   const today = await db
     .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS sum FROM orders WHERE created_at > ?")
@@ -600,16 +635,60 @@ function startOfDay() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
 
+// pending -> preparing -> out -> done, plus cancelled. The counter's Accept
+// button is what turns a customer's "pending confirmation" into a live order.
+export const ORDER_STATUSES = ["pending", "preparing", "out", "done", "cancelled"];
+
+const STATUS_NOTICE = {
+  pending: ["Order received", "Waiting for the counter to accept it."],
+  preparing: ["Order accepted", "The kitchen has your order and is on it."],
+  out: ["Out for delivery", "Your order just left Zeva Mandi & Grills."],
+  done: ["Order delivered", "Enjoy. Any Zeva Money cashback is in your account."],
+  cancelled: ["Order cancelled", "This order was cancelled. Nothing was charged."]
+};
+
 export async function adminSetStatus(env, body) {
   const db = await database(env);
   const id = String((body && body.id) || "");
-  const status = String((body && body.status) || "");
-  if (!id || ["new", "preparing", "ready", "done", "cancelled"].indexOf(status) < 0) {
+  let status = String((body && body.status) || "");
+  if (status === "new") status = "pending";
+  if (status === "ready") status = "out";
+  if (!id || ORDER_STATUSES.indexOf(status) < 0) {
     return json(400, { error: "bad request" });
   }
-  const order = await db.prepare("SELECT id, user_id, status FROM orders WHERE id = ?").bind(id).first();
+  const order = await db.prepare("SELECT id, user_id, status, mode, items_total FROM orders WHERE id = ?").bind(id).first();
   if (!order) return json(404, { error: "unknown order" });
   await db.prepare("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?").bind(status, Date.now(), id).run();
+
+  let credited = 0;
+  if (status === "done" && order.user_id) {
+    // Cashback lands in Zeva Money only once the food is in the customer's hands.
+    const already = await db
+      .prepare("SELECT COALESCE(SUM(amount), 0) AS sum FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'cashback'")
+      .bind(order.user_id, id)
+      .first();
+    const gold = await goldStatus(env, order.user_id);
+    if (gold.active && Number((already && already.sum) || 0) === 0 && Number(order.items_total || 0) > 0) {
+      credited = GOLD.cashback;
+      await db
+        .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'cashback', ?, ?, ?)")
+        .bind(order.user_id, credited, id, "Zeva Money cashback · #" + id, Date.now())
+        .run();
+    }
+  }
+
+  if (order.user_id && STATUS_NOTICE[status]) {
+    const text = STATUS_NOTICE[status];
+    const title = order.mode === "pickup" && status === "out" ? "Ready for pickup" : text[0];
+    const line = order.mode === "pickup" && status === "out" ? "Your order is packed and waiting at the counter." : text[1];
+    await pushNotice(env, {
+      user_id: order.user_id,
+      title: "#" + id + " \u00b7 " + title,
+      body: line + (credited ? " +\u20b9" + credited + " in Zeva Money." : ""),
+      order_id: id
+    });
+  }
+
   if (status === "cancelled" && order.user_id) {
     const credit = await db
       .prepare("SELECT COALESCE(SUM(amount), 0) AS sum FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'cashback'")
@@ -622,7 +701,67 @@ export async function adminSetStatus(env, body) {
         .run();
     }
   }
-  return json(200, { ok: true, id: id, status: status });
+  return json(200, { ok: true, id: id, status: status, cashback: credited });
+}
+
+/* ------------------------------------------------------------
+   Notices — the counter's messages, delivered into the app
+   ------------------------------------------------------------
+   Rows land in D1; the phone polls /api/notices and raises a
+   system notification. Nothing here needs push credentials. */
+
+export async function pushNotice(env, notice) {
+  const db = await database(env);
+  if (!db) return null;
+  const title = String((notice && notice.title) || "Zeva").slice(0, 90);
+  const body = String((notice && notice.body) || "").slice(0, 400);
+  const userId = (notice && notice.user_id) || null;
+  const orderId = (notice && notice.order_id) || null;
+  const result = await db
+    .prepare("INSERT INTO notices (user_id, title, body, order_id, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(userId, title, body, orderId, Date.now())
+    .run();
+  return { ok: true, id: (result && result.meta && result.meta.last_row_id) || null };
+}
+
+export async function adminNotify(env, body) {
+  const title = String((body && body.title) || "").trim();
+  if (!title) return json(400, { error: "a message is needed" });
+  let to = String((body && body.user_id) || "").trim();
+  const orderId = String((body && body.order_id) || "").trim();
+  if (!to && orderId) {
+    const db = await database(env);
+    const order = db && (await db.prepare("SELECT user_id FROM orders WHERE id = ?").bind(orderId).first());
+    if (!order) return json(404, { error: "unknown order" });
+    if (!order.user_id) return json(409, { error: "this order has no signed-in customer, so there is no phone to message" });
+    to = order.user_id;
+  }
+  const sent = await pushNotice(env, {
+    user_id: to || null,
+    title: title,
+    body: String((body && body.body) || "").trim(),
+    order_id: (body && body.order_id) || null
+  });
+  if (!sent) return json(503, { error: "accounts are not configured" });
+  return json(200, { ok: true, to: to || "all" });
+}
+
+export async function myNotices(env, userId, after) {
+  const db = await database(env);
+  if (!db) return { notices: [], last: Number(after || 0) };
+  const since = Math.max(0, Number(after || 0) || 0);
+  const rows = userId
+    ? await db
+        .prepare("SELECT id, title, body, order_id, created_at FROM notices WHERE id > ? AND (user_id = ? OR user_id IS NULL) ORDER BY id ASC LIMIT 30")
+        .bind(since, userId)
+        .all()
+    : await db
+        .prepare("SELECT id, title, body, order_id, created_at FROM notices WHERE id > ? AND user_id IS NULL ORDER BY id ASC LIMIT 30")
+        .bind(since)
+        .all();
+  const notices = rows.results || [];
+  const last = notices.length ? notices[notices.length - 1].id : since;
+  return { notices: notices, last: last };
 }
 
 export async function adminGoldList(env) {
@@ -723,6 +862,11 @@ export async function handleAccounts(request, env, url) {
     return joinGold(request, env);
   }
 
+  if (path === "/api/notices" && request.method === "GET") {
+    const user = await currentUser(request, env);
+    return json(200, await myNotices(env, user && user.id, url.searchParams.get("after")));
+  }
+
   if (path === "/api/admin/session") {
     return json(200, { signed_in: await adminGate(request, env), configured: Boolean(env.ADMIN_PASSCODE) });
   }
@@ -743,6 +887,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/order" && request.method === "POST") {
       if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
       return adminSetStatus(env, await readJson(request));
+    }
+    if (path === "/api/admin/notify" && request.method === "POST") {
+      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      return adminNotify(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {

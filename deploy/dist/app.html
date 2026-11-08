@@ -264,6 +264,31 @@
 
   .empty { text-align: center; padding: 46px 20px; color: var(--text-3); font-size: 13.5px; line-height: 1.6; }
 
+  /* ---------- in-app toast (mirrors a phone notification) ---------- */
+  .toasts {
+    position: fixed; left: 0; right: 0; z-index: 90;
+    top: calc(10px + var(--safe-t));
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    padding: 0 14px; pointer-events: none;
+  }
+  .toast {
+    width: 100%; max-width: 460px;
+    padding: 11px 13px; border-radius: 13px;
+    background: rgba(26, 20, 17, .97); border: 1px solid rgba(192, 133, 54, .5);
+    box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .9);
+    transform: translateY(-14px); opacity: 0;
+    animation: toastIn .32s cubic-bezier(.16, 1, .3, 1) forwards;
+    backdrop-filter: blur(8px);
+  }
+  .toast b { display: block; font-size: 13px; color: var(--brass-2); font-weight: 600; }
+  .toast span { display: block; font-size: 12px; color: var(--text-2); margin-top: 2px; line-height: 1.4; }
+  .toast.out { animation: toastOut .4s ease forwards; }
+  @keyframes toastIn { to { transform: translateY(0); opacity: 1; } }
+  @keyframes toastOut { to { transform: translateY(-14px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { animation-duration: .01s; }
+  }
+
   /* ---------- checkout ---------- */
   .sect { padding: 14px 0; border-bottom: 1px solid var(--line); }
   .sect h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
@@ -326,7 +351,92 @@
   .ledger li, .hist li { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--text-2); padding: 8px 0; border-top: 1px dashed var(--line); }
   .hist li { border-top: 1px solid var(--line); }
   .hist .st { font-size: 10.5px; color: var(--text-3); text-transform: capitalize; display: block; margin-top: 2px; }
+  .ledger .st { display: block; font-size: 10.5px; color: var(--text-3); margin-top: 2px; }
   .gold-pill { padding: 3px 9px; border-radius: 999px; background: var(--brass); color: #170f09; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; }
+
+  /* ---------- profile card: brushed holo, tilts under the finger ---------- */
+  .pcard-wrap { perspective: 900px; margin: 14px 0 4px; }
+  .pcard {
+    --rotate-x: 0deg; --rotate-y: 0deg;
+    --pointer-x: 50%; --pointer-y: 50%;
+    --background-x: 50%; --background-y: 50%;
+    --pointer-from-center: 0;
+    position: relative; border-radius: 19px; padding: 1px;
+    background: linear-gradient(140deg,
+      rgba(255, 206, 148, .92), rgba(168, 116, 58, .6) 30%,
+      rgba(96, 74, 50, .55) 62%, rgba(255, 206, 148, .8) 100%);
+    transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+    transform-style: preserve-3d;
+    transition: transform .4s cubic-bezier(.16, 1, .3, 1);
+    box-shadow: 0 22px 44px -26px rgba(0, 0, 0, .95), 0 0 0 1px rgba(0, 0, 0, .45);
+  }
+  .pcard.tilting { transition: transform .08s linear; }
+  .pcard-inner {
+    position: relative; overflow: hidden; border-radius: 18px; padding: 15px 15px 13px;
+    background:
+      radial-gradient(130% 95% at 28% 0%, rgba(64, 44, 26, .9), rgba(26, 18, 13, 0) 60%),
+      linear-gradient(152deg, #241a13 0%, #150f0b 58%, #1d140f 100%);
+  }
+  /* foil: a diagonal band of colour that slides with the card */
+  .pcard-inner::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(112deg,
+      rgba(255, 214, 165, 0) 10%, rgba(255, 214, 165, .62) 26%,
+      rgba(130, 224, 190, .38) 37%, rgba(126, 176, 255, .34) 47%,
+      rgba(255, 146, 186, .38) 57%, rgba(255, 200, 130, .6) 72%,
+      rgba(255, 214, 165, 0) 88%);
+    background-size: 260% 260%;
+    background-position: var(--background-x) var(--background-y);
+    opacity: calc(.5 + var(--pointer-from-center) * .35);
+    mix-blend-mode: screen;
+    transition: opacity .35s ease;
+  }
+  /* specular highlight that follows the finger */
+  .pcard-inner::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(240px 180px at var(--pointer-x) var(--pointer-y),
+        rgba(255, 248, 232, .3), rgba(255, 248, 232, .06) 45%, rgba(255, 248, 232, 0) 76%);
+    opacity: calc(.15 + var(--pointer-from-center) * .8);
+    mix-blend-mode: screen;
+    transition: opacity .35s ease;
+  }
+  .pcard-inner > * { position: relative; z-index: 1; }
+  .pc-top { display: flex; align-items: center; gap: 12px; }
+  .pc-av {
+    width: 58px; height: 58px; border-radius: 50%; flex: none; overflow: hidden;
+    display: grid; place-items: center; background: var(--ink-800);
+    border: 1px solid rgba(223, 174, 116, .5);
+    font-family: var(--display); font-size: 24px; color: var(--brass-2);
+    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .9);
+  }
+  .pc-av img { width: 100%; height: 100%; object-fit: cover; }
+  .pc-id { min-width: 0; flex: 1; }
+  .pc-name { font-size: 16px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc-line { font-size: 11.5px; color: var(--text-3); line-height: 1.45; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pc-line b { color: var(--text-2); font-weight: 500; }
+  .pc-mark { position: absolute; top: 9px; right: 12px; width: 30px; height: 30px; opacity: .95; }
+  .pc-mark img { width: 100%; height: 100%; object-fit: contain;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .8)) drop-shadow(0 0 12px rgba(223, 174, 116, .35)); }
+  .pc-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 13px; }
+  .pc-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    padding: 4px 8px; border-radius: 6px;
+    border: 1px solid rgba(223, 174, 116, .38); color: var(--brass-2);
+    background: rgba(192, 133, 54, .12);
+  }
+  .pc-chip.money { border-color: rgba(111, 191, 139, .4); color: #a9dcbc; background: rgba(111, 191, 139, .12); }
+  .pc-since { margin-left: auto; font-size: 10.5px; color: var(--text-3); letter-spacing: .04em; }
+
+  /* ---------- order progress ---------- */
+  .osteps { display: flex; align-items: center; gap: 4px; margin-top: 9px; }
+  .osteps i {
+    flex: 1; height: 3px; border-radius: 3px; background: rgba(240, 226, 205, .13);
+  }
+  .osteps i.on { background: var(--brass); }
+  .osteps i.on.live { background: var(--good); }
+  .order-live { border: 1px solid rgba(192, 133, 54, .45); background: linear-gradient(180deg, rgba(192, 133, 54, .1), var(--ink-900) 75%); }
+  .st-now { font-size: 11.5px; color: var(--brass-2); margin-top: 7px; }
   .muted { font-size: 11.5px; color: var(--text-3); line-height: 1.55; margin-top: 8px; }
 
   .foot-note { font-size: 11px; color: var(--text-3); text-align: center; padding: 18px 16px 6px; line-height: 1.6; }
@@ -473,7 +583,9 @@
   var printState = 'idle';
   var activeSizeCat = '';
   var activeSizeItem = '';
-  var ACCT = null;        // /api/me — profile, wallet, Gold, past orders
+  var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
+  var notifyState = 'default';
+  var NOTICE_KEY = 'zeva_notice_after';
   var GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 };
   var GOLD_FREE_M = 5000;
   var cashbackNote = '';
@@ -737,7 +849,7 @@
       html += '<div class="row"><span>' + label + '</span><span class="v">' + value + '</span></div>';
     }
     if (goldActive() && cart.length) {
-      html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to wallet</span></div>';
+      html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to Zeva Money on delivery</span></div>';
     }
     html += '<div class="row total"><span>To pay' + (pay === 'cash' ? ' (cash)' : pay === 'upi' ? ' (UPI)' : '') + '</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
     return html;
@@ -821,7 +933,7 @@
         '<button type="button" class="' + (pay === 'upi' ? 'on' : '') + '" data-pay="upi">UPI</button>' +
       '</div></div>' + bills() +
       (goldActive()
-        ? '<div class="status ok">Zeva Gold: free delivery inside 5 km and ' + rupee(GOLD.cashback) + ' cashback goes to your wallet with this order.</div>'
+        ? '<div class="status ok">Zeva Gold: free delivery inside 5 km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
         : signedIn()
           ? '<div class="status warn">Zeva Gold gives free delivery inside 5 km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
           : (ACCT && ACCT.google
@@ -901,7 +1013,7 @@
       })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (d) {
-          if (d && d.cashback) cashbackNote = rupee(d.cashback) + ' cashback added to your Zeva wallet.';
+          if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
           if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
           if (d && d.ok) loadAccount();
           if (screen === 'done') renderCartScreen();
@@ -1087,22 +1199,40 @@
     } else if (what === 'savephone') {
       var nameEl = document.getElementById('u-name');
       var phoneEl = document.getElementById('u-phone');
+      var addrEl = document.getElementById('u-addr');
       act.disabled = true;
       fetch('/api/profile', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: nameEl ? nameEl.value : '', phone: phoneEl ? phoneEl.value : '' })
+        body: JSON.stringify({
+          name: nameEl ? nameEl.value : '',
+          phone: phoneEl ? phoneEl.value : '',
+          address: addrEl ? addrEl.value : ''
+        })
       })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function () {
           form.name = nameEl ? nameEl.value : form.name;
           form.phone = phoneEl ? phoneEl.value : form.phone;
+          if (addrEl && addrEl.value) form.addr = addrEl.value;
           write(FORM_KEY, form);
           act.disabled = false;
           act.textContent = 'Saved';
           loadAccount();
         })
         .catch(function () { act.disabled = false; });
+    } else if (what === 'editprofile') {
+      var details = document.getElementById('details');
+      if (details) details.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var addrField = document.getElementById('u-addr');
+      if (addrField) setTimeout(function () { addrField.focus(); }, 350);
+    } else if (what === 'notify-on') {
+      act.disabled = true;
+      requestNotify().then(function (state) {
+        act.disabled = false;
+        if (state === 'granted') { tellDevice('Zeva updates on', 'Order updates will arrive here.'); renderYou(); }
+        else { act.textContent = 'Notifications blocked in this browser'; }
+      });
     }
   });
 
@@ -1124,12 +1254,96 @@
           var touched = false;
           if (!form.name && d.user.name) { form.name = d.user.name; touched = true; }
           if (!form.phone && d.user.phone) { form.phone = d.user.phone; touched = true; }
+          if (!form.addr && d.user.address) { form.addr = d.user.address; touched = true; }
           if (touched) write(FORM_KEY, form);
         }
+        try {
+          if (!localStorage.getItem(NOTICE_KEY) && d.notices) localStorage.setItem(NOTICE_KEY, String(d.notices));
+        } catch (e) {}
         renderYou();
         if (screen === 'checkout') renderCartScreen();
       })
       .catch(function () { renderYou(); });
+  }
+
+  /* ---------------- notifications from the counter ---------------- */
+  function capPlugin(name) {
+    try {
+      return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[name]) || null;
+    } catch (e) { return null; }
+  }
+
+  function storedNoticeId() {
+    try { return Number(localStorage.getItem(NOTICE_KEY) || 0) || 0; } catch (e) { return 0; }
+  }
+
+  function requestNotify() {
+    var LN = capPlugin('LocalNotifications');
+    if (LN) {
+      return LN.requestPermissions()
+        .then(function (res) { notifyState = res && res.display === 'granted' ? 'granted' : 'denied'; return notifyState; })
+        .catch(function () { return notifyState; });
+    }
+    if ('Notification' in window) {
+      return Notification.requestPermission()
+        .then(function (p) { notifyState = p; return p; })
+        .catch(function () { return notifyState; });
+    }
+    notifyState = 'unsupported';
+    return Promise.resolve(notifyState);
+  }
+
+  // One place that raises a real phone notification: the Capacitor plugin in
+  // the APK, the browser Notification API everywhere else, plus an in-app toast.
+  function tellDevice(title, body) {
+    toast(title, body);
+    var LN = capPlugin('LocalNotifications');
+    if (LN && notifyState === 'granted') {
+      try {
+        LN.schedule({
+          notifications: [{
+            id: Math.floor(Date.now() % 2147483000),
+            title: title,
+            body: body || '',
+            smallIcon: 'ic_launcher',
+            summaryText: 'Zeva Mandi & Grills'
+          }]
+        }).catch(function () {});
+      } catch (e) {}
+      return;
+    }
+    if ('Notification' in window && notifyState === 'granted') {
+      try { new Notification(title, { body: body || '', icon: 'assets/img/icon-192.png', tag: 'zeva' }); } catch (e) {}
+    }
+  }
+
+  function toast(title, body) {
+    var host = document.getElementById('toasts');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'toasts';
+      host.className = 'toasts';
+      document.body.appendChild(host);
+    }
+    var el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = '<b>' + esc(title) + '</b>' + (body ? '<span>' + esc(body) + '</span>' : '');
+    host.appendChild(el);
+    setTimeout(function () { el.classList.add('out'); }, 5200);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 5800);
+  }
+
+  function pollNotices() {
+    var after = storedNoticeId();
+    fetch('/api/notices?after=' + after, { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.notices || !d.notices.length) return;
+        d.notices.slice(-3).forEach(function (n) { tellDevice(n.title, n.body); });
+        try { localStorage.setItem(NOTICE_KEY, String(d.last)); } catch (e) {}
+        loadAccount();
+      })
+      .catch(function () {});
   }
 
   function dateText(ts) {
@@ -1167,6 +1381,9 @@
 
     var u = ACCT.user;
     var gold = ACCT.gold || { status: 'none' };
+    var money = Number((ACCT.wallet && ACCT.wallet.balance) || 0);
+    var live = (ACCT.orders || []).filter(function (o) { return o.status !== 'done' && o.status !== 'cancelled'; });
+    var past = (ACCT.orders || []).filter(function (o) { return o.status === 'done' || o.status === 'cancelled'; });
     var goldCard;
     if (gold.active) {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">ACTIVE</span></h3>' +
@@ -1182,31 +1399,158 @@
         '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p></div>';
     }
 
-    var history = (ACCT.orders || []).map(function (o) {
-      return '<li><span>#' + esc(o.id) + '<span class="st">' + esc(o.status) + ' &middot; ' + (o.mode === 'pickup' ? 'pickup' : 'delivery') + ' &middot; ' + dateText(o.created_at) + '</span></span>' +
+    var card =
+      '<div class="pcard-wrap" id="pcardWrap"><div class="pcard" id="pcard"><div class="pcard-inner">' +
+        '<div class="pc-mark"><img src="assets/img/zeva-mark.webp" alt="Zeva"></div>' +
+        '<div class="pc-top">' +
+          '<div class="pc-av">' + (u.picture ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">' : esc((u.name || 'Z').slice(0, 1).toUpperCase())) + '</div>' +
+          '<div class="pc-id">' +
+            '<div class="pc-name">' + esc(u.name || 'Zeva guest') + '</div>' +
+            '<div class="pc-line" data-act="editprofile">' + (u.address ? esc(u.address) : '<b>Add your delivery address</b> \u2014 one tap at checkout') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pc-meta">' +
+          (gold.active ? '<span class="pc-chip">Zeva Gold</span>' : '<span class="pc-chip" style="opacity:.55">No Gold</span>') +
+          '<span class="pc-chip money">Zeva Money ' + rupee(money) + '</span>' +
+          (u.phone ? '<span class="pc-since">' + esc(u.phone) + '</span>' : (u.created_at ? '<span class="pc-since">Since ' + dateText(u.created_at) + '</span>' : '')) +
+        '</div>' +
+      '</div></div></div>';
+
+    var history = past.map(function (o) {
+      return '<li><span>#' + esc(o.id) + '<span class="st">' + esc(statusLabel(o.status)) + ' &middot; ' + (o.mode === 'pickup' ? 'pickup' : 'delivery') + ' &middot; ' + dateText(o.created_at) + '</span></span>' +
         '<span style="color:var(--brass-2);font-variant-numeric:tabular-nums">' + rupee(o.total) + '</span></li>';
     }).join('');
 
+    var inFlight = live.map(function (o) {
+      var step = statusStep(o.status);
+      var bars = '';
+      for (var i = 0; i < 4; i++) bars += '<i class="' + (i < step ? (i === step - 1 ? 'on live' : 'on') : '') + '"></i>';
+      return '<div class="card order-live">' +
+        '<h3>#' + esc(o.id) + '<span class="gold-pill">' + esc(statusLabel(o.status)) + '</span></h3>' +
+        '<p>' + esc(statusHint(o)) + '</p>' +
+        '<div class="osteps">' + bars + '</div>' +
+        '<p class="st-now">' + (o.mode === 'pickup' ? 'Pickup' : 'Delivery') + ' \u00b7 ' + rupee(o.total) + ' \u00b7 ' + dateText(o.created_at) + '</p>' +
+      '</div>';
+    }).join('');
+
     body.innerHTML =
-      '<div class="who"><div class="av">' + (u.picture ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">' : esc((u.name || 'Z').slice(0, 1).toUpperCase())) + '</div>' +
-        '<div><div class="nm">' + esc(u.name || 'Zeva guest') + '</div><div class="em">' + esc(u.email || '') + '</div></div></div>' +
+      card +
+      (inFlight ? inFlight : '') +
       goldCard +
-      '<div class="card"><h3>Zeva wallet</h3>' +
-        '<div class="bal">' + rupee(ACCT.wallet.balance) + '</div>' +
-        '<p class="muted">Cashback collects here. Show it at the counter to use it on your bill.</p>' +
+      '<div class="card"><h3>Zeva Money</h3>' +
+        '<div class="bal">' + rupee(money) + '</div>' +
+        '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 ' + rupee(GOLD.cashback) + ' on every order while Gold is active. Show the balance at the counter to use it on your bill.</p>' +
         ((ACCT.wallet.entries || []).length
           ? '<ul class="ledger">' + ACCT.wallet.entries.map(function (e) {
-              return '<li><span>' + esc(e.note || e.kind) + '<span class="st">' + dateText(e.created_at) + '</span></span><span style="color:' + (e.amount < 0 ? 'var(--bad)' : 'var(--good)') + '">' + (e.amount > 0 ? '+' : '') + rupee(e.amount) + '</span></li>';
+              return '<li><span>' + esc(e.note || e.kind) + '<span class="st">' + dateText(e.created_at) + '</span></span><span style="color:' + (e.amount < 0 ? 'var(--bad)' : 'var(--good)') + ';font-variant-numeric:tabular-nums">' + (e.amount < 0 ? '\u2212' : '+') + rupee(Math.abs(e.amount)) + '</span></li>';
             }).join('') + '</ul>'
           : '') +
       '</div>' +
-      '<div class="card"><h3>Your details</h3>' +
+      '<div class="card" id="details"><h3>Your details</h3>' +
         '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
         '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
+        '<div class="field"><label for="u-addr">Delivery address</label><textarea id="u-addr" placeholder="House, street, Bolar \u2014 what the rider should look for">' + esc(u.address || '') + '</textarea></div>' +
         '<button class="btn ghost" type="button" data-act="savephone">Save details</button>' +
       '</div>' +
-      '<div class="card"><h3>Orders</h3>' + (history ? '<ul class="hist">' + history + '</ul>' : '<p class="muted">No orders yet. Your first one will show up here.</p>') + '</div>';
+      '<div class="card"><h3>Your orders</h3>' +
+        (inFlight ? '' : history ? '' : '<p class="muted">No orders yet. Your first one will show up here.</p>') +
+        (history ? '<p class="muted" style="margin-top:' + (inFlight ? '12px' : '0') + '">Past orders</p><ul class="hist">' + history + '</ul>' : '') +
+      '</div>' +
+      '<div class="card"><h3>Order updates on this phone</h3>' +
+        '<p class="muted">Get a notification here when the counter accepts your order, when it leaves for delivery and when it is delivered. Also used for messages from Zeva.</p>' +
+        '<button class="btn ghost" type="button" data-act="notify-on" style="margin-top:10px">' + (notifyState === 'granted' ? 'Notifications are on' : 'Turn on notifications') + '</button>' +
+      '</div>';
     foot.innerHTML = '<button class="btn ghost" type="button" data-act="logout">Log out</button>';
+    tiltCard();
+  }
+
+  /* ---------------- order statuses ---------------- */
+  function statusLabel(s) {
+    return ({ pending: 'Pending confirmation', preparing: 'Preparing', out: 'Out for delivery', done: 'Delivered', cancelled: 'Cancelled' })[s] || s || '';
+  }
+
+  function statusStep(s) {
+    return ({ pending: 1, preparing: 2, out: 3, done: 4 })[s] || 0;
+  }
+
+  function statusHint(o) {
+    if (o.status === 'pending') return 'Sent to the counter. We will accept it in a moment \u2014 it is not confirmed until then.';
+    if (o.status === 'preparing') return 'Accepted. The kitchen is on it.';
+    if (o.status === 'out') return o.mode === 'pickup' ? 'Packed and waiting for you at the counter.' : 'On the way to you.';
+    if (o.status === 'done') return 'Delivered. Zeva Money cashback has been added.';
+    if (o.status === 'cancelled') return 'Cancelled. Nothing was charged.';
+    return '';
+  }
+
+  /* ---------------- the profile card: pointer tilt + holo ---------------- */
+  function tiltCard() {
+    var wrap = document.getElementById('pcardWrap');
+    var card = document.getElementById('pcard');
+    if (!wrap || !card || !window.PointerEvent) return;
+
+    var clamp = function (v, lo, hi) { return Math.min(Math.max(v, lo), hi); };
+    var round = function (v) { return Math.round(v * 1000) / 1000; };
+    var adjust = function (v, fm, fx, tm, tx) { return tm + ((tx - tm) * (v - fm)) / (fx - fm); };
+    var easer = null;
+
+    function paint(px, py) {
+      var r = wrap.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var x = clamp(px, 0, r.width);
+      var y = clamp(py, 0, r.height);
+      var pctX = (100 / r.width) * x;
+      var pctY = (100 / r.height) * y;
+      var fromCenter = clamp(Math.sqrt((pctY - 50) * (pctY - 50) + (pctX - 50) * (pctX - 50)) / 50, 0, 1);
+      var style = card.style;
+      style.setProperty('--pointer-x', round(pctX) + '%');
+      style.setProperty('--pointer-y', round(pctY) + '%');
+      style.setProperty('--background-x', round(adjust(pctX, 0, 100, 32, 68)) + '%');
+      style.setProperty('--background-y', round(adjust(pctY, 0, 100, 32, 68)) + '%');
+      style.setProperty('--pointer-from-center', round(fromCenter));
+      style.setProperty('--rotate-x', round(-((pctY - 50) / 5)) + 'deg');
+      style.setProperty('--rotate-y', round((pctX - 50) / 4) + 'deg');
+    }
+
+    function ease(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+    function easeTo(ms, fromPx, fromPy, toPx, toPy) {
+      if (easer) easer.cancel();
+      var start = performance.now();
+      var cancel = false;
+      easer = { cancel: function () { cancel = true; } };
+      (function loop() {
+        if (cancel) return;
+        var p = Math.min(1, (performance.now() - start) / ms);
+        var e = ease(p);
+        paint(adjust(e, 0, 1, fromPx, toPx), adjust(e, 0, 1, fromPy, toPy));
+        if (p < 1) requestAnimationFrame(loop);
+      })();
+    }
+
+    function move(e) {
+      var r = wrap.getBoundingClientRect();
+      if (easer) easer.cancel();
+      card.classList.add('tilting');
+      paint(e.clientX - r.left, e.clientY - r.top);
+    }
+
+    card.addEventListener('pointermove', move);
+    card.addEventListener('pointerdown', move);
+    card.addEventListener('pointerleave', function (e) {
+      card.classList.remove('tilting');
+      var r = wrap.getBoundingClientRect();
+      easeTo(700, e.clientX - r.left, e.clientY - r.top, r.width / 2, r.height / 2);
+    });
+
+    // A single sweep across the card the first time it opens, like a card
+    // being taken out of a wallet, then it settles under the finger.
+    var r = wrap.getBoundingClientRect();
+    if (r.width && !wrap.dataset.swept) {
+      wrap.dataset.swept = '1';
+      setTimeout(function () { easeTo(2200, r.width - 20, 24, r.width / 2, r.height / 2); }, 220);
+    } else {
+      paint((r.width || 2) / 2, (r.height || 2) / 2);
+    }
   }
 
   /* ---------------- install prompt ---------------- */
@@ -1238,6 +1582,9 @@
   renderCartChrome();
   loadMenu(false);
   loadAccount();
+  setTimeout(pollNotices, 2500);
+  setInterval(function () { if (!document.hidden) pollNotices(); }, 20000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) pollNotices(); });
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
   }
