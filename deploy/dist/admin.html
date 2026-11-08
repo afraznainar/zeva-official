@@ -118,6 +118,25 @@
   .acts button.danger { color: var(--bad); border-color: rgba(226,122,106,.4); }
   .empty { text-align: center; color: var(--text-3); font-size: 13.5px; padding: 34px 10px; border: 1px dashed var(--line); border-radius: 14px; }
 
+  /* -------- order filters -------- */
+  .filters { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .filters button {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px; border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    font-size: 12.5px; font-weight: 600; color: var(--text-2);
+    background: var(--ink-900);
+  }
+  .filters button:hover { border-color: var(--brass); color: var(--brass-2); }
+  .filters button.on { background: rgba(192,133,54,.16); border-color: var(--brass); color: var(--brass-2); }
+  .filters button .n {
+    min-width: 19px; padding: 1px 5px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-align: center;
+    background: rgba(240,226,205,.12); color: var(--paper);
+  }
+  .filters button.on .n { background: var(--brass); color: #1a1008; }
+  .filters button:disabled { opacity: .45; }
+
   /* -------- message composer -------- */
   .compose {
     border: 1px solid var(--line); border-radius: 14px; background: var(--ink-900);
@@ -185,6 +204,7 @@
     </div>
 
     <h2 class="sect">Orders</h2>
+    <div class="filters" id="filters"></div>
     <div id="orders"></div>
 
     <div class="foot">
@@ -426,6 +446,38 @@
       .catch(function () {});
   }
 
+  /* ---------------- filters ---------------- */
+  // Each tab is a status group, so the counter never scrolls past finished
+  // deliveries to find the order it still has to cook.
+  var FILTERS = [
+    { key: 'pending', label: 'Pending', test: function (o) { return o.status === 'pending'; } },
+    { key: 'preparing', label: 'Preparing', test: function (o) { return o.status === 'preparing'; } },
+    { key: 'out', label: 'Out', test: function (o) { return o.status === 'out'; } },
+    { key: 'done', label: 'Finished', test: function (o) { return o.status === 'done'; } },
+    { key: 'cancelled', label: 'Cancelled', test: function (o) { return o.status === 'cancelled'; } },
+    { key: 'all', label: 'All', test: function () { return true; } }
+  ];
+
+  var filter = 'pending';
+  try {
+    var savedFilter = localStorage.getItem('zeva_admin_filter');
+    if (savedFilter && FILTERS.some(function (f) { return f.key === savedFilter; })) filter = savedFilter;
+  } catch (e) {}
+
+  function activeFilter() {
+    return FILTERS.filter(function (f) { return f.key === filter; })[0] || FILTERS[0];
+  }
+
+  function renderFilters() {
+    var host = $('filters');
+    if (!host) return;
+    host.innerHTML = FILTERS.map(function (f) {
+      var n = orders.filter(f.test).length;
+      return '<button type="button" data-filter="' + f.key + '"' + (f.key === filter ? ' class="on"' : '') + '>' +
+        esc(f.label) + '<span class="n">' + n + '</span></button>';
+    }).join('');
+  }
+
   /* ---------------- render ---------------- */
   function render() {
     var s = stats || {};
@@ -436,7 +488,19 @@
       stat(rupee(s.today_value || 0), "Today's sales") +
       '<div class="stat gold"><b>' + (s.gold_pending || 0) + '</b><span>Gold to approve</span></div>';
 
-    $('orders').innerHTML = orders.length ? orders.map(card).join('') : '<div class="empty">No orders yet. When one arrives this page rings.</div>';
+    renderFilters();
+
+    var shown = orders.filter(activeFilter().test);
+    var emptyText = !orders.length
+      ? 'No orders yet. When one arrives this page rings.'
+      : filter === 'pending'
+        ? 'Nothing waiting for confirmation. New orders ring here.'
+        : filter === 'cancelled'
+          ? 'No cancelled orders.'
+          : filter === 'done'
+            ? 'No finished orders yet.'
+            : 'Nothing in this list right now.';
+    $('orders').innerHTML = shown.length ? shown.map(card).join('') : '<div class="empty">' + emptyText + '</div>';
   }
 
   function stat(v, label) {
@@ -547,6 +611,13 @@
       }).then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function () { firstLoad = true; load(false); })
         .catch(function () { set.disabled = false; });
+      return;
+    }
+    var filterBtn = e.target.closest('[data-filter]');
+    if (filterBtn) {
+      filter = filterBtn.getAttribute('data-filter');
+      try { localStorage.setItem('zeva_admin_filter', filter); } catch (err) {}
+      render();
       return;
     }
     var msg = e.target.closest('[data-notify]');

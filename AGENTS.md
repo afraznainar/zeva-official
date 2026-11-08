@@ -77,7 +77,8 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 
 `deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),
 order feed polled every 8 seconds with a WebAudio chime, desktop notification
-and tab-title counter, the Accept → Out for delivery → Delivered buttons, the
+and tab-title counter, the status filter tabs (Pending, Preparing, Out, Finished, Cancelled, All — the
+choice is remembered per device), the Accept → Out for delivery → Delivered buttons, the
 message composer that reaches customer phones, and Zeva Gold approvals.
 
 Sound only plays after someone taps **Enable sound** once on the device (browser
