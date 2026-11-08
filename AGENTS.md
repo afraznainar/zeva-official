@@ -31,7 +31,8 @@ if the site moves to a custom domain, run `node .tools/fix-og.js <new-origin>`.
 `deploy/dist/app.html` is the installable ordering app at `/app`; it reads the
 menu straight out of `menu.html` at runtime, so a menu edit needs no app change.
 Its You tab opens with the tilting foil profile card (photo, name, saved
-address, Zeva mark) driven by pointer CSS variables in `tiltCard()`.
+address, Zeva mark) driven by pointer CSS variables in `tiltAll()`, which also
+drives the achievement cards.
 `manifest.webmanifest` and `sw.js` make it installable and keep it readable
 offline. Its icons come from `deploy/make-favicon.ps1` (rerun it after a logo
 change) and its `start_url` is absolute, so a move to a custom domain means
@@ -64,10 +65,17 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   the APK, the Notification API in a browser. Delivery therefore needs the app
   open or the tab alive; true background push would need FCM.
 - Zeva Gold: `GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 }`
-  at the top of `accounts.js`. Free delivery inside 5 km and ₹5 cashback per
+  at the top of `accounts.js`. Free  delivery inside 5 km and ₹5 cashback per
   order are applied **server-side** in `createOrder`, never trusted from the
   browser. Joining is a request (`gold.status = 'pending'`) that staff activate
   once paid; cancelling an order reverses its cashback with a negative wallet row.
+- Achievement cards: Zeva Gold members collect a card at 100 delivered orders
+  (Silver), 500 (Gold) and 1000 (Diamond). `CARDS` at the top of `accounts.js`
+  holds those thresholds; the tier is recomputed from delivered orders on every
+  request rather than stored, and `adminSetStatus` folds a new unlock into the
+  delivered notification. All three cards are shown to every signed-in customer
+  in the You tab (non-Gold see "Zeva Gold only" locks); `tiltAll()` gives the
+  profile card and each achievement card the same pointer tilt and holo foil.
 - Local development: `wrangler` cannot run on this laptop (Device Guard blocks
   workerd), so `/api/*` is served by `deploy/server.js` through
   `deploy/local-accounts.js`, a `node:sqlite` shim of the D1 API using

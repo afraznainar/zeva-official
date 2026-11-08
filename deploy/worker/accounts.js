@@ -17,6 +17,16 @@ export const GOLD = {
   freeMetres: 5000
 };
 
+/* Achievement cards. Zeva Gold members collect a physical-style card each
+   time their delivered-order count passes a milestone — Silver at 100, Gold
+   at 500, Diamond at 1000. Change the numbers here and the app, the progress
+   bar and the unlock notification all follow. */
+export const CARDS = [
+  { key: "silver", name: "Silver", orders: 100 },
+  { key: "gold", name: "Gold", orders: 500 },
+  { key: "diamond", name: "Diamond", orders: 1000 }
+];
+
 export const SITE = "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page";
 
 const DB_SCHEMA = [
@@ -528,6 +538,7 @@ export async function myOrders(env, userId, limit) {
 export async function profilePayload(request, env) {
   const user = await currentUser(request, env);
   const gold = await goldStatus(env, user && user.id);
+  const achievements = await achievementState(env, user && user.id, gold);
   const entries = user
     ? (await (await database(env))
         .prepare("SELECT id, amount, kind, order_id, note, created_at FROM wallet WHERE user_id = ? ORDER BY created_at DESC LIMIT 30")
@@ -546,8 +557,58 @@ export async function profilePayload(request, env) {
       entries: entries
     },
     orders: await myOrders(env, user && user.id, 20),
+    achievements: achievements,
     notices: (await myNotices(env, user && user.id, 0)).last
   };
+}
+
+/* ------------------------------------------------------------
+   Achievement cards
+   ------------------------------------------------------------
+   A card is earned by delivered orders, never by spent rupees, so
+   a cancelled order leaves no card behind. Only the count matters,
+   which means the state can be recomputed on every request instead
+   of being stored. */
+
+export async function deliveredCount(env, userId) {
+  if (!userId) return 0;
+  const db = await database(env);
+  if (!db) return 0;
+  const row = await db
+    .prepare("SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status = 'done'")
+    .bind(userId)
+    .first();
+  return Number((row && row.n) || 0);
+}
+
+function cardState(orders, gold) {
+  let tier = null;
+  let next = null;
+  const cards = CARDS.map(function (card) {
+    const unlocked = orders >= card.orders;
+    if (unlocked) tier = card.key;
+    else if (!next) next = card;
+    return {
+      key: card.key,
+      name: card.name,
+      orders: card.orders,
+      unlocked: unlocked,
+      remaining: Math.max(0, card.orders - orders)
+    };
+  });
+  return {
+    orders_done: orders,
+    tier: tier,
+    member: Boolean(gold && gold.active),
+    next: next
+      ? { key: next.key, name: next.name, orders: next.orders, remaining: Math.max(0, next.orders - orders) }
+      : null,
+    cards: cards
+  };
+}
+
+export async function achievementState(env, userId, gold) {
+  return cardState(await deliveredCount(env, userId), gold);
 }
 
 export async function joinGold(request, env) {
@@ -661,6 +722,7 @@ export async function adminSetStatus(env, body) {
   await db.prepare("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?").bind(status, Date.now(), id).run();
 
   let credited = 0;
+  let earned = null;
   if (status === "done" && order.user_id) {
     // Cashback lands in Zeva Money only once the food is in the customer's hands.
     const already = await db
@@ -675,6 +737,9 @@ export async function adminSetStatus(env, body) {
         .bind(order.user_id, credited, id, "Zeva Money cashback · #" + id, Date.now())
         .run();
     }
+    // A Gold member's achievement card can only be earned on delivery, so the
+    // milestone is checked here and folded into the same notification.
+    if (gold.active) earned = await newCardFor(env, order.user_id);
   }
 
   if (order.user_id && STATUS_NOTICE[status]) {
@@ -683,8 +748,13 @@ export async function adminSetStatus(env, body) {
     const line = order.mode === "pickup" && status === "out" ? "Your order is packed and waiting at the counter." : text[1];
     await pushNotice(env, {
       user_id: order.user_id,
-      title: "#" + id + " \u00b7 " + title,
-      body: line + (credited ? " +\u20b9" + credited + " in Zeva Money." : ""),
+      title: earned ? "#" + id + " \u00b7 " + earned.name + " card unlocked" : "#" + id + " \u00b7 " + title,
+      body:
+        line +
+        (credited ? " +\u20b9" + credited + " in Zeva Money." : "") +
+        (earned
+          ? " You crossed " + earned.orders + " delivered orders \u2014 your " + earned.name + " card is in the You tab."
+          : ""),
       order_id: id
     });
   }
@@ -701,7 +771,19 @@ export async function adminSetStatus(env, body) {
         .run();
     }
   }
-  return json(200, { ok: true, id: id, status: status, cashback: credited });
+  return json(200, { ok: true, id: id, status: status, cashback: credited, card: earned && earned.key });
+}
+
+// Returns the achievement card this delivery unlocked, or null when the count
+// stayed inside the tier the customer already had.
+export async function newCardFor(env, userId) {
+  if (!userId) return null;
+  const orders = await deliveredCount(env, userId);
+  const now = cardState(orders, { active: true }).tier;
+  const before = cardState(orders - 1, { active: true }).tier;
+  if (!now || now === before) return null;
+  for (const card of CARDS) if (card.key === now) return card;
+  return null;
 }
 
 /* ------------------------------------------------------------

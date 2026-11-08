@@ -427,6 +427,85 @@
   }
   .pc-chip.money { border-color: rgba(111, 191, 139, .4); color: #a9dcbc; background: rgba(111, 191, 139, .12); }
   .pc-since { margin-left: auto; font-size: 10.5px; color: var(--text-3); letter-spacing: .04em; }
+  .pc-chip.tier { border-color: rgba(240, 236, 226, .45); color: #f2e9da; background: linear-gradient(120deg, rgba(255, 255, 255, .16), rgba(192, 133, 54, .22)); }
+
+  /* ---------- achievement cards: Silver, Gold, Diamond ---------- */
+  .acard-wrap { perspective: 1000px; margin: 11px 3px; }
+  .acard {
+    --rotate-x: 0deg; --rotate-y: 0deg;
+    --pointer-x: 50%; --pointer-y: 50%;
+    --background-x: 50%; --background-y: 50%;
+    --pointer-from-center: 0;
+    position: relative; aspect-ratio: 1.586 / 1; border-radius: 17px; padding: 1.5px;
+    transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+    transform-style: preserve-3d;
+    transition: transform .45s cubic-bezier(.16, 1, .3, 1);
+    box-shadow: 0 22px 40px -30px rgba(0, 0, 0, .95), 0 0 0 1px rgba(0, 0, 0, .35);
+  }
+  .acard.tilting { transition: transform .08s linear; }
+  .acard-inner { position: relative; overflow: hidden; border-radius: 16px; height: 100%; padding: 13px 15px; }
+  .acard.silver { background: linear-gradient(140deg, #f2f5f9, #9ba5b2 34%, #e8eef5 58%, #7f8996 100%); }
+  .acard.silver .acard-inner {
+    background:
+      linear-gradient(100deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, .2) 54%, rgba(255, 255, 255, 0) 76%),
+      linear-gradient(152deg, #b6c1ce, #6f7a89 38%, #d5dde7 62%, #59636e 100%);
+    color: #121820;
+  }
+  .acard.gold { background: linear-gradient(140deg, #ffeec2, #c08f3d 34%, #ffe3a6 58%, #96691f 100%); }
+  .acard.gold .acard-inner {
+    background:
+      linear-gradient(100deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, .18) 56%, rgba(255, 255, 255, 0) 78%),
+      linear-gradient(152deg, #d6a04a, #94661f 38%, #e6c47c 62%, #6f4b13 100%);
+    color: #1c1202;
+  }
+  .acard.diamond { background: linear-gradient(140deg, #eafaff, #96cbe8 30%, #ffd9f0 55%, #b3e0fb 78%, #7fb6d5 100%); }
+  .acard.diamond .acard-inner {
+    background:
+      linear-gradient(100deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, .2) 58%, rgba(255, 255, 255, 0) 80%),
+      linear-gradient(150deg, #8fc6e4, #5a9ec4 34%, #b8daee 56%, #7fc0dd 76%, #4a7e9d 100%);
+    color: #07202f;
+  }
+  /* holo foil: a rainbow band that slides as the card tilts */
+  .acard-inner::before {
+    content: ""; position: absolute; inset: -1px; pointer-events: none; z-index: 1;
+    background-image: linear-gradient(112deg,
+      rgba(110, 255, 214, 0) 14%, rgba(120, 255, 210, .55) 26%,
+      rgba(120, 172, 255, .65) 38%, rgba(255, 140, 205, .6) 50%,
+      rgba(255, 234, 140, .72) 62%, rgba(110, 250, 205, .45) 72%,
+      rgba(255, 255, 255, 0) 84%);
+    background-size: 220% 220%;
+    background-position: var(--background-x) var(--background-y);
+    mix-blend-mode: color-dodge;
+    opacity: calc(.3 + var(--pointer-from-center) * .3);
+    transition: opacity .35s ease;
+  }
+  /* glare that sits under the finger */
+  .acard-inner::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(220px 170px at var(--pointer-x) var(--pointer-y),
+      rgba(255, 255, 255, .8), rgba(255, 255, 255, .16) 42%, rgba(255, 255, 255, 0) 74%);
+    mix-blend-mode: screen;
+    opacity: calc(var(--pointer-from-center) * .45);
+    transition: opacity .35s ease;
+  }
+  .acard-mark { position: absolute; right: -16px; bottom: -20px; width: 120px; height: 120px; opacity: .13; pointer-events: none; }
+  .acard-mark img { width: 100%; height: 100%; object-fit: contain; }
+  .acard-body { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; }
+  .acard-top { display: flex; align-items: center; gap: 6px; }
+  .acard-brand { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 11px; letter-spacing: .2em; }
+  .acard-brand img { width: 15px; height: 15px; object-fit: contain; }
+  .acard-tierpill { margin-left: auto; font-size: 8.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: .72; }
+  .acard-word { margin-top: auto; font-family: var(--display); font-size: 33px; font-weight: 600; line-height: 1; letter-spacing: .06em; text-transform: uppercase; }
+  .acard-sub { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; opacity: .66; margin-top: 5px; }
+  .acard-foot { margin-top: 9px; display: flex; align-items: baseline; gap: 8px; font-size: 10px; }
+  .acard-name { font-weight: 600; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58%; }
+  .acard-org { margin-left: auto; font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .62; white-space: nowrap; }
+  .acard.locked .acard-inner { filter: brightness(.93); }
+  .acard-lock { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border-radius: 16px; background: rgba(12, 8, 6, .3); }
+  .acard-lock span { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; background: rgba(18, 13, 9, .8); border: 1px solid rgba(255, 255, 255, .3); color: #f5ede2; }
+  .ach-line { display: flex; justify-content: space-between; gap: 10px; font-size: 10.5px; color: var(--text-3); margin-top: 10px; letter-spacing: .02em; }
+  .ach-bar { height: 3px; border-radius: 3px; background: rgba(240, 226, 205, .14); margin-top: 6px; overflow: hidden; }
+  .ach-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--brass), var(--brass-2)); }
 
   /* ---------- order progress ---------- */
   .osteps { display: flex; align-items: center; gap: 4px; margin-top: 9px; }
@@ -1381,6 +1460,7 @@
 
     var u = ACCT.user;
     var gold = ACCT.gold || { status: 'none' };
+    var ach = ACCT.achievements || { cards: [], orders_done: 0, tier: null, member: false, next: null };
     var money = Number((ACCT.wallet && ACCT.wallet.balance) || 0);
     var live = (ACCT.orders || []).filter(function (o) { return o.status !== 'done' && o.status !== 'cancelled'; });
     var past = (ACCT.orders || []).filter(function (o) { return o.status === 'done' || o.status === 'cancelled'; });
@@ -1400,7 +1480,7 @@
     }
 
     var card =
-      '<div class="pcard-wrap" id="pcardWrap"><div class="pcard" id="pcard"><div class="pcard-inner">' +
+      '<div class="pcard-wrap" id="pcardWrap" data-tilt><div class="pcard tilt-face" id="pcard"><div class="pcard-inner">' +
         '<div class="pc-mark"><img src="assets/img/zeva-mark.webp" alt="Zeva"></div>' +
         '<div class="pc-top">' +
           '<div class="pc-av">' + (u.picture ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">' : esc((u.name || 'Z').slice(0, 1).toUpperCase())) + '</div>' +
@@ -1410,7 +1490,8 @@
           '</div>' +
         '</div>' +
         '<div class="pc-meta">' +
-          (gold.active ? '<span class="pc-chip">Zeva Gold</span>' : '<span class="pc-chip" style="opacity:.55">No Gold</span>') +
+          (gold.active ? '<span class="pc-chip">Zeva Gold</span>' : '<span class="pc-chip">Member</span>') +
+          (ach.tier ? '<span class="pc-chip tier">' + esc(tierName(ach.tier)) + ' card</span>' : '') +
           '<span class="pc-chip money">Zeva Money ' + rupee(money) + '</span>' +
           (u.phone ? '<span class="pc-since">' + esc(u.phone) + '</span>' : (u.created_at ? '<span class="pc-since">Since ' + dateText(u.created_at) + '</span>' : '')) +
         '</div>' +
@@ -1437,6 +1518,7 @@
       card +
       (inFlight ? inFlight : '') +
       goldCard +
+      achievementSection(ach, u) +
       '<div class="card"><h3>Zeva Money</h3>' +
         '<div class="bal">' + rupee(money) + '</div>' +
         '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 ' + rupee(GOLD.cashback) + ' on every order while Gold is active. Show the balance at the counter to use it on your bill.</p>' +
@@ -1461,7 +1543,58 @@
         '<button class="btn ghost" type="button" data-act="notify-on" style="margin-top:10px">' + (notifyState === 'granted' ? 'Notifications are on' : 'Turn on notifications') + '</button>' +
       '</div>';
     foot.innerHTML = '<button class="btn ghost" type="button" data-act="logout">Log out</button>';
-    tiltCard();
+    tiltAll();
+  }
+
+  /* ---------------- achievement cards ---------------- */
+  function tierName(key) {
+    return ({ silver: 'Silver', gold: 'Gold', diamond: 'Diamond' })[key] || '';
+  }
+
+  function achievementSection(ach, u) {
+    var list = (ach && ach.cards) || [];
+    if (!list.length) return '';
+    var cards = list.map(function (c) {
+      return '<div class="acard-wrap" data-tilt>' +
+        '<div class="acard ' + esc(c.key) + (c.unlocked ? '' : ' locked') + ' tilt-face">' +
+          '<div class="acard-inner">' +
+            '<div class="acard-mark"><img src="assets/img/zeva-mark.webp" alt=""></div>' +
+            '<div class="acard-body">' +
+              '<div class="acard-top">' +
+                '<span class="acard-brand"><img src="assets/img/zeva-mark.webp" alt="">ZEVA</span>' +
+                '<span class="acard-tierpill">' + esc(c.name) + '</span>' +
+              '</div>' +
+              '<div class="acard-word">' + esc(c.name) + '</div>' +
+              '<div class="acard-sub">' + (c.unlocked ? 'Earned \u00b7 ' + c.orders + ' orders' : c.orders + ' delivered orders') + '</div>' +
+              '<div class="acard-foot">' +
+                '<span class="acard-name">' + esc(u.name || 'Zeva member') + '</span>' +
+                '<span class="acard-org">Zeva Mandi &amp; Grills</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          (c.unlocked ? '' : '<div class="acard-lock"><span>' + (ach.member ? c.remaining + ' orders to go' : 'Zeva Gold only') + '</span></div>') +
+        '</div></div>';
+    }).join('');
+
+    var done = Number(ach.orders_done || 0) || 0;
+    var next = ach.next;
+    var goal = next ? next.orders : (list[list.length - 1] || {}).orders || 0;
+    var pct = goal ? Math.min(100, Math.round((done / goal) * 100)) : 0;
+    var line;
+    if (!ach.member) {
+      line = 'Achievement cards come with Zeva Gold \u2014 join and every delivered order starts counting.';
+    } else if (next) {
+      line = done + ' of ' + next.orders + ' delivered orders \u2014 ' + next.remaining + ' more for the ' + next.name + ' card.';
+    } else {
+      line = 'All three cards collected \u2014 ' + done + ' delivered orders and counting.';
+    }
+    return '<div class="card">' +
+      '<h3>Achievement cards</h3>' +
+      '<p class="muted">Silver at 100 delivered orders, Gold at 500, Diamond at 1000. Only delivered orders count. Show the card at the counter \u2014 it tilts under your finger.</p>' +
+      cards +
+      '<div class="ach-line"><span>' + esc(line) + '</span><span>' + Math.min(100, goal ? pct : 0) + '%</span></div>' +
+      '<div class="ach-bar"><i style="width:' + Math.min(100, goal ? pct : 0) + '%"></i></div>' +
+    '</div>';
   }
 
   /* ---------------- order statuses ---------------- */
@@ -1482,11 +1615,21 @@
     return '';
   }
 
-  /* ---------------- the profile card: pointer tilt + holo ---------------- */
-  function tiltCard() {
-    var wrap = document.getElementById('pcardWrap');
-    var card = document.getElementById('pcard');
-    if (!wrap || !card || !window.PointerEvent) return;
+  /* ---------------- tilting cards: pointer tilt + holo ---------------- */
+  // Every card marked data-tilt (the profile card and the three achievement
+  // cards) shares one implementation: the pointer sets --pointer-* and
+  // --rotate-*, the holo band slides, and letting go eases back to centre.
+  var tiltSwept = false;
+
+  function tiltAll() {
+    var wraps = document.querySelectorAll('[data-tilt]');
+    Array.prototype.forEach.call(wraps, tiltOne);
+    tiltSwept = true;
+  }
+
+  function tiltOne(wrap, index) {
+    var card = wrap.querySelector('.tilt-face');
+    if (!card || !window.PointerEvent) return;
 
     var clamp = function (v, lo, hi) { return Math.min(Math.max(v, lo), hi); };
     var round = function (v) { return Math.round(v * 1000) / 1000; };
@@ -1542,12 +1685,11 @@
       easeTo(700, e.clientX - r.left, e.clientY - r.top, r.width / 2, r.height / 2);
     });
 
-    // A single sweep across the card the first time it opens, like a card
-    // being taken out of a wallet, then it settles under the finger.
+    // One sweep across each card the first time the tab opens, like cards
+    // being taken out of a wallet, then they settle under the finger.
     var r = wrap.getBoundingClientRect();
-    if (r.width && !wrap.dataset.swept) {
-      wrap.dataset.swept = '1';
-      setTimeout(function () { easeTo(2200, r.width - 20, 24, r.width / 2, r.height / 2); }, 220);
+    if (r.width && !tiltSwept) {
+      setTimeout(function () { easeTo(2200, r.width - 20, 24, r.width / 2, r.height / 2); }, 220 + (index || 0) * 170);
     } else {
       paint((r.width || 2) / 2, (r.height || 2) / 2);
     }
