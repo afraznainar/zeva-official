@@ -104,6 +104,23 @@ $apple = New-Icon 180 $true 0.14
 $applePath = Join-Path $imgDir "apple-touch-icon.png"
 $apple.Save($applePath, [System.Drawing.Imaging.ImageFormat]::Png)
 $apple.Dispose()
+
+# PWA icons for the installable app (manifest.webmanifest).
+# The maskable variant keeps the mark inside the 80% safe circle so Android
+# can crop it to its own shape without clipping the calligraphy.
+$appIcons = @(
+  @{ size = 192; name = 'icon-192.png'; pad = 0.13 },
+  @{ size = 512; name = 'icon-512.png'; pad = 0.13 },
+  @{ size = 512; name = 'icon-maskable-512.png'; pad = 0.22 }
+)
+foreach ($spec in $appIcons) {
+  $bmp = New-Icon $spec.size $true $spec.pad
+  $file = Join-Path $imgDir $spec.name
+  $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png)
+  $bmp.Dispose()
+  Write-Output ("wrote " + $file + " (" + (Get-Item $file).Length + " bytes)")
+}
+
 $mask.Dispose()
 Write-Output ("wrote " + $applePath + " (" + (Get-Item $applePath).Length + " bytes)")
 

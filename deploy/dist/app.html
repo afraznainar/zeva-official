@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zeva — Order Mandi &amp; Grills | Bolar, Mangaluru</title>
+<meta name="description" content="Order mandi, charcoal grills and fish from Zeva Mandi &amp; Grills, Bolar, Mangaluru. Delivery within 3.5 km, pickup, cash or UPI. Rated 4.7★ by 108 Google reviewers.">
+<meta name="theme-color" content="#0e0a08">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zeva">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
+<link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-950: #0e0a08;
+    --ink-900: #15100d;
+    --ink-850: #1a1411;
+    --ink-800: #201812;
+    --line: rgba(240, 226, 205, .12);
+    --line-strong: rgba(240, 226, 205, .22);
+    --paper: #f4ead9;
+    --text-2: #c2b2a0;
+    --text-3: #93826f;
+    --brass: #c08536;
+    --brass-2: #dfae74;
+    --good: #6fbf8b;
+    --bad: #e27a6a;
+    --display: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ink-950);
+    color: var(--paper);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; }
+
+  .shell {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-bottom: calc(120px + var(--safe-b));
+    background:
+      radial-gradient(90% 40% at 50% -8%, rgba(192, 133, 54, .18), transparent 70%),
+      var(--ink-950);
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(10px + var(--safe-t)) 16px 10px;
+    background: rgba(14, 10, 8, .84);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .loc { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+  .loc b { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+  .loc span { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 4px; }
+  .loc .pin { color: var(--brass-2); }
+  .topbar .spacer { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 9px; border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    font-size: 11.5px; font-weight: 600; color: var(--brass-2);
+    white-space: nowrap;
+  }
+  .pill .star { color: var(--brass); }
+
+  /* ---------- search ---------- */
+  .searchwrap { padding: 12px 16px 4px; }
+  .search {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--ink-850);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 13px;
+  }
+  .search svg { flex: none; opacity: .55; }
+  .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 14.5px; }
+  .search input::placeholder { color: var(--text-3); }
+
+  /* ---------- chips ---------- */
+  .chips {
+    display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px 12px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 7px 13px; border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    font-size: 12.5px; font-weight: 500; color: var(--text-2);
+    white-space: nowrap;
+  }
+  .chip.on { background: var(--brass); border-color: var(--brass); color: #170f09; font-weight: 600; }
+
+  /* ---------- hero ---------- */
+  .hero { margin: 2px 16px 8px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); position: relative; }
+  .hero .shots { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 2px; height: 130px; background: var(--ink-850); }
+  .hero .shots img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.92) brightness(.86); }
+  .hero .over {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(10, 7, 5, .96) 8%, rgba(10, 7, 5, .34) 58%, rgba(10, 7, 5, .12));
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 13px 14px;
+  }
+  .hero h1 { font-family: var(--display); font-weight: 600; font-size: 21px; margin: 0 0 3px; letter-spacing: -.01em; }
+  .hero p { margin: 0; font-size: 12px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  .hero p .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
+  .open { color: var(--good); font-weight: 600; }
+
+  /* ---------- notices ---------- */
+  .note {
+    margin: 10px 16px; padding: 10px 12px; border-radius: 12px;
+    font-size: 12.5px; line-height: 1.45;
+    background: rgba(192, 133, 54, .1);
+    border: 1px solid rgba(192, 133, 54, .26);
+    color: var(--text-2);
+  }
+  .installbar {
+    display: none; align-items: center; gap: 10px;
+    margin: 10px 16px 0; padding: 11px 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--brass) 0%, #d99d55 100%);
+    color: #1b1109;
+  }
+  .installbar.show { display: flex; }
+  .installbar .txt { flex: 1; font-size: 12px; line-height: 1.35; font-weight: 500; }
+  .installbar .txt b { display: block; font-size: 13.5px; font-weight: 700; }
+  .installbar button {
+    padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 700;
+    background: #170f09; color: var(--brass-2); white-space: nowrap;
+  }
+
+  /* ---------- dish list ---------- */
+  .catblock { padding: 18px 16px 4px; }
+  .catblock > h2 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 0 0 2px; letter-spacing: -.01em; }
+  .catblock > .sub { margin: 0 0 6px; font-size: 11.5px; color: var(--text-3); }
+  .dish { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+  .dish:last-child { border-bottom: 0; }
+  .dish .info { flex: 1; min-width: 0; }
+  .dish .nm { font-size: 14.5px; font-weight: 500; line-height: 1.3; }
+  .dish .sm { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+  .dish .pr { margin-top: 6px; font-size: 13px; color: var(--brass-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .dish .pr .sep { color: var(--text-3); padding: 0 5px; }
+  .dish .pr .lb { font-size: 10px; letter-spacing: .06em; color: var(--text-3); margin-right: 3px; }
+  .dish .act { flex: none; padding-top: 2px; }
+  .add {
+    display: inline-block; min-width: 74px; padding: 8px 12px; border-radius: 9px;
+    border: 1px solid rgba(192, 133, 54, .55);
+    background: rgba(192, 133, 54, .09);
+    color: var(--brass-2); font-size: 12.5px; font-weight: 700;
+    letter-spacing: .04em; text-align: center; text-decoration: none;
+  }
+  .add:active { transform: scale(.96); }
+  .add.has { background: var(--brass); border-color: var(--brass); color: #170f09; }
+
+  /* ---------- bottom nav ---------- */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    display: flex; justify-content: center;
+    padding-bottom: var(--safe-b);
+    background: rgba(14, 10, 8, .94);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  .tabbar .inner { display: flex; width: 100%; max-width: 520px; }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 0 8px; font-size: 10.5px; color: var(--text-3); position: relative;
+  }
+  .tab.on { color: var(--brass-2); }
+  .tab .badge {
+    position: absolute; top: 4px; left: 50%; margin-left: 4px;
+    min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+    background: var(--brass); color: #170f09;
+    font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
+  }
+
+  /* ---------- view cart bar ---------- */
+  .cartbar {
+    position: fixed; left: 0; right: 0; z-index: 44;
+    bottom: calc(64px + var(--safe-b));
+    display: flex; justify-content: center; padding: 0 14px;
+    pointer-events: none;
+    transform: translateY(150%);
+    transition: transform .28s cubic-bezier(.16, 1, .3, 1);
+  }
+  .cartbar.show { transform: translateY(0); }
+  .cartbar button {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; max-width: 492px;
+    padding: 12px 16px; border-radius: 13px;
+    background: linear-gradient(135deg, var(--brass) 0%, #d99d55 100%);
+    color: #1a1008; font-weight: 700; font-size: 13.5px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+  }
+  .cartbar .grow { flex: 1; text-align: right; }
+
+  /* ---------- sheet / screens ---------- */
+  .screen {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; flex-direction: column;
+    background: var(--ink-950);
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.16, 1, .3, 1);
+    visibility: hidden;
+  }
+  .screen.open { transform: translateY(0); visibility: visible; }
+  .screen > header {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(12px + var(--safe-t)) 16px 12px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(14, 10, 8, .9);
+  }
+  .screen > header h2 { font-size: 15.5px; font-weight: 600; margin: 0; }
+  .screen > header .x { margin-left: auto; font-size: 22px; line-height: 1; color: var(--text-2); padding: 0 4px; }
+  .screen .body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 16px calc(24px + var(--safe-b)); }
+  .screen .foot { padding: 12px 16px calc(14px + var(--safe-b)); border-top: 1px solid var(--line); background: rgba(21, 16, 13, .96); }
+
+  .line { display: flex; align-items: center; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+  .line .info { flex: 1; min-width: 0; }
+  .line .nm { font-size: 14px; font-weight: 500; }
+  .line .vr { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .line .amt { font-size: 13px; color: var(--brass-2); font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+  .stepper { display: flex; align-items: center; border: 1px solid rgba(192, 133, 54, .5); border-radius: 9px; overflow: hidden; }
+  .stepper button { width: 30px; height: 30px; font-size: 16px; line-height: 1; color: var(--brass-2); }
+  .stepper span { min-width: 24px; text-align: center; font-size: 13px; font-weight: 600; }
+
+  .rows { padding: 4px 0; }
+  .row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--text-2); padding: 7px 0; }
+  .row.total { color: var(--paper); font-weight: 700; font-size: 15px; border-top: 1px dashed var(--line-strong); margin-top: 4px; padding-top: 11px; }
+  .row .v { font-variant-numeric: tabular-nums; }
+
+  .btn {
+    display: block; width: 100%; padding: 14px; border-radius: 12px;
+    font-size: 14px; font-weight: 700; text-align: center; text-decoration: none;
+    background: linear-gradient(135deg, var(--brass) 0%, #d99d55 100%);
+    color: #1a1008;
+  }
+  .btn.ghost { background: none; border: 1px solid var(--line-strong); color: var(--paper); font-weight: 600; }
+  .btn:disabled { opacity: .45; }
+  .btn + .btn { margin-top: 8px; }
+
+  .empty { text-align: center; padding: 46px 20px; color: var(--text-3); font-size: 13.5px; line-height: 1.6; }
+
+  /* ---------- checkout ---------- */
+  .sect { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .sect h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+  .seg { display: flex; gap: 8px; }
+  .seg button {
+    flex: 1; padding: 11px; border-radius: 10px;
+    border: 1px solid var(--line-strong); font-size: 13px; font-weight: 600; color: var(--text-2);
+  }
+  .seg button.on { background: rgba(192, 133, 54, .14); border-color: var(--brass); color: var(--brass-2); }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 11.5px; color: var(--text-3); margin-bottom: 5px; }
+  .field input, .field textarea {
+    width: 100%; padding: 11px 12px; border-radius: 10px;
+    background: var(--ink-850); border: 1px solid var(--line);
+    font-size: 14px; outline: 0;
+  }
+  .field input:focus, .field textarea:focus { border-color: rgba(192, 133, 54, .6); }
+  .field textarea { min-height: 64px; resize: vertical; }
+  .geo {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 10px 12px; border-radius: 10px; margin-top: 8px;
+    border: 1px dashed rgba(192, 133, 54, .45);
+    color: var(--brass-2); font-size: 12.5px; font-weight: 600; text-align: left;
+  }
+  .status { font-size: 12px; line-height: 1.5; margin-top: 8px; padding: 9px 11px; border-radius: 9px; }
+  .status.ok { background: rgba(111, 191, 139, .12); color: #a9dcbc; }
+  .status.bad { background: rgba(226, 122, 106, .12); color: #f0b0a5; }
+  .status.warn { background: rgba(192, 133, 54, .13); color: var(--brass-2); }
+
+  .done { text-align: center; padding: 26px 4px; }
+  .done .ring {
+    width: 62px; height: 62px; margin: 0 auto 14px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(111, 191, 139, .14); color: var(--good);
+    border: 1px solid rgba(111, 191, 139, .4); font-size: 27px;
+  }
+  .done h2 { font-family: var(--display); font-size: 22px; margin: 0 0 6px; font-weight: 600; }
+  .done p { margin: 0 auto 4px; font-size: 13px; color: var(--text-2); max-width: 330px; line-height: 1.55; }
+  .done .ref { margin: 16px 0 6px; font-size: 13px; letter-spacing: .06em; color: var(--brass-2); font-weight: 600; }
+  .done .mini { font-size: 11.5px; color: var(--text-3); }
+
+  .foot-note { font-size: 11px; color: var(--text-3); text-align: center; padding: 18px 16px 6px; line-height: 1.6; }
+  .skel { height: 58px; border-radius: 10px; background: linear-gradient(90deg, var(--ink-850), var(--ink-800), var(--ink-850)); background-size: 200% 100%; animation: sh 1.2s infinite; margin: 10px 0; }
+  @keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header class="topbar">
+    <div class="loc">
+      <b>Zeva Mandi &amp; Grills</b>
+      <span><span class="pin">&#128205;</span> Bolar, Mangaluru</span>
+    </div>
+    <span class="spacer"></span>
+    <span class="pill"><span class="star">&#9733;</span> 4.7 &middot; 108</span>
+  </header>
+
+  <div class="searchwrap">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      <input id="q" type="search" placeholder="Search mandi, alfaham, mojito&hellip;" autocomplete="off" aria-label="Search the menu">
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="installbar" id="installbar">
+    <div class="txt"><b>Add Zeva to your home screen</b>Order in two taps, works offline.</div>
+    <button id="installbtn" type="button">Install</button>
+  </div>
+
+  <div id="homeView">
+    <section class="hero">
+      <div class="shots">
+        <img src="assets/img/insta-1.jpg" alt="Mandi served at Zeva Mandi &amp; Grills" width="512" height="640" fetchpriority="high">
+        <img src="assets/img/insta-2.jpg" alt="Grilled chicken at Zeva Mandi &amp; Grills" width="512" height="640" loading="lazy">
+        <img src="assets/img/insta-3.jpg" alt="Zeva plate from @zevarestaurant" width="512" height="640" loading="lazy">
+      </div>
+      <div class="over">
+        <h1>Zeva Mandi &amp; Grills</h1>
+        <p><span class="open">Open now</span><i class="dot"></i>12 PM &ndash; 11 PM<i class="dot"></i>&#8377;480 min order</p>
+        <p style="margin-top:4px">Delivery within 3.5 km &middot; Pickup &middot; Cash or UPI</p>
+      </div>
+    </section>
+
+    <div class="note" id="datanote" hidden></div>
+
+    <div id="menu"></div>
+
+    <p class="foot-note">
+      Prices in &#8377;, exclusive of GST (2.5% CGST + 2.5% SGST on food only).<br>
+      Every item is halal. Seasonal items are marked SL &mdash; ask the counter.
+    </p>
+  </div>
+</div>
+
+<div class="cartbar" id="cartbar">
+  <button type="button" id="viewcart">
+    <span id="cbcount">0 items</span>
+    <span class="grow" id="cbtotal">&#8377;0</span>
+    <span>View cart &rarr;</span>
+  </button>
+</div>
+
+<nav class="tabbar" aria-label="App navigation">
+  <div class="inner">
+    <button class="tab on" type="button" data-tab="home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>
+      Home
+    </button>
+    <button class="tab" type="button" data-tab="search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      Search
+    </button>
+    <button class="tab" type="button" data-tab="cart">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4h2l2.4 11.2A2 2 0 0 0 9.4 17h7.9a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>
+      Cart
+      <span class="badge" id="tabbadge" hidden>0</span>
+    </button>
+    <button class="tab" type="button" data-tab="call">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg>
+      Call
+    </button>
+  </div>
+</nav>
+
+<div class="screen" id="sizeScreen" aria-hidden="true">
+  <header>
+    <h2 id="sizeTitle">Choose a portion</h2>
+    <button class="x" type="button" data-close="size" aria-label="Close">&times;</button>
+  </header>
+  <div class="body" id="sizeBody"></div>
+</div>
+
+<div class="screen" id="cartScreen" aria-hidden="true">
+  <header>
+    <h2 id="cartTitle">Your order</h2>
+    <button class="x" type="button" data-close="cart" aria-label="Close">&times;</button>
+  </header>
+  <div class="body" id="cartBody"></div>
+  <div class="foot" id="cartFoot"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var REST = { lat: 12.8480914, lon: 74.852712 };
+  var FREE_DELIVERY_M = 500;
+  var DELIVERY_RADIUS_M = 3500;
+  var MIN_ORDER = 480;
+  var CGST_RATE = 0.025;
+  var SGST_RATE = 0.025;
+  var WA_NUMBER = '917022771888';
+  var CART_KEY = 'zeva_app_cart_v1';
+  var FORM_KEY = 'zeva_app_form_v1';
+  var MENU_KEY = 'zeva_app_menu_v1';
+
+  var menu = [];
+  var activeCat = 'All';
+  var screen = 'home';                 // home | cart | checkout | done
+  var cart = read(CART_KEY, []);
+  var form = read(FORM_KEY, { name: '', phone: '', addr: '', note: '' });
+  var mode = '';
+  var pay = '';
+  var pos = { state: 'idle', metres: null };
+  var orderRef = '';
+  var printState = 'idle';
+  var activeSizeCat = '';
+  var activeSizeItem = '';
+
+  function read(key, fallback) {
+    try { var v = JSON.parse(localStorage.getItem(key)); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; }
+  }
+  function write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function round2(n) { return Math.round(n * 100) / 100; }
+  function rupee(n) {
+    var v = round2(n);
+    var opts = v % 1 === 0 ? undefined : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    return '\u20b9' + v.toLocaleString('en-IN', opts);
+  }
+
+  /* ---------------- menu ---------------- */
+  function parseMenu(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var out = [];
+    Array.prototype.forEach.call(doc.querySelectorAll('section.cat'), function (sec) {
+      var h = sec.querySelector('h2');
+      if (!h) return;
+      var cat = { name: h.textContent.trim(), items: [] };
+      Array.prototype.forEach.call(sec.querySelectorAll('ul.items > li'), function (li) {
+        var nmEl = li.querySelector('.nm');
+        if (!nmEl) return;
+        var nameEl = nmEl.cloneNode(true);
+        var small = nameEl.querySelector('small');
+        var note = small ? small.textContent.trim() : '';
+        if (small) small.remove();
+        var item = { name: nameEl.textContent.trim(), note: note, variants: [], price: null, seasonal: false };
+        var sizesEl = li.querySelector('.sizes');
+        if (sizesEl) {
+          Array.prototype.forEach.call(sizesEl.querySelectorAll('span'), function (sp) {
+            var b = sp.querySelector('b');
+            var label = (b && b.textContent.trim()) || sp.textContent.replace(/[\u20b90-9,]/g, '').trim();
+            var m = sp.textContent.replace(label, '').match(/[0-9,]+/);
+            var price = m ? parseInt(m[0].replace(/,/g, ''), 10) : NaN;
+            if (label && !isNaN(price)) item.variants.push({ label: label, price: price });
+          });
+          if (!item.variants.length) return;
+        } else {
+          var prEl = li.querySelector('.pr');
+          var digits = prEl ? prEl.textContent.replace(/[^0-9]/g, '') : '';
+          if (digits) item.price = parseInt(digits, 10);
+          else item.seasonal = true;
+        }
+        cat.items.push(item);
+      });
+      if (cat.items.length) out.push(cat);
+    });
+    return out;
+  }
+
+  function loadMenu(force) {
+    var cached = read(MENU_KEY, null);
+    if (cached && cached.categories && cached.categories.length) {
+      menu = cached.categories;
+      renderChips();
+      renderMenu();
+    }
+    fetch('menu.html', { cache: force ? 'reload' : 'default' })
+      .then(function (r) { if (!r.ok) throw new Error('menu ' + r.status); return r.text(); })
+      .then(function (html) {
+        var parsed = parseMenu(html);
+        if (!parsed.length) throw new Error('menu empty');
+        menu = parsed;
+        write(MENU_KEY, { at: Date.now(), categories: parsed });
+        renderChips();
+        renderMenu();
+        document.getElementById('datanote').hidden = true;
+      })
+      .catch(function () {
+        if (!menu.length) {
+          document.getElementById('menu').innerHTML = '<div class="empty">The menu could not load. Check your connection and try again.</div>';
+        } else {
+          var note = document.getElementById('datanote');
+          note.hidden = false;
+          note.textContent = 'You are offline — showing the menu saved on this phone.';
+        }
+      });
+  }
+
+  /* ---------------- cart ---------------- */
+  function findLine(id) {
+    for (var i = 0; i < cart.length; i++) if (cart[i].id === id) return cart[i];
+    return null;
+  }
+  function addItem(id, name, variant, price) {
+    var line = findLine(id);
+    if (line) line.qty += 1;
+    else cart.push({ id: id, name: name, variant: variant || '', price: price, qty: 1 });
+    write(CART_KEY, cart);
+    renderCartChrome();
+    renderMenu();
+  }
+  function changeQty(id, d) {
+    var line = findLine(id);
+    if (!line) return;
+    line.qty += d;
+    if (line.qty <= 0) cart = cart.filter(function (l) { return l.id !== id; });
+    write(CART_KEY, cart);
+    renderCartChrome();
+    renderMenu();
+    if (screen === 'cart' || screen === 'checkout') renderCartScreen();
+  }
+  function count() { return cart.reduce(function (s, l) { return s + l.qty; }, 0); }
+  function total() { return cart.reduce(function (s, l) { return s + l.qty * l.price; }, 0); }
+  function cgst() { return round2(total() * CGST_RATE); }
+  function sgst() { return round2(total() * SGST_RATE); }
+  function outsideRadius() { return pos.metres !== null && pos.metres > DELIVERY_RADIUS_M; }
+  function deliveryFeeFor(m) {
+    if (m === null) return null;
+    if (m <= FREE_DELIVERY_M) return 0;
+    if (m <= 1000) return 25;
+    if (m <= 2000) return 40;
+    if (m <= 3000) return 55;
+    if (m <= DELIVERY_RADIUS_M) return 70;
+    return null;
+  }
+  function deliveryFee() {
+    if (mode !== 'delivery') return 0;
+    var fee = deliveryFeeFor(pos.metres);
+    return fee === null ? 0 : fee;
+  }
+  function grandTotal() { return round2(total() + cgst() + sgst() + deliveryFee()); }
+
+  /* ---------------- rendering ---------------- */
+  function renderChips() {
+    var el = document.getElementById('chips');
+    var names = ['All'].concat(menu.map(function (c) { return c.name; }));
+    el.innerHTML = names.map(function (n) {
+      return '<button type="button" class="chip' + (n === activeCat ? ' on' : '') + '" data-cat="' + esc(n) + '">' + esc(n) + '</button>';
+    }).join('');
+  }
+
+  function priceLine(item) {
+    if (item.variants.length) {
+      return item.variants.map(function (v) {
+        return '<span class="lb">' + esc(v.label) + '</span>' + rupee(v.price);
+      }).join('<span class="sep">&middot;</span>');
+    }
+    if (item.price !== null) return rupee(item.price);
+    return '<span class="lb">SL</span>seasonal';
+  }
+
+  function dishRow(cat, item) {
+    var act;
+    if (item.variants.length) {
+      act = '<button type="button" class="add" data-size="' + esc(cat.name) + '|' + esc(item.name) + '">SELECT</button>';
+    } else if (item.seasonal) {
+      act = '<a class="add" href="tel:+917022771888">ASK</a>';
+    } else {
+      var line = findLine(item.name);
+      var inCart = !!(line && line.qty);
+      act = '<button type="button" class="add' + (inCart ? ' has' : '') + '" data-add="' + esc(item.name) + '" data-price="' + item.price + '">ADD</button>';
+    }
+    return '<div class="dish"><div class="info"><div class="nm">' + esc(item.name) + '</div>' +
+      (item.note ? '<div class="sm">' + esc(item.note) + '</div>' : '') +
+      '<div class="pr">' + priceLine(item) + '</div></div>' +
+      '<div class="act">' + act + '</div></div>';
+  }
+
+  function renderMenu() {
+    var host = document.getElementById('menu');
+    if (!menu.length) {
+      host.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+      return;
+    }
+    var cats = activeCat === 'All' ? menu : menu.filter(function (c) { return c.name === activeCat; });
+    host.innerHTML = cats.map(function (cat) {
+      return '<section class="catblock"><h2>' + esc(cat.name) + '</h2>' +
+        '<p class="sub">' + cat.items.length + ' dishes</p>' +
+        cat.items.map(function (it) { return dishRow(cat, it); }).join('') +
+        '</section>';
+    }).join('');
+  }
+
+  function renderCartChrome() {
+    var n = count();
+    var bar = document.getElementById('cartbar');
+    if (!bar) return;
+    if (n > 0) {
+      bar.classList.add('show');
+      document.getElementById('cbcount').textContent = n + (n === 1 ? ' item' : ' items');
+      document.getElementById('cbtotal').textContent = rupee(total());
+    } else {
+      bar.classList.remove('show');
+    }
+    var badge = document.getElementById('tabbadge');
+    badge.hidden = n === 0;
+    badge.textContent = String(n);
+  }
+
+  /* ---------------- size sheet ---------------- */
+  function openSize(catName, itemName) {
+    activeSizeCat = catName;
+    activeSizeItem = itemName;
+    var cat = menu.filter(function (c) { return c.name === catName; })[0];
+    var item = cat && cat.items.filter(function (i) { return i.name === itemName; })[0];
+    if (!item) return;
+    document.getElementById('sizeTitle').textContent = item.name;
+    document.getElementById('sizeBody').innerHTML =
+      '<p class="sub" style="font-size:12px;color:var(--text-3);margin:2px 0 6px">Choose a portion.</p>' +
+      item.variants.map(function (v) {
+        var id = item.name + ' ' + v.label;
+        var line = findLine(id);
+        var qty = line ? line.qty : 0;
+        return '<div class="line"><div class="info"><div class="nm">' + esc(v.label) + '</div>' +
+          '<div class="vr">' + rupee(v.price) + '</div></div>' +
+          (qty
+            ? '<div class="stepper"><button type="button" data-q="-1" data-id="' + esc(id) + '">&minus;</button><span>' + qty + '</span><button type="button" data-q="1" data-id="' + esc(id) + '">+</button></div>'
+            : '<button type="button" class="add" data-addsize="' + esc(item.name) + '|' + esc(v.label) + '|' + v.price + '">ADD</button>') +
+          '</div>';
+      }).join('');
+    openScreen('size');
+  }
+
+  function openScreen(which) {
+    var el = document.getElementById(which === 'size' ? 'sizeScreen' : 'cartScreen');
+    el.classList.add('open');
+    el.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeScreen(which) {
+    var el = document.getElementById(which === 'size' ? 'sizeScreen' : 'cartScreen');
+    el.classList.remove('open');
+    el.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (which === 'cart') screen = 'home';
+  }
+
+  /* ---------------- cart + checkout screens ---------------- */
+  function bills() {
+    var html = '<div class="rows">' +
+      '<div class="row"><span>Item total</span><span class="v">' + rupee(total()) + '</span></div>' +
+      '<div class="row"><span>CGST 2.5%</span><span class="v">' + rupee(cgst()) + '</span></div>' +
+      '<div class="row"><span>SGST 2.5%</span><span class="v">' + rupee(sgst()) + '</span></div>';
+    if (mode === 'delivery') {
+      var label = 'Delivery';
+      if (pos.metres !== null) label += ' &middot; ' + pos.metres + ' m';
+      var value;
+      if (outsideRadius()) value = '<span style="color:#f0b0a5">to be confirmed</span>';
+      else if (pos.metres === null) value = '<span style="color:var(--text-3)">confirmed by us</span>';
+      else if (deliveryFee() === 0) value = '<span style="color:var(--good);font-weight:600">FREE</span>';
+      else value = rupee(deliveryFee());
+      html += '<div class="row"><span>' + label + '</span><span class="v">' + value + '</span></div>';
+    }
+    html += '<div class="row total"><span>To pay' + (pay === 'cash' ? ' (cash)' : pay === 'upi' ? ' (UPI)' : '') + '</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
+    return html;
+  }
+
+  function geoBlock() {
+    if (mode === 'pickup') return '<div class="status ok">No delivery charge &mdash; you collect it yourself.</div>';
+    var html = '<button class="geo" type="button" data-act="geo">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>' +
+      (pos.metres !== null ? 'Checked &middot; ' + pos.metres + ' m from us' : 'Check my distance (for the delivery fee)') + '</button>';
+    if (pos.state === 'locating') html += '<div class="status warn">Finding you&hellip;</div>';
+    if (pos.state === 'denied') html += '<div class="status bad">Location is blocked. Type your address and we will confirm the delivery charge.</div>';
+    if (pos.state === 'failed') html += '<div class="status bad">Could not read your location. We will confirm the delivery charge.</div>';
+    if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our 3.5 km delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
+    else if (pos.metres !== null) html += '<div class="status ok">Inside our 3.5 km radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
+    return html;
+  }
+
+  function renderCartScreen() {
+    var body = document.getElementById('cartBody');
+    var foot = document.getElementById('cartFoot');
+    var title = document.getElementById('cartTitle');
+
+    if (screen === 'done') {
+      title.textContent = 'Order sent';
+      body.innerHTML =
+        '<div class="done"><div class="ring">&#10003;</div>' +
+        '<h2>Order sent</h2>' +
+        '<p>It stays <b>pending</b> until our team replies <b>CONFIRM</b> on WhatsApp. Preparation takes about 20 minutes after that.</p>' +
+        '<div class="ref">#' + esc(orderRef) + '</div>' +
+        '<div class="mini">' + (printState === 'ok' ? 'Counter copy printed.' : printState === 'fail' ? 'Counter copy not printed &mdash; the kitchen still has your order on WhatsApp.' : 'Sending the counter copy&hellip;') + '</div>' +
+        '</div>';
+      foot.innerHTML =
+        '<a class="btn" href="https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent('Hi Zeva, my order is #' + orderRef) + '" rel="noopener">Open WhatsApp</a>' +
+        '<button class="btn ghost" type="button" data-act="neworder">Start a new order</button>';
+      return;
+    }
+
+    if (screen === 'cart') {
+      title.textContent = 'Your order';
+      if (!cart.length) {
+        body.innerHTML = '<div class="empty">Your cart is empty.<br>Add a mandi, a grill or a mojito to start.</div>';
+        foot.innerHTML = '<button class="btn ghost" type="button" data-close="cart">Browse the menu</button>';
+        return;
+      }
+      body.innerHTML = cart.map(function (l) {
+        return '<div class="line"><div class="info"><div class="nm">' + esc(l.name) + '</div>' +
+          (l.variant ? '<div class="vr">' + esc(l.variant) + '</div>' : '') + '</div>' +
+          '<div class="stepper"><button type="button" data-q="-1" data-id="' + esc(l.id) + '">&minus;</button><span>' + l.qty + '</span><button type="button" data-q="1" data-id="' + esc(l.id) + '">+</button></div>' +
+          '<div class="amt">' + rupee(l.price * l.qty) + '</div></div>';
+      }).join('') + bills() +
+      '<p class="foot-note" style="text-align:left;padding:12px 0 0">Prices exclude GST. Delivery charge is not taxed.</p>';
+
+      var short = total() < MIN_ORDER;
+      foot.innerHTML =
+        (short ? '<div class="status warn" style="margin:0 0 10px">Minimum order is \u20b9480 &mdash; add ' + rupee(MIN_ORDER - total()) + ' more to continue.</div>' : '') +
+        '<button class="btn" type="button" data-act="checkout"' + (short ? ' disabled' : '') + '>Continue &middot; ' + rupee(total()) + '</button>' +
+        '<button class="btn ghost" type="button" data-act="clear">Clear cart</button>';
+      return;
+    }
+
+    title.textContent = 'Checkout';
+    body.innerHTML =
+      '<div class="sect"><h3>How do you want it?</h3><div class="seg">' +
+        '<button type="button" class="' + (mode === 'delivery' ? 'on' : '') + '" data-mode="delivery">Delivery</button>' +
+        '<button type="button" class="' + (mode === 'pickup' ? 'on' : '') + '" data-mode="pickup">Pickup</button>' +
+      '</div>' + geoBlock() + '</div>' +
+
+      '<div class="sect"><h3>Your details</h3>' +
+        '<div class="field"><label for="f-name">Name</label><input id="f-name" value="' + esc(form.name) + '" autocomplete="name" placeholder="Name for the order"></div>' +
+        '<div class="field"><label for="f-phone">Phone</label><input id="f-phone" value="' + esc(form.phone) + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number"></div>' +
+        (mode === 'pickup'
+          ? '<div class="status ok">Collect from the counter &mdash; Shop G03, Arfa Mirage Tower, Morgans Gate Rd.</div>'
+          : '<div class="field"><label for="f-addr">Deliver to</label><textarea id="f-addr" placeholder="Flat / building, street, landmark">' + esc(form.addr) + '</textarea></div>') +
+        '<div class="field"><label for="f-note">Note for the kitchen (optional)</label><input id="f-note" value="' + esc(form.note) + '" placeholder="Less spice, extra rice&hellip;"></div>' +
+      '</div>' +
+
+      '<div class="sect"><h3>Payment</h3><div class="seg">' +
+        '<button type="button" class="' + (pay === 'cash' ? 'on' : '') + '" data-pay="cash">Cash</button>' +
+        '<button type="button" class="' + (pay === 'upi' ? 'on' : '') + '" data-pay="upi">UPI</button>' +
+      '</div></div>' + bills() +
+      '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes to our WhatsApp and stays <b>pending</b> until the team replies CONFIRM.</p>';
+
+    var canPay = !!(mode && pay && form.name.trim().length > 1 &&
+      /^[0-9]{10}$/.test(form.phone.replace(/\D/g, '')) &&
+      (mode === 'pickup' || form.addr.trim().length > 4));
+    foot.innerHTML = '<button class="btn" type="button" data-act="send"' + (canPay ? '' : ' disabled') + '>Send order on WhatsApp &middot; ' + rupee(grandTotal()) + '</button>';
+  }
+
+  /* ---------------- order ---------------- */
+  function ref() {
+    var d = new Date();
+    var p = function (x) { return String(x).padStart(2, '0'); };
+    return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+  }
+
+  function buildMessage() {
+    var lines = cart.map(function (l) {
+      return l.qty + ' x ' + l.name + (l.variant ? ' (' + l.variant + ')' : '') + ' \u2014 ' + rupee(l.price * l.qty);
+    });
+    var distTxt;
+    if (mode === 'pickup') distTxt = 'PICKUP ORDER \u2014 customer collecting in person (no delivery distance needed)';
+    else if (pos.metres === null) distTxt = 'Distance not provided \u2014 please confirm the delivery charge with the customer';
+    else if (outsideRadius()) distTxt = 'Delivery: ' + pos.metres + ' m \u2014 *OUTSIDE the 3.5 km delivery radius*, charge and drop to be confirmed';
+    else distTxt = 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 500 m' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE');
+
+    return '*NEW ORDER \u2014 Zeva Mandi & Grills*' + '\n' +
+      'Order ID: *#' + orderRef + '*' + '\n' +
+      'Status: *PENDING CONFIRMATION*' + '\n' +
+      '(placed in the Zeva app)' + '\n\n' +
+      '*Items*' + '\n' + lines.join('\n') + '\n\n' +
+      'Items total: ' + rupee(total()) + '\n' +
+      'CGST 2.5%: ' + rupee(cgst()) + '\n' +
+      'SGST 2.5%: ' + rupee(sgst()) + '\n' +
+      (mode === 'delivery' ? distTxt + '\n' : '') +
+      '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
+      '(GST on food only; delivery charge untaxed)' + '\n\n' +
+      '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
+      '*Payment: ' + (pay === 'cash' ? 'CASH' : 'UPI') + '*' + '\n\n' +
+      '*Customer*' + '\n' +
+      'Name: ' + (form.name || '\u2014') + '\n' +
+      'Phone: ' + (form.phone || '\u2014') + '\n' +
+      'Address: ' + (mode === 'pickup' ? 'Pickup at the counter' : (form.addr || '\u2014')) + '\n' +
+      (form.note ? 'Note: ' + form.note + '\n' : '') +
+      '\n*Delivery check*' + '\n' + distTxt + '\n' +
+      '\nThis order is *pending* \u2014 please reply CONFIRM to approve it. The customer has been told it is not confirmed until you reply.';
+  }
+
+  function sendOrder() {
+    orderRef = ref();
+    var payload = {
+      id: orderRef,
+      mode: mode,
+      pay: pay,
+      name: form.name,
+      phone: form.phone,
+      address: mode === 'pickup' ? 'Pickup at the counter' : form.addr,
+      note: form.note,
+      distance_m: pos.metres,
+      items: cart.map(function (l) { return { name: l.name, variant: l.variant, qty: l.qty, price: l.price }; })
+    };
+    try {
+      fetch('/api/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload), keepalive: true })
+        .catch(function () {});
+    } catch (e) {}
+
+    printState = 'sending';
+    var printPayload = {
+      id: payload.id, mode: payload.mode, pay: payload.pay, name: payload.name, phone: payload.phone,
+      address: payload.address, note: payload.note, distance_m: payload.distance_m, items: payload.items,
+      items_total: total(), total: grandTotal(), cgst: cgst(), sgst: sgst(), tip: 0,
+      outside_radius: outsideRadius(), date: new Date().toISOString()
+    };
+    try {
+      fetch('/api/print', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(printPayload) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { printState = (r.ok && d && d.ok) ? 'ok' : 'fail'; }); })
+        .catch(function () { printState = 'fail'; })
+        .then(function () { if (screen === 'done') renderCartScreen(); });
+    } catch (e) { printState = 'fail'; }
+
+    window.open('https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(buildMessage()), '_blank', 'noopener');
+
+    cart = [];
+    write(CART_KEY, cart);
+    screen = 'done';
+    renderCartChrome();
+    renderMenu();
+    renderCartScreen();
+  }
+
+  /* ---------------- geolocation ---------------- */
+  function haversine(lat1, lon1, lat2, lon2) {
+    var R = 6371000;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+  function checkDistance() {
+    if (!navigator.geolocation) { pos.state = 'failed'; renderCartScreen(); return; }
+    pos.state = 'locating';
+    renderCartScreen();
+    navigator.geolocation.getCurrentPosition(function (p) {
+      pos.metres = haversine(REST.lat, REST.lon, p.coords.latitude, p.coords.longitude);
+      pos.state = 'done';
+      renderCartScreen();
+    }, function () {
+      pos.state = 'denied';
+      renderCartScreen();
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }
+
+  /* ---------------- events ---------------- */
+  document.getElementById('menu').addEventListener('click', function (e) {
+    var add = e.target.closest('[data-add]');
+    if (add) { addItem(add.getAttribute('data-add'), add.getAttribute('data-add'), '', parseInt(add.getAttribute('data-price'), 10)); return; }
+    var sz = e.target.closest('[data-size]');
+    if (sz) { var bits = sz.getAttribute('data-size').split('|'); openSize(bits[0], bits[1]); }
+  });
+
+  document.getElementById('sizeBody').addEventListener('click', function (e) {
+    var add = e.target.closest('[data-addsize]');
+    if (add) {
+      var parts = add.getAttribute('data-addsize').split('|');
+      addItem(parts[0] + ' ' + parts[1], parts[0], parts[1], parseInt(parts[2], 10));
+      openSize(activeSizeCat, activeSizeItem);
+      return;
+    }
+    var q = e.target.closest('[data-q]');
+    if (q) { changeQty(q.getAttribute('data-id'), parseInt(q.getAttribute('data-q'), 10)); openSize(activeSizeCat, activeSizeItem); }
+  });
+
+  document.getElementById('sizeScreen').addEventListener('click', function (e) {
+    var close = e.target.closest('[data-close]');
+    if (close) closeScreen(close.getAttribute('data-close'));
+  });
+
+  document.getElementById('chips').addEventListener('click', function (e) {
+    var chip = e.target.closest('[data-cat]');
+    if (!chip) return;
+    activeCat = chip.getAttribute('data-cat');
+    renderChips();
+    renderMenu();
+    var top = document.getElementById('menu').offsetTop - 74;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  });
+
+  document.getElementById('q').addEventListener('input', function () {
+    var q = document.getElementById('q');
+    var term = q.value.trim();
+    var host = document.getElementById('menu');
+    if (!term) { document.getElementById('homeView').hidden = false; renderMenu(); return; }
+    var hits = [];
+    var lower = term.toLowerCase();
+    menu.forEach(function (cat) {
+      cat.items.forEach(function (it) {
+        if (it.name.toLowerCase().indexOf(lower) !== -1) hits.push({ cat: cat, item: it });
+      });
+    });
+    host.innerHTML = '<section class="catblock"><h2>' + (hits.length ? 'Results' : 'No match') + '</h2>' +
+      '<p class="sub">' + (hits.length ? hits.length + ' dish' + (hits.length === 1 ? '' : 'es') + ' for \u201c' + esc(term) + '\u201d' : 'Nothing on the menu matches \u201c' + esc(term) + '\u201d. Try \u201cmandi\u201d or \u201cprawn\u201d.') + '</p>' +
+      hits.map(function (h) { return dishRow(h.cat, h.item); }).join('') + '</section>';
+  });
+
+  document.getElementById('cartScreen').addEventListener('click', function (e) {
+    var close = e.target.closest('[data-close]');
+    if (close) { closeScreen(close.getAttribute('data-close')); return; }
+    var q = e.target.closest('[data-q]');
+    if (q) { changeQty(q.getAttribute('data-id'), parseInt(q.getAttribute('data-q'), 10)); return; }
+    var modeBtn = e.target.closest('[data-mode]');
+    if (modeBtn) { mode = modeBtn.getAttribute('data-mode'); renderCartScreen(); return; }
+    var payBtn = e.target.closest('[data-pay]');
+    if (payBtn) { pay = payBtn.getAttribute('data-pay'); renderCartScreen(); return; }
+
+    var act = e.target.closest('[data-act]');
+    if (!act) return;
+    var what = act.getAttribute('data-act');
+    if (what === 'geo') checkDistance();
+    else if (what === 'checkout') { screen = 'checkout'; renderCartScreen(); }
+    else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
+    else if (what === 'send') sendOrder();
+    else if (what === 'neworder') {
+      closeScreen('cart');
+      screen = 'home';
+      mode = ''; pay = ''; pos = { state: 'idle', metres: null }; printState = 'idle';
+      window.scrollTo({ top: 0 });
+    }
+  });
+
+  document.getElementById('cartScreen').addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el || !el.id) return;
+    if (el.id === 'f-name') form.name = el.value;
+    else if (el.id === 'f-phone') form.phone = el.value;
+    else if (el.id === 'f-addr') form.addr = el.value;
+    else if (el.id === 'f-note') form.note = el.value;
+    else return;
+    write(FORM_KEY, form);
+    var send = document.querySelector('[data-act="send"]');
+    var canPay = !!(mode && pay && form.name.trim().length > 1 &&
+      /^[0-9]{10}$/.test(form.phone.replace(/\D/g, '')) &&
+      (mode === 'pickup' || form.addr.trim().length > 4));
+    if (send) send.disabled = !canPay;
+  });
+
+  document.getElementById('viewcart').addEventListener('click', function () {
+    screen = 'cart';
+    renderCartScreen();
+    openScreen('cart');
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (tab) {
+    tab.addEventListener('click', function () {
+      var which = tab.getAttribute('data-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.classList.toggle('on', t === tab); });
+      if (which === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
+      else if (which === 'search') { document.getElementById('q').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      else if (which === 'cart') { screen = 'cart'; renderCartScreen(); openScreen('cart'); }
+      else if (which === 'call') window.location.href = 'tel:+917022771888';
+    });
+  });
+
+  /* ---------------- install prompt ---------------- */
+  var installEvent = null;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    installEvent = e;
+    if (!standalone) document.getElementById('installbar').classList.add('show');
+  });
+  window.addEventListener('appinstalled', function () {
+    document.getElementById('installbar').classList.remove('show');
+  });
+
+  document.getElementById('installbtn').addEventListener('click', function () {
+    if (!installEvent) {
+      alert('Open this page in Chrome, tap the menu button and choose "Add to Home screen".');
+      return;
+    }
+    installEvent.prompt();
+    installEvent.userChoice.then(function () {
+      installEvent = null;
+      document.getElementById('installbar').classList.remove('show');
+    });
+  });
+
+  /* ---------------- boot ---------------- */
+  renderCartChrome();
+  loadMenu(false);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>

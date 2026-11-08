@@ -26,6 +26,15 @@ The live site is the Freebuff Sites preview
 `deploy/sites.manifest.json`. Social share tags carry that origin absolutely —
 if the site moves to a custom domain, run `node .tools/fix-og.js <new-origin>`.
 
+## Android app (PWA)
+
+`deploy/dist/app.html` is the installable ordering app at `/app`; it reads the
+menu straight out of `menu.html` at runtime, so a menu edit needs no app change.
+`manifest.webmanifest` and `sw.js` make it installable and keep it readable
+offline. Its icons come from `deploy/make-favicon.ps1` (rerun it after a logo
+change) and its `start_url` is absolute, so a move to a custom domain means
+updating the manifest too.
+
 ## Menu spreadsheet
 
 `Zeva-Menu.xlsx` is generated from `deploy/dist/menu.html` by
