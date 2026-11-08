@@ -15,7 +15,21 @@ import path from "node:path";
 import fs from "node:fs";
 import { handleAccounts } from "./worker/accounts.js";
 
-const DB_FILE = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), ".local-zeva.sqlite");
+const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const DB_FILE = path.resolve(HERE, ".local-zeva.sqlite");
+const PASSCODE_FILE = path.resolve(HERE, "admin-passcode.secret");
+
+// Same passcode as production, so what staff learn locally works live.
+function localPasscode() {
+  if (process.env.ADMIN_PASSCODE) return process.env.ADMIN_PASSCODE;
+  try {
+    const value = fs.readFileSync(PASSCODE_FILE, "utf8").trim();
+    if (value) return value;
+  } catch (error) {
+    /* no passcode file yet */
+  }
+  return "zeva-dev-pass";
+}
 
 let db = null;
 
@@ -71,7 +85,7 @@ function localEnv() {
   return {
     DB: d1(),
     SESSION_SECRET: process.env.SESSION_SECRET || "zeva-local-development-secret",
-    ADMIN_PASSCODE: process.env.ADMIN_PASSCODE || "zeva-dev-pass",
+    ADMIN_PASSCODE: localPasscode(),
     ZEVA_DEV_LOGIN: "1",
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || ""
