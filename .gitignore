@@ -23,5 +23,10 @@ desktop.ini
 # local test database
 *.sqlite
 
+# Android build output — regenerate from apk/README.md; the APK ships via OneDrive
+apk/android/
+apk/*.apk
+apk/local.properties
+
 # Wrangler dev variables (never commit)
 .dev.vars

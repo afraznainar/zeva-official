@@ -29,14 +29,74 @@ The same workflow also runs for any `v*` tag push, e.g. `git tag v1.0.0 && git p
 customers directly or for testing, but Play Store uploads need a release keystore
 (keep that file out of git — see the "never commit secrets" rule).
 
-## Local build (only if the Android SDK is installed)
+## The APK you can hand out
+
+`apk/Zeva-Mandi-and-Grills.apk` is a signed debug build (package
+`com.zeva.mandi`, label "Zeva Mandi & Grills", min Android 5.1, target 34).
+Copy it to a phone, tap it, allow "install unknown apps" once. It loads the live
+`/app` page, so menu and price changes reach installed phones with no new build.
+
+It is **not** Play Store ready: stores want a release-signed `.aab`, built with
+your own keystore (`bundleRelease`). Keep that keystore out of git.
+
+## Local build without Android Studio
+
+The build needs a JDK 17, the Android command-line tools and Gradle. On the
+counter laptop they were installed into `%TEMP%` only for the build:
+
+```bash
+# JDK 17 (Microsoft build)
+curl -L -o jdk17.zip "https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.zip"
+unzip -q jdk17.zip -d /tmp/jdk17
+
+# Android SDK: platform-tools, platforms;android-34, build-tools;34.0.0
+curl -L -o cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+unzip -q cmdtools.zip -d /tmp/cmdtools-x
+mkdir -p /tmp/android-sdk/cmdline-tools
+mv /tmp/cmdtools-x/cmdline-tools /tmp/android-sdk/cmdline-tools/latest
+JAVA_HOME=/tmp/jdk17/jdk-17.0.21.0.2+1 \
+  /tmp/android-sdk/cmdline-tools/latest/bin/sdkmanager.bat --sdk_root=/tmp/android-sdk \
+  "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+# Capacitor project + icons
+cd apk && npm install && npx cap add android
+powershell -NoProfile -ExecutionPolicy Bypass -File apk/make-icons.ps1
+```
+
+Gradle's own download host times out on this network, so fetch the distribution
+from a mirror and run it directly instead of `gradlew`:
+
+```bash
+curl -L -o /tmp/gradle.zip "https://mirrors.cloud.tencent.com/gradle/gradle-8.2.1-bin.zip"
+unzip -q /tmp/gradle.zip -d /tmp
+```
+
+Then, with `apk/android/local.properties` containing
+`sdk.dir=C:/Users/HP/AppData/Local/Temp/android-sdk` (forward slashes — the
+properties parser eats backslashes):
+
+```bash
+export JAVA_HOME=/tmp/jdk17/jdk-17.0.21.0.2+1
+export ANDROID_HOME=C:/Users/HP/AppData/Local/Temp/android-sdk
+cd apk/android && /tmp/gradle-8.2.1/bin/gradle assembleDebug --no-daemon
+cp app/build/outputs/apk/debug/app-debug.apk ../Zeva-Mandi-and-Grills.apk
+```
+
+`apk/make-icons.ps1` repaints the launcher icons, adaptive-icon background and
+splash screens from `deploy/dist/assets/img/icon-512.png`; rerun it after a logo
+change and rebuild.
+
+If the build stops with a resource-merge error naming `merged.dir\values`, the
+intermediates are stale — `rm -rf apk/android/app/build` and build again.
+
+## Local build with Android Studio
 
 ```bash
 cd apk
 npm install
 npx cap add android
 npx cap sync android
-npx cap open android      # opens Android Studio, then Run
+npx cap open android      # then Run
 ```
 
 `npm run sync` after editing `capacitor.config.json`.
