@@ -73,9 +73,11 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   (Silver), 500 (Gold) and 1000 (Diamond). `CARDS` at the top of `accounts.js`
   holds those thresholds; the tier is recomputed from delivered orders on every
   request rather than stored, and `adminSetStatus` folds a new unlock into the
-  delivered notification. All three cards are shown to every signed-in customer
-  in the You tab (non-Gold see "Zeva Gold only" locks); `tiltAll()` gives the
-  profile card and each achievement card the same pointer tilt and holo foil.
+  delivered notification. The You tab shows one full portrait card at a time
+  behind Silver / Gold / Diamond tabs (non-Gold see "Zeva Gold only" locks).
+  The card is lenticular: the customer's photo fades out as the Zeva mark fades
+  in, driven by `--from-left` from the shared `tiltAll()` pointer tilt, so
+  tilting the card dissolves one picture into the other.
 - Local development: `wrangler` cannot run on this laptop (Device Guard blocks
   workerd), so `/api/*` is served by `deploy/server.js` through
   `deploy/local-accounts.js`, a `node:sqlite` shim of the D1 API using

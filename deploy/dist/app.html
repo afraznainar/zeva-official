@@ -429,81 +429,119 @@
   .pc-since { margin-left: auto; font-size: 10.5px; color: var(--text-3); letter-spacing: .04em; }
   .pc-chip.tier { border-color: rgba(240, 236, 226, .45); color: #f2e9da; background: linear-gradient(120deg, rgba(255, 255, 255, .16), rgba(192, 133, 54, .22)); }
 
-  /* ---------- achievement cards: Silver, Gold, Diamond ---------- */
-  .acard-wrap { perspective: 1000px; margin: 11px 3px; }
+  /* ---------- achievement cards: lenticular photo + Zeva hologram ---------- */
+  .ach-tabs { display: flex; gap: 6px; margin-top: 12px; }
+  .ach-tabs button {
+    flex: 1; padding: 7px 3px; border-radius: 10px; cursor: pointer;
+    background: rgba(240, 226, 205, .04); border: 1px solid var(--line);
+    color: var(--text-3); font: inherit; font-size: 9.5px; letter-spacing: .06em;
+    text-transform: uppercase; line-height: 1.35; transition: background .18s, color .18s, border-color .18s;
+  }
+  .ach-tabs button b { display: block; font-size: 11.5px; letter-spacing: .05em; color: var(--text-2); margin-bottom: 2px; }
+  .ach-tabs button.on { border-color: rgba(223, 174, 116, .62); background: rgba(192, 133, 54, .17); color: var(--brass-2); }
+  .ach-tabs button.on b { color: var(--brass-2); }
+  .ach-tabs button.locked { opacity: .6; }
+
+  .acard-wrap { perspective: 900px; margin: 13px auto 0; max-width: 310px; }
   .acard {
+    --from-left: .5;
+    --a-rim: linear-gradient(155deg, #e3ecfb, #8496b6 40%, #f2f7ff 63%, #66788f);
+    --a-glow: rgba(126, 176, 255, .45);
+    --a-accent: #d5e4ff;
     --rotate-x: 0deg; --rotate-y: 0deg;
     --pointer-x: 50%; --pointer-y: 50%;
     --background-x: 50%; --background-y: 50%;
     --pointer-from-center: 0;
-    position: relative; aspect-ratio: 1.586 / 1; border-radius: 17px; padding: 1.5px;
+    position: relative; aspect-ratio: 5 / 6.3; border-radius: 24px; padding: 1.5px;
+    background: var(--a-rim);
     transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
     transform-style: preserve-3d;
-    transition: transform .45s cubic-bezier(.16, 1, .3, 1);
-    box-shadow: 0 22px 40px -30px rgba(0, 0, 0, .95), 0 0 0 1px rgba(0, 0, 0, .35);
+    transition: transform .45s cubic-bezier(.16, 1, .3, 1), box-shadow .3s ease;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 26px 46px -30px #000, 0 0 26px -6px var(--a-glow);
   }
-  .acard.tilting { transition: transform .08s linear; }
-  .acard-inner { position: relative; overflow: hidden; border-radius: 16px; height: 100%; padding: 13px 15px; }
-  .acard.silver { background: linear-gradient(140deg, #f2f5f9, #9ba5b2 34%, #e8eef5 58%, #7f8996 100%); }
-  .acard.silver .acard-inner {
+  .acard.gold { --a-rim: linear-gradient(155deg, #ffeec8, #c99a4c 42%, #fff1cf 64%, #a1782f); --a-glow: rgba(226, 172, 92, .5); --a-accent: #ffe5b5; }
+  .acard.diamond { --a-rim: linear-gradient(155deg, #dcf6ff, #8cc6e8 38%, #f4d9ff 62%, #a38fd6); --a-glow: rgba(166, 196, 255, .55); --a-accent: #e2f6ff; }
+  .acard.tilting { transition: transform .08s linear, box-shadow .3s ease; }
+  .acard-inner {
+    position: relative; overflow: hidden; border-radius: 23px; height: 100%;
+    display: grid; place-items: center;
     background:
-      linear-gradient(100deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, .2) 54%, rgba(255, 255, 255, 0) 76%),
-      linear-gradient(152deg, #b6c1ce, #6f7a89 38%, #d5dde7 62%, #59636e 100%);
-    color: #121820;
+      radial-gradient(120% 78% at 50% 4%, rgba(74, 98, 152, .55), rgba(10, 14, 24, 0) 62%),
+      linear-gradient(180deg, #1b2440 0%, #121a2c 55%, #0a0f1a 100%);
+    color: #eef3ff;
   }
-  .acard.gold { background: linear-gradient(140deg, #ffeec2, #c08f3d 34%, #ffe3a6 58%, #96691f 100%); }
-  .acard.gold .acard-inner {
-    background:
-      linear-gradient(100deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, .18) 56%, rgba(255, 255, 255, 0) 78%),
-      linear-gradient(152deg, #d6a04a, #94661f 38%, #e6c47c 62%, #6f4b13 100%);
-    color: #1c1202;
+  /* the mark pattern behind everything, like the crowns on the reference card */
+  .acard-pattern {
+    position: absolute; inset: -18%; pointer-events: none; opacity: .045;
+    background-image: url("assets/img/zeva-mark.webp");
+    background-size: 74px 74px; background-repeat: repeat;
+    transform: rotate(-18deg);
+    filter: grayscale(1) brightness(2.2);
   }
-  .acard.diamond { background: linear-gradient(140deg, #eafaff, #96cbe8 30%, #ffd9f0 55%, #b3e0fb 78%, #7fb6d5 100%); }
-  .acard.diamond .acard-inner {
-    background:
-      linear-gradient(100deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, .2) 58%, rgba(255, 255, 255, 0) 80%),
-      linear-gradient(150deg, #8fc6e4, #5a9ec4 34%, #b8daee 56%, #7fc0dd 76%, #4a7e9d 100%);
-    color: #07202f;
+  /* picture one: the customer */
+  .acard-photo {
+    position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 11px;
+    padding: 0 16px; text-align: center;
+    opacity: calc(.3 + var(--from-left) * .8);
+    transition: opacity .12s linear;
   }
-  /* holo foil: a rainbow band that slides as the card tilts */
+  .acard-photo::before {
+    content: ""; position: absolute; left: 50%; top: 68px; width: 220px; height: 220px; transform: translate(-50%, -50%);
+    border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, var(--a-glow), rgba(0, 0, 0, 0) 68%); opacity: .85;
+  }
+  .acard-av {
+    position: relative;
+    width: 138px; height: 138px; border-radius: 50%; padding: 3px; flex: none;
+    background: conic-gradient(from 190deg, rgba(255, 255, 255, .85), var(--a-accent), rgba(255, 255, 255, .22), var(--a-accent), rgba(255, 255, 255, .85));
+    box-shadow: 0 0 40px -4px var(--a-glow), inset 0 0 24px -10px #fff;
+  }
+  .acard-av img, .acard-av span { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .acard-av span { display: grid; place-items: center; background: #1b2438; font-family: var(--display); font-size: 50px; color: var(--a-accent); }
+  .acard-name { font-size: 17px; font-weight: 600; letter-spacing: .01em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acard-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 999px; color: var(--a-accent);
+    background: rgba(7, 10, 17, .82); border: 1px solid rgba(255, 255, 255, .18);
+  }
+  /* picture two: the Zeva mark, screen-blended so it reads as a hologram */
+  .acard-holo {
+    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; pointer-events: none;
+    opacity: calc(.78 - var(--from-left) * .72);
+    transition: opacity .12s linear;
+    mix-blend-mode: screen;
+  }
+  .acard-holo img {
+    width: 46%; max-width: 152px; opacity: .92;
+    filter: drop-shadow(0 0 20px var(--a-glow)) saturate(1.35) hue-rotate(calc(var(--from-left) * 80deg));
+  }
+  /* foil band that slides with the card */
   .acard-inner::before {
     content: ""; position: absolute; inset: -1px; pointer-events: none; z-index: 1;
     background-image: linear-gradient(112deg,
-      rgba(110, 255, 214, 0) 14%, rgba(120, 255, 210, .55) 26%,
-      rgba(120, 172, 255, .65) 38%, rgba(255, 140, 205, .6) 50%,
-      rgba(255, 234, 140, .72) 62%, rgba(110, 250, 205, .45) 72%,
-      rgba(255, 255, 255, 0) 84%);
+      rgba(110, 255, 214, 0) 14%, rgba(120, 255, 210, .55) 27%,
+      rgba(120, 172, 255, .65) 39%, rgba(255, 140, 205, .6) 51%,
+      rgba(255, 234, 140, .7) 63%, rgba(110, 250, 205, .45) 73%,
+      rgba(255, 255, 255, 0) 85%);
     background-size: 220% 220%;
     background-position: var(--background-x) var(--background-y);
-    mix-blend-mode: color-dodge;
-    opacity: calc(.3 + var(--pointer-from-center) * .3);
-    transition: opacity .35s ease;
+    mix-blend-mode: soft-light;
+    opacity: calc(.45 + var(--pointer-from-center) * .45);
+    transition: opacity .25s ease;
   }
-  /* glare that sits under the finger */
+  /* glare under the finger */
   .acard-inner::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-    background: radial-gradient(220px 170px at var(--pointer-x) var(--pointer-y),
-      rgba(255, 255, 255, .8), rgba(255, 255, 255, .16) 42%, rgba(255, 255, 255, 0) 74%);
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4;
+    background: radial-gradient(190px 150px at var(--pointer-x) var(--pointer-y),
+      rgba(255, 255, 255, .34), rgba(255, 255, 255, .07) 48%, rgba(255, 255, 255, 0) 78%);
     mix-blend-mode: screen;
-    opacity: calc(var(--pointer-from-center) * .45);
-    transition: opacity .35s ease;
+    opacity: calc(var(--pointer-from-center) * .22);
+    transition: opacity .25s ease;
   }
-  .acard-mark { position: absolute; right: -16px; bottom: -20px; width: 120px; height: 120px; opacity: .13; pointer-events: none; }
-  .acard-mark img { width: 100%; height: 100%; object-fit: contain; }
-  .acard-body { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; }
-  .acard-top { display: flex; align-items: center; gap: 6px; }
-  .acard-brand { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 11px; letter-spacing: .2em; }
-  .acard-brand img { width: 15px; height: 15px; object-fit: contain; }
-  .acard-tierpill { margin-left: auto; font-size: 8.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: .72; }
-  .acard-word { margin-top: auto; font-family: var(--display); font-size: 33px; font-weight: 600; line-height: 1; letter-spacing: .06em; text-transform: uppercase; }
-  .acard-sub { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; opacity: .66; margin-top: 5px; }
-  .acard-foot { margin-top: 9px; display: flex; align-items: baseline; gap: 8px; font-size: 10px; }
-  .acard-name { font-weight: 600; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58%; }
-  .acard-org { margin-left: auto; font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .62; white-space: nowrap; }
-  .acard.locked .acard-inner { filter: brightness(.93); }
-  .acard-lock { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border-radius: 16px; background: rgba(12, 8, 6, .3); }
-  .acard-lock span { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; background: rgba(18, 13, 9, .8); border: 1px solid rgba(255, 255, 255, .3); color: #f5ede2; }
-  .ach-line { display: flex; justify-content: space-between; gap: 10px; font-size: 10.5px; color: var(--text-3); margin-top: 10px; letter-spacing: .02em; }
+  .acard.locked .acard-inner { filter: brightness(.86); }
+  .acard-lock { position: absolute; inset: 0; z-index: 5; display: grid; place-items: start center; padding-top: 14px; border-radius: 23px; background: rgba(8, 11, 18, .26); }
+  .acard-lock span { font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; background: rgba(12, 16, 25, .9); border: 1px solid rgba(255, 255, 255, .26); color: #f1f5ff; }
+  .ach-line { display: flex; justify-content: space-between; gap: 10px; font-size: 10.5px; color: var(--text-3); margin-top: 12px; letter-spacing: .02em; }
   .ach-bar { height: 3px; border-radius: 3px; background: rgba(240, 226, 205, .14); margin-top: 6px; overflow: hidden; }
   .ach-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--brass), var(--brass-2)); }
 
@@ -1305,6 +1343,9 @@
       if (details) details.scrollIntoView({ behavior: 'smooth', block: 'center' });
       var addrField = document.getElementById('u-addr');
       if (addrField) setTimeout(function () { addrField.focus(); }, 350);
+    } else if (what === 'achview') {
+      achView = act.getAttribute('data-ach') || achView;
+      renderYou();
     } else if (what === 'notify-on') {
       act.disabled = true;
       requestNotify().then(function (state) {
@@ -1551,49 +1592,67 @@
     return ({ silver: 'Silver', gold: 'Gold', diamond: 'Diamond' })[key] || '';
   }
 
-  function achievementSection(ach, u) {
-    var list = (ach && ach.cards) || [];
-    if (!list.length) return '';
-    var cards = list.map(function (c) {
-      return '<div class="acard-wrap" data-tilt>' +
-        '<div class="acard ' + esc(c.key) + (c.unlocked ? '' : ' locked') + ' tilt-face">' +
-          '<div class="acard-inner">' +
-            '<div class="acard-mark"><img src="assets/img/zeva-mark.webp" alt=""></div>' +
-            '<div class="acard-body">' +
-              '<div class="acard-top">' +
-                '<span class="acard-brand"><img src="assets/img/zeva-mark.webp" alt="">ZEVA</span>' +
-                '<span class="acard-tierpill">' + esc(c.name) + '</span>' +
-              '</div>' +
-              '<div class="acard-word">' + esc(c.name) + '</div>' +
-              '<div class="acard-sub">' + (c.unlocked ? 'Earned \u00b7 ' + c.orders + ' orders' : c.orders + ' delivered orders') + '</div>' +
-              '<div class="acard-foot">' +
-                '<span class="acard-name">' + esc(u.name || 'Zeva member') + '</span>' +
-                '<span class="acard-org">Zeva Mandi &amp; Grills</span>' +
-              '</div>' +
+  // Which achievement card the customer is looking at. Kept outside the
+  // render so a status poll does not snap them back to another tier.
+  var achView = null;
+
+  function achievementCard(card, ach, u) {
+    var locked = !card.unlocked;
+    var face =
+      '<div class="acard-wrap" data-tilt><div class="acard ' + esc(card.key) + (locked ? ' locked' : '') + ' tilt-face">' +
+        '<div class="acard-inner">' +
+          '<div class="acard-pattern"></div>' +
+          '<div class="acard-photo">' +
+            '<div class="acard-av">' +
+              (u.picture
+                ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">'
+                : '<span>' + esc((u.name || 'Z').slice(0, 1).toUpperCase()) + '</span>') +
             '</div>' +
+            '<div class="acard-name">' + esc(u.name || 'Zeva member') + '</div>' +
+            '<div class="acard-badge">' + esc(card.name) + ' · ' + card.orders + ' orders</div>' +
           '</div>' +
-          (c.unlocked ? '' : '<div class="acard-lock"><span>' + (ach.member ? c.remaining + ' orders to go' : 'Zeva Gold only') + '</span></div>') +
-        '</div></div>';
+          '<div class="acard-holo"><img src="assets/img/zeva-mark.webp" alt=""></div>' +
+        '</div>' +
+        (locked
+          ? '<div class="acard-lock"><span>' + (ach.member ? card.remaining + ' orders to go' : 'Zeva Gold only') + '</span></div>'
+          : '') +
+      '</div></div>';
+
+    var tabs = ach.cards.map(function (c) {
+      return '<button type="button" data-act="achview" data-ach="' + esc(c.key) + '"' +
+        ' class="' + (c.key === card.key ? 'on' : '') + (c.unlocked ? '' : ' locked') + '">' +
+        '<b>' + esc(c.name) + '</b>' + c.orders + '</button>';
     }).join('');
 
     var done = Number(ach.orders_done || 0) || 0;
-    var next = ach.next;
-    var goal = next ? next.orders : (list[list.length - 1] || {}).orders || 0;
-    var pct = goal ? Math.min(100, Math.round((done / goal) * 100)) : 0;
+    var goal = card.orders || 1;
+    var pct = Math.min(100, Math.round((done / goal) * 100));
     var line;
     if (!ach.member) {
-      line = 'Achievement cards come with Zeva Gold \u2014 join and every delivered order starts counting.';
-    } else if (next) {
-      line = done + ' of ' + next.orders + ' delivered orders \u2014 ' + next.remaining + ' more for the ' + next.name + ' card.';
+      line = 'Achievement cards come with Zeva Gold — join and every delivered order starts counting.';
+    } else if (card.unlocked) {
+      line = 'Earned at ' + card.orders + ' delivered orders' + (ach.next ? ' · ' + ach.next.remaining + ' more for ' + ach.next.name : '') + '.';
     } else {
-      line = 'All three cards collected \u2014 ' + done + ' delivered orders and counting.';
+      line = done + ' of ' + card.orders + ' delivered orders — ' + card.remaining + ' to go.';
     }
+
+    return '<div class="ach-tabs">' + tabs + '</div>' +
+      face +
+      '<div class="ach-line"><span>' + esc(line) + '</span><span>' + pct + '%</span></div>' +
+      '<div class="ach-bar"><i style="width:' + pct + '%"></i></div>';
+  }
+
+  function achievementSection(ach, u) {
+    var list = (ach && ach.cards) || [];
+    if (!list.length) return '';
+    var card = null;
+    var wanted = achView || ach.tier || list[0].key;
+    for (var i = 0; i < list.length; i++) if (list[i].key === wanted) card = list[i];
+    if (!card) card = list[0];
     return '<div class="card">' +
       '<h3>Achievement cards</h3>' +
-      '<p class="muted">Silver at 100 delivered orders, Gold at 500, Diamond at 1000. Only delivered orders count. Show the card at the counter \u2014 it tilts under your finger.</p>' +
-      cards +
-      '<div class="ach-line"><span>' + esc(line) + '</span><span>' + Math.min(100, goal ? pct : 0) + '%</span></div>' +
-      '<div class="ach-bar"><i style="width:' + Math.min(100, goal ? pct : 0) + '%"></i></div>' +
+      '<p class="muted">Silver at 100 delivered orders, Gold at 500, Diamond at 1000 — delivered orders only. Hold a card and tilt it: your photo melts into the Zeva mark.</p>' +
+      achievementCard(card, ach, u) +
     '</div>';
   }
 
@@ -1650,6 +1709,7 @@
       style.setProperty('--background-x', round(adjust(pctX, 0, 100, 32, 68)) + '%');
       style.setProperty('--background-y', round(adjust(pctY, 0, 100, 32, 68)) + '%');
       style.setProperty('--pointer-from-center', round(fromCenter));
+      style.setProperty('--from-left', round(pctX / 100));
       style.setProperty('--rotate-x', round(-((pctY - 50) / 5)) + 'deg');
       style.setProperty('--rotate-y', round((pctX - 50) / 4) + 'deg');
     }
