@@ -48,6 +48,10 @@
   .topbtn.on { border-color: rgba(111,191,139,.55); color: var(--good); }
   .topbtn.alerting { border-color: var(--warn); color: var(--warn); }
 
+  /* The `hidden` attribute must win over layout rules like display:grid,
+     otherwise the passcode screen stays on top of an already-opened board. */
+  [hidden] { display: none !important; }
+
   /* -------- gate -------- */
   .gate { min-height: 92vh; display: grid; place-items: center; padding: 24px 16px; }
   .gate .box { width: 100%; max-width: 360px; }
