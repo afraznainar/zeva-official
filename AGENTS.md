@@ -59,6 +59,15 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Sessions are HMAC-signed cookies (`zeva_sid`, 90 days; `zeva_admin`, 30 days)
   signed with `SESSION_SECRET` — there is no session table. Rotating that secret
   signs everybody out.
+- Any Google account can sign in: `upsertUser` creates a profile row on the
+  first sign-in and there is no allowlist or email-domain check, so every
+  customer gets their own orders, wallet and Gold. The only thing that narrows
+  who can get in is Google's side — a consent screen left in **Testing** admits
+  just its listed test users, so it has to be published.
+- Because a new profile has a name and photo but no mobile or address, the You
+  tab renders its details card first, titled **Finish your profile**, whenever
+  `phone` or `address` is still empty; once both are saved the card drops back
+  below Zeva Gold. Checkout prefills itself from the saved profile.
 - Order statuses: `pending` (customer sees "Pending confirmation") → `preparing`
   (staff pressed **Accept order**) → `out` → `done`, plus `cancelled`. The
   schema batch also rewrites legacy `new`/`ready` rows into the new names.

@@ -1555,8 +1555,22 @@
       '</div>';
     }).join('');
 
+    // A customer who just signed in has a name and photo from Google but no
+    // mobile or address yet — the two things an order needs. Lead with those
+    // instead of burying the form under Gold and the wallet.
+    var incomplete = !u.phone || !u.address;
+    var details =
+      '<div class="card" id="details"><h3>' + (incomplete ? 'Finish your profile' : 'Your details') + '</h3>' +
+        (incomplete ? '<p class="muted">Your name and photo came from Google. Add the mobile and the address the rider should look for \u2014 checkout fills itself in after this.</p>' : '') +
+        '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
+        '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
+        '<div class="field"><label for="u-addr">Delivery address</label><textarea id="u-addr" placeholder="House, street, Bolar \u2014 what the rider should look for">' + esc(u.address || '') + '</textarea></div>' +
+        '<button class="btn' + (incomplete ? '' : ' ghost') + '" type="button" data-act="savephone">' + (incomplete ? 'Save my details' : 'Save details') + '</button>' +
+      '</div>';
+
     body.innerHTML =
       card +
+      (incomplete ? details : '') +
       (inFlight ? inFlight : '') +
       goldCard +
       achievementSection(ach, u) +
@@ -1569,12 +1583,7 @@
             }).join('') + '</ul>'
           : '') +
       '</div>' +
-      '<div class="card" id="details"><h3>Your details</h3>' +
-        '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
-        '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
-        '<div class="field"><label for="u-addr">Delivery address</label><textarea id="u-addr" placeholder="House, street, Bolar \u2014 what the rider should look for">' + esc(u.address || '') + '</textarea></div>' +
-        '<button class="btn ghost" type="button" data-act="savephone">Save details</button>' +
-      '</div>' +
+      (incomplete ? '' : details) +
       '<div class="card"><h3>Your orders</h3>' +
         (inFlight ? '' : history ? '' : '<p class="muted">No orders yet. Your first one will show up here.</p>') +
         (history ? '<p class="muted" style="margin-top:' + (inFlight ? '12px' : '0') + '">Past orders</p><ul class="hist">' + history + '</ul>' : '') +
