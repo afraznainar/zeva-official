@@ -181,8 +181,8 @@ install link customers open on their phone: the Worker serves
 download. That file is gitignored — `node scripts/stage-apk.mjs` copies the built
 `apk/Zeva-Mandi-and-Grills.apk` there and refuses when the APK predates the
 current `apk/version.json`, which is the usual way a stale build gets published.
-Rebuild after every version bump, stage, then deploy. The home-page footer links
-to it; a deploy with no APK staged answers 404 with the counter's phone number.
+Rebuild after every version bump, stage, then deploy. A deploy with no APK
+staged answers 404 and names the counter's phone number.
 
 ## Menu spreadsheet
 
