@@ -5,6 +5,7 @@
    (env.DB). Cookies are HMAC-signed, so no session table is
    needed. Secrets, never in the repo:
      GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET  -> Google sign-in
+     WHATSAPP_OTP_KEY                         -> WhatsApp code sign-in
      SESSION_SECRET                           -> cookie signing
      ADMIN_PASSCODE                           -> staff dashboard
    ZEVA_DEV_LOGIN=1 exists only for local development.
@@ -88,6 +89,18 @@ const DB_SCHEMA = [
      expires_at INTEGER NOT NULL,
      used_at INTEGER
    )`,
+  // One row per WhatsApp code we asked a provider to send. The provider keeps
+  // the digits; this row only ties a session back to a phone number so one
+  // person's session can never verify someone else's number.
+  `CREATE TABLE IF NOT EXISTS otp_sessions (
+     session TEXT PRIMARY KEY,
+     phone TEXT NOT NULL,
+     created_at INTEGER NOT NULL,
+     expires_at INTEGER NOT NULL,
+     attempts INTEGER NOT NULL DEFAULT 0,
+     verified_at INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS otp_sessions_phone ON otp_sessions (phone, created_at DESC)`,
   // Messages the counter sends down to a customer's phone. user_id NULL = everyone.
   `CREATE TABLE IF NOT EXISTS notices (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -430,6 +443,194 @@ function decodeIdToken(idToken) {
 }
 
 /* ------------------------------------------------------------
+   WhatsApp sign-up
+   ------------------------------------------------------------
+   A customer types their mobile number, a provider sends a six-digit code over
+   WhatsApp, and the number becomes the account. No password, no Google account
+   needed — which is what most walk-in customers actually have.
+
+   The provider is any service exposing the same two calls (LoginWA's free plan
+   is 100 messages/month and needs no Meta approval):
+     POST {WHATSAPP_OTP_API}/auth/start   {phone, otp_length, message_template}
+                                         -> {session_id, expires_in}
+     POST {WHATSAPP_OTP_API}/auth/verify  {session_id, otp_code}
+                                         -> 200 when the code is right
+   The code itself never touches this server: it goes from the provider straight
+   to the customer's WhatsApp, so a leak here cannot reveal it.
+   ============================================================ */
+
+const WHATSAPP_API_DEFAULT = "https://api.loginwa.com/api";
+const OTP_TTL_SECONDS = 300;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_MAX_PER_WINDOW = 3;
+const OTP_WINDOW_MS = 10 * 60 * 1000;
+
+export function whatsappReady(env) {
+  return Boolean(env && env.WHATSAPP_OTP_KEY);
+}
+
+function whatsappApi(env) {
+  return String((env && env.WHATSAPP_OTP_API) || WHATSAPP_API_DEFAULT).replace(/\/+$/, "");
+}
+
+// Accepts 9876543210, 09876543210, +91 98765 43210 or a full international
+// number; returns digits only, or "" when it cannot be a real mobile. India is
+// strict on purpose: a ten-digit mobile starts 6-9, so autofilled junk (or a
+// mistyped 11-digit string) is refused here instead of burning a paid message.
+export function normalizePhone(env, raw) {
+  const cc = String((env && env.WHATSAPP_COUNTRY_CODE) || "91").replace(/\D/g, "") || "91";
+  let digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  if (cc === "91") {
+    if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+    if (digits.length !== 10 || !/^[6-9]/.test(digits)) return "";
+    return "91" + digits;
+  }
+  if (digits.length === 10) digits = cc + digits;
+  if (digits.length < 11 || digits.length > 15) return "";
+  return digits;
+}
+
+function maskPhone(digits) {
+  const s = String(digits || "");
+  if (s.length < 6) return "" + s;
+  return "+" + s.slice(0, s.length - 7) + " \u2022\u2022\u2022\u2022 " + s.slice(-4);
+}
+
+async function whatsappCall(env, route, payload) {
+  const response = await fetch(whatsappApi(env) + route, {
+    method: "POST",
+    headers: {
+      authorization: "Bearer " + env.WHATSAPP_OTP_KEY,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(12000)
+  });
+  const data = await response.json().catch(function () { return {}; });
+  return { ok: response.ok, status: response.status, data: data || {} };
+}
+
+function whatsappError(result) {
+  const data = result.data || {};
+  return String(data.error || data.message || data.detail || "").slice(0, 160);
+}
+
+// One account per verified number. If that number is already saved on a Google
+// account, sign into that same account instead of creating a second one.
+async function upsertPhoneUser(env, phone) {
+  const db = await database(env);
+  const now = Date.now();
+  const sub = "wa:" + phone;
+  const existing = await db
+    .prepare("SELECT * FROM users WHERE sub = ? OR (phone IS NOT NULL AND phone = ? AND phone <> '')")
+    .bind(sub, phone)
+    .first();
+  if (existing) {
+    // Keep a Google subject intact so that sign-in still lands here.
+    const keepSub = existing.sub && !String(existing.sub).startsWith("wa:") ? existing.sub : sub;
+    await db.prepare("UPDATE users SET phone = ?, sub = ?, last_seen_at = ? WHERE id = ?")
+      .bind(phone, keepSub, now, existing.id)
+      .run();
+    return { ...existing, phone: phone, sub: keepSub };
+  }
+  const id = crypto.randomUUID();
+  await db.prepare("INSERT INTO users (id, sub, email, name, picture, phone, created_at, last_seen_at) VALUES (?, ?, '', '', '', ?, ?, ?)")
+    .bind(id, sub, phone, now, now)
+    .run();
+  return { id: id, sub: sub, email: "", name: "", picture: "", phone: phone, created_at: now };
+}
+
+export async function whatsappStart(env, body) {
+  if (!whatsappReady(env)) return json(503, { error: "whatsapp sign-in is not configured" });
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+
+  const phone = normalizePhone(env, body && body.phone);
+  if (!phone) return json(400, { error: "Enter a mobile number with 10 digits." });
+
+  const since = Date.now() - OTP_WINDOW_MS;
+  const recent = await db
+    .prepare("SELECT COUNT(*) AS n FROM otp_sessions WHERE phone = ? AND created_at > ?")
+    .bind(phone, since)
+    .first();
+  if (recent && Number(recent.n) >= OTP_MAX_PER_WINDOW) {
+    return json(429, { error: "Too many codes for this number. Try again in ten minutes." });
+  }
+
+  let result;
+  try {
+    result = await whatsappCall(env, "/auth/start", {
+      phone: phone,
+      otp_length: 6,
+      message_template: String(env.WHATSAPP_OTP_TEXT || "Your Zeva code is {code}. It expires in 5 minutes.")
+    });
+  } catch (error) {
+    console.error("[whatsapp] send failed: " + error.message);
+    return json(502, { error: "WhatsApp is not reachable right now. Try again." });
+  }
+
+  const sessionId = String((result.data && result.data.session_id) || "");
+  if (!result.ok || !sessionId) {
+    console.error("[whatsapp] send rejected " + result.status + ": " + whatsappError(result));
+    return json(502, { error: whatsappError(result) || "WhatsApp could not send the code." });
+  }
+
+  const ttl = Math.min(Number(result.data.expires_in) || OTP_TTL_SECONDS, 600);
+  const expiresAt = Date.now() + ttl * 1000;
+  await db
+    .prepare("INSERT OR REPLACE INTO otp_sessions (session, phone, created_at, expires_at, attempts, verified_at) VALUES (?, ?, ?, ?, 0, NULL)")
+    .bind(sessionId, phone, Date.now(), expiresAt)
+    .run();
+
+  return json(200, { ok: true, session: sessionId, phone: maskPhone(phone), expires_in: Math.round(ttl) });
+}
+
+export async function whatsappVerify(request, env, body) {
+  if (!whatsappReady(env)) return json(503, { error: "whatsapp sign-in is not configured" });
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+
+  const session = String((body && body.session) || "").slice(0, 100);
+  const code = String((body && body.code) || "").replace(/\D/g, "").slice(0, 8);
+  if (!session) return json(400, { error: "Ask for a new code." });
+  if (code.length < 4) return json(400, { error: "Enter the 6-digit code from WhatsApp." });
+
+  const row = await db.prepare("SELECT * FROM otp_sessions WHERE session = ?").bind(session).first();
+  if (!row) return json(400, { error: "That code has expired. Ask for a new one." });
+  if (row.verified_at) return json(400, { error: "That code was already used. Ask for a new one." });
+  if (Number(row.expires_at) < Date.now()) return json(400, { error: "That code has expired. Ask for a new one." });
+  if (Number(row.attempts) >= OTP_MAX_ATTEMPTS) return json(429, { error: "Too many wrong codes. Ask for a new one." });
+
+  await db.prepare("UPDATE otp_sessions SET attempts = attempts + 1 WHERE session = ?").bind(session).run();
+
+  let result;
+  try {
+    result = await whatsappCall(env, "/auth/verify", { session_id: session, otp_code: code });
+  } catch (error) {
+    console.error("[whatsapp] verify failed: " + error.message);
+    return json(502, { error: "WhatsApp is not reachable right now. Try again." });
+  }
+  if (!result.ok) {
+    return json(401, { error: whatsappError(result) || "That code is not right." });
+  }
+
+  // Trust the number this session was opened for, not anything the caller sent.
+  const phone = normalizePhone(env, row.phone);
+  if (!phone) return json(400, { error: "That number could not be read. Ask for a new code." });
+
+  await db.prepare("UPDATE otp_sessions SET verified_at = ? WHERE session = ?").bind(Date.now(), session).run();
+  const user = await upsertPhoneUser(env, phone);
+  const sessionToken = await startSession(env, user.id);
+  return json(
+    200,
+    { ok: true, user: publicUser(user) },
+    { "set-cookie": cookieHeader("zeva_sid", sessionToken, SESSION_DAYS * 86400) }
+  );
+}
+
+/* ------------------------------------------------------------
    Orders
    ------------------------------------------------------------ */
 
@@ -568,6 +769,7 @@ export async function profilePayload(request, env) {
     user: publicUser(user),
     signed_in: Boolean(user),
     google: googleReady(env),
+    whatsapp: whatsappReady(env),
     dev: env.ZEVA_DEV_LOGIN === "1",
     gold: gold,
     gold_plan: GOLD,
@@ -902,11 +1104,16 @@ export async function handleAccounts(request, env, url) {
   const path = url.pathname;
 
   if (path === "/api/config") {
-    return json(200, { google: googleReady(env), gold: GOLD, dev: env.ZEVA_DEV_LOGIN === "1" });
+    return json(200, {
+      google: googleReady(env),
+      whatsapp: whatsappReady(env),
+      gold: GOLD,
+      dev: env.ZEVA_DEV_LOGIN === "1"
+    });
   }
 
   if (path === "/api/me") {
-    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
+    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
     return json(200, await profilePayload(request, env));
   }
 
@@ -918,6 +1125,16 @@ export async function handleAccounts(request, env, url) {
   if (path === "/api/auth/google/callback") {
     if (!googleReady(env)) return json(503, { error: "google sign-in is not configured" });
     return googleCallback(request, env);
+  }
+
+  if (path === "/api/auth/whatsapp/start" && request.method === "POST") {
+    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    return whatsappStart(env, await readJson(request));
+  }
+
+  if (path === "/api/auth/whatsapp/verify" && request.method === "POST") {
+    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    return whatsappVerify(request, env, await readJson(request));
   }
 
   if (path === "/api/auth/exchange" && request.method === "POST") {

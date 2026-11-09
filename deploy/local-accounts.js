@@ -88,7 +88,11 @@ function localEnv() {
     ADMIN_PASSCODE: localPasscode(),
     ZEVA_DEV_LOGIN: "1",
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || ""
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
+    WHATSAPP_OTP_KEY: process.env.WHATSAPP_OTP_KEY || "",
+    WHATSAPP_OTP_API: process.env.WHATSAPP_OTP_API || "",
+    WHATSAPP_OTP_TEXT: process.env.WHATSAPP_OTP_TEXT || "",
+    WHATSAPP_COUNTRY_CODE: process.env.WHATSAPP_COUNTRY_CODE || ""
   };
 }
 

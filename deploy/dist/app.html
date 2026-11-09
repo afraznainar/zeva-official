@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.6">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.7">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -702,6 +702,11 @@
   var activeSizeCat = '';
   var activeSizeItem = '';
   var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
+  // WhatsApp sign-up: 0 = buttons, 1 = asking for the number, 2 = asking for the code.
+  var waStep = 0;
+  var waSession = '';
+  var waPhone = '';
+  var waNote = '';
   var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
   var NOTICE_KEY = 'zeva_notice_after';
@@ -1055,9 +1060,11 @@
         ? '<div class="status ok">Zeva Gold: free delivery inside 5 km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
         : signedIn()
           ? '<div class="status warn">Zeva Gold gives free delivery inside 5 km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
-          : (ACCT && ACCT.google
-            ? '<a class="geo" data-act="glogin" href="/api/auth/google/start?next=/app" style="text-decoration:none;justify-content:center">Sign in with Google &mdash; save this order and earn cashback</a>'
-            : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>')) +
+          : (ACCT && ACCT.whatsapp
+            ? '<div class="status warn" style="cursor:pointer" data-act="gosignin">Sign in with your WhatsApp number &mdash; save this order and earn ' + rupee(GOLD.cashback) + ' cashback</div>'
+            : (ACCT && ACCT.google
+              ? '<a class="geo" data-act="glogin" href="/api/auth/google/start?next=/app" style="text-decoration:none;justify-content:center">Sign in with Google &mdash; save this order and earn cashback</a>'
+              : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>'))) +
       '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes to our WhatsApp and stays <b>pending</b> until the team replies CONFIRM.</p>';
 
     var canPay = !!(mode && pay && form.name.trim().length > 1 &&
@@ -1254,6 +1261,18 @@
     var what = act.getAttribute('data-act');
     if (what === 'geo') checkDistance();
     else if (what === 'checkout') { screen = 'checkout'; renderCartScreen(); }
+    else if (what === 'gosignin') {
+      // Straight into the WhatsApp number step on the You tab.
+      renderYou();
+      openScreen('you');
+      loadAccount();
+      waStep = 1;
+      waPhone = (form.phone || '');
+      waNote = '';
+      renderYou();
+      var waFocus = document.getElementById('wa-phone');
+      if (waFocus) waFocus.focus();
+    }
     else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
     else if (what === 'send') sendOrder();
     else if (what === 'neworder') {
@@ -1308,6 +1327,73 @@
       fetch('/api/auth/logout', { method: 'POST' }).then(function () { ACCT = null; loadAccount(); }).catch(function () {});
     } else if (what === 'devlogin') {
       fetch('/api/auth/dev').then(function () { loadAccount(); }).catch(function () {});
+    } else if (what === 'wa-open') {
+      waStep = 1;
+      waNote = '';
+      waPhone = (form.phone || '');
+      renderYou();
+      var phoneBox = document.getElementById('wa-phone');
+      if (phoneBox) phoneBox.focus();
+    } else if (what === 'wa-cancel') {
+      waStep = 0;
+      waNote = '';
+      waSession = '';
+      renderYou();
+    } else if (what === 'wa-send') {
+      var waInput = document.getElementById('wa-phone');
+      var typed = waInput ? waInput.value : '';
+      act.disabled = true;
+      act.textContent = 'Sending\u2026';
+      fetch('/api/auth/whatsapp/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ phone: typed })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.session) {
+            waSession = d.session;
+            waPhone = d.phone || typed;
+            waStep = 2;
+            waNote = '';
+            renderYou();
+            var codeBox = document.getElementById('wa-code');
+            if (codeBox) codeBox.focus();
+            return;
+          }
+          waNote = (d && d.error) || 'WhatsApp could not send the code. Try again.';
+          renderYou();
+        })
+        .catch(function () {
+          waNote = 'No connection to Zeva. Check your internet and try again.';
+          renderYou();
+        });
+    } else if (what === 'wa-verify') {
+      var codeInput = document.getElementById('wa-code');
+      var code = codeInput ? codeInput.value : '';
+      act.disabled = true;
+      act.textContent = 'Checking\u2026';
+      fetch('/api/auth/whatsapp/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session: waSession, code: code })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.ok) {
+            waStep = 0;
+            waNote = '';
+            waSession = '';
+            loadAccount();
+            return;
+          }
+          waNote = (d && d.error) || 'That code is not right. Try again.';
+          renderYou();
+        })
+        .catch(function () {
+          waNote = 'No connection to Zeva. Check your internet and try again.';
+          renderYou();
+        });
     } else if (what === 'goldjoin') {
       act.disabled = true;
       act.textContent = 'Sending your request\u2026';
@@ -1495,15 +1581,30 @@
     }
 
     if (!ACCT.user) {
+      // WhatsApp is the front door: most customers have their number, not a
+      // Google account. Step 1 asks for the number, step 2 for the code.
+      var waForm = '';
+      if (waStep === 1) {
+        waForm = '<div class="field" style="margin-top:14px"><label for="wa-phone">WhatsApp number</label><input id="wa-phone" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" value="' + esc(waPhone) + '"></div>' +
+          '<button class="btn" type="button" data-act="wa-send">Send code on WhatsApp</button>' +
+          '<button class="btn ghost" type="button" data-act="wa-cancel">Back</button>';
+      } else if (waStep === 2) {
+        waForm = '<p class="muted" style="margin-top:14px">Six-digit code sent to <b>' + esc(waPhone) + '</b> on WhatsApp.</p>' +
+          '<div class="field"><label for="wa-code">Code from WhatsApp</label><input id="wa-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6"></div>' +
+          '<button class="btn" type="button" data-act="wa-verify">Verify and sign in</button>' +
+          '<button class="btn ghost" type="button" data-act="wa-cancel">Use another number</button>';
+      }
       body.innerHTML =
         '<div class="card"><h3>Sign in to Zeva</h3>' +
           '<p>Your orders, your wallet and Zeva Gold &mdash; all in one place.</p>' +
           '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside 5 km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
-          (ACCT.google
-            ? '<a class="btn" style="margin-top:12px" data-act="glogin" href="/api/auth/google/start?next=/app">Continue with Google</a>'
-            : '<div class="status warn" style="margin-top:12px">Google sign-in is being connected to this site &mdash; the button appears here as soon as the keys are in place.</div>') +
+          (waStep
+            ? waForm + (waNote ? '<div class="status warn" style="margin-top:10px">' + esc(waNote) + '</div>' : '')
+            : (ACCT.google ? '<a class="btn" style="margin-top:12px" data-act="glogin" href="/api/auth/google/start?next=/app">Continue with Google</a>' : '') +
+              (ACCT.whatsapp ? '<button class="btn' + (ACCT.google ? ' ghost' : '') + '" type="button" style="margin-top:' + (ACCT.google ? '10' : '12') + 'px" data-act="wa-open">Continue with WhatsApp</button>' : '') +
+              (!ACCT.google && !ACCT.whatsapp ? '<div class="status warn" style="margin-top:12px">Sign-in is being connected &mdash; the buttons appear here as soon as the keys are in place.</div>' : '')) +
           (ACCT.dev ? '<button class="btn ghost" type="button" data-act="devlogin">Local test sign-in</button>' : '') +
-          '<p class="muted">We only keep your name, email and photo from Google. No password is stored.</p>' +
+          '<p class="muted">' + (ACCT.whatsapp ? 'We only keep your mobile number, name and address. No password is stored.' : 'We only keep your name, email and photo from Google. No password is stored.') + '</p>' +
         '</div>' +
         '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
           '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside 5 km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
@@ -1574,7 +1675,12 @@
     var incomplete = !u.phone || !u.address;
     var details =
       '<div class="card" id="details"><h3>' + (incomplete ? 'Finish your profile' : 'Your details') + '</h3>' +
-        (incomplete ? '<p class="muted">Your name and photo came from Google. Add the mobile and the address the rider should look for \u2014 checkout fills itself in after this.</p>' : '') +
+        (incomplete
+          ? '<p class="muted">' + (u.email || u.picture
+              ? 'Your name and photo came from Google.'
+              : 'Your WhatsApp number is verified \u2014 just add who you are and where the rider should go.') +
+            ' Add the name' + (u.phone ? '' : ' and mobile') + ' and the address the rider should look for \u2014 checkout fills itself in after this.</p>'
+          : '') +
         '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
         '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
         '<div class="field"><label for="u-addr">Delivery address</label><textarea id="u-addr" placeholder="House, street, Bolar \u2014 what the rider should look for">' + esc(u.address || '') + '</textarea></div>' +

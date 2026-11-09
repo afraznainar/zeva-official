@@ -65,10 +65,27 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 `deploy/worker/accounts.js` (imported by `deploy/worker/index.js`, both listed in
 `deploy/sites.manifest.json`) against the D1 binding `DB`.
 
-- Sign-in is Google OAuth. Until `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-  are set in Sites → Secrets, `/api/config` reports `google:false` and the app
-  shows a setup notice instead of the Google button. Authorised redirect URIs
-  (they must match Google's list character for character):
+- Sign-in with a mobile number is the front door: **WhatsApp one-time codes**.
+  `POST /api/auth/whatsapp/start {phone}` asks the provider to send a six-digit
+  code, `POST /api/auth/whatsapp/verify {session, code}` checks it and sets the
+  session cookie. `/api/config` reports `whatsapp:false` until
+  `WHATSAPP_OTP_KEY` is set in Sites → Secrets, and then the You tab shows
+  **Continue with WhatsApp**. Optional env: `WHATSAPP_OTP_API` (default
+  `https://api.loginwa.com/api`), `WHATSAPP_OTP_TEXT` (`{code}` placeholder),
+  `WHATSAPP_COUNTRY_CODE` (default `91`). The code is never generated or stored
+  here — the provider sends it straight to the customer, so this server cannot
+  leak it. `otp_sessions` holds only session → phone for 5 minutes.
+  Guards: 3 codes per number per 10 minutes, 5 wrong tries, single use, and
+  Indian numbers must be 10 digits starting 6-9 (autofilled junk is refused
+  before a paid message is spent). A verified number signs into the account that
+  already has that number saved, so a Google customer who adds their mobile
+  keeps one account; the Google `sub` is never overwritten.
+  LoginWA's free plan is 100 messages/month with no Meta approval; any provider
+  exposing the same `auth/start` + `auth/verify` calls will do.
+- Google OAuth is the second option, and is still switched off. Until
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in Sites → Secrets,
+  `/api/config` reports `google:false` and no Google button is drawn. Authorised
+  redirect URIs (they must match Google's list character for character):
   `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/api/auth/google/callback`,
   `http://localhost:4173/api/auth/google/callback` and
   `http://127.0.0.1:4173/api/auth/google/callback`. Locally the two credentials
