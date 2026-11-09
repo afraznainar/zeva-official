@@ -158,6 +158,22 @@ bank's own app and SMS are the source of truth, so there is no per-transaction
 fee and nothing new to host. It is what runs today whenever `UPI_ID` is set and
 the gateway is not.
 
+**On the website** (`deploy/dist/menu.html`) choosing UPI pays first and sends
+second. Tapping **Pay … by UPI** writes the order row, asks `POST /api/upi/pay`
+for the shop's own request for that exact amount, and the drawer waits on
+`GET /api/upi/status` — every four seconds, plus an immediate check on
+`visibilitychange`, because Chrome throttles timers in the backgrounded tab
+while the customer is inside their UPI app. The order only goes to WhatsApp when
+they tap send, and that message says `UPI — PAID ₹X` (the counter confirmed it)
+or `UPI — NOT PAID YET ₹X`; the printed bill says `UPI PAID` for the same
+reason. Sending early is allowed, and simply lands as unpaid.
+
+The website's order body carries the real totals and `payment`, which matters
+more than it looks: without them every website order was stored as cash with a
+₹0 total, so there was nothing for the payment amount to come from. Each payment
+attempt takes a fresh order id too — reusing a ref across carts made the second
+order hit `duplicate order` and look like a failed payment.
+
 **Gateway mode** is the self-hosted [UPI gateway](https://github.com/mynkdev-21/upi-gateway)
 (Laravel 12 + MySQL, MIT), which cannot run on this Worker or on Sites, so it
 lives on its own PHP hosting and Zeva is a merchant of it; `deploy/worker/upi.js`
