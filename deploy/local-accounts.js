@@ -92,7 +92,11 @@ function localEnv() {
     WHATSAPP_OTP_KEY: process.env.WHATSAPP_OTP_KEY || "",
     WHATSAPP_OTP_API: process.env.WHATSAPP_OTP_API || "",
     WHATSAPP_OTP_TEXT: process.env.WHATSAPP_OTP_TEXT || "",
-    WHATSAPP_COUNTRY_CODE: process.env.WHATSAPP_COUNTRY_CODE || ""
+    WHATSAPP_COUNTRY_CODE: process.env.WHATSAPP_COUNTRY_CODE || "",
+    UPI_GATEWAY_URL: process.env.UPI_GATEWAY_URL || "",
+    UPI_GATEWAY_KEY: process.env.UPI_GATEWAY_KEY || "",
+    UPI_GATEWAY_SECRET: process.env.UPI_GATEWAY_SECRET || "",
+    UPI_WEBHOOK_SECRET: process.env.UPI_WEBHOOK_SECRET || ""
   };
 }
 
@@ -103,6 +107,7 @@ const ACCOUNT_ROUTES = [
   "/api/orders",
   "/api/auth/",
   "/api/gold/",
+  "/api/upi/",
   "/api/notices",
   "/api/admin/"
 ];

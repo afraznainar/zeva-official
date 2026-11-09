@@ -8,8 +8,12 @@
      WHATSAPP_OTP_KEY                         -> WhatsApp code sign-in
      SESSION_SECRET                           -> cookie signing
      ADMIN_PASSCODE                           -> staff dashboard
+     UPI_GATEWAY_URL / _KEY / _SECRET         -> online UPI payments (./upi.js)
+     UPI_WEBHOOK_SECRET                       -> gateway webhook signatures
    ZEVA_DEV_LOGIN=1 exists only for local development.
    ============================================================ */
+
+import { upiReady, openPayment, pollPayment, verifyWebhook } from "./upi.js";
 
 export const GOLD = {
   price: 499,
@@ -65,6 +69,16 @@ const DB_SCHEMA = [
    )`,
   `CREATE INDEX IF NOT EXISTS orders_created ON orders (created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS orders_user ON orders (user_id, created_at DESC)`,
+  // Every signed webhook we accept, keyed by the gateway's event id. Delivery
+  // is at-least-once and may repeat, so this is what makes handling it once.
+  `CREATE TABLE IF NOT EXISTS upi_events (
+     event_id TEXT PRIMARY KEY,
+     event TEXT,
+     order_id TEXT,
+     sequence INTEGER NOT NULL DEFAULT 0,
+     amount REAL NOT NULL DEFAULT 0,
+     received_at INTEGER NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS wallet (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
      user_id TEXT NOT NULL,
@@ -130,6 +144,39 @@ async function ensureUserColumns(env) {
       });
   }
   await userColumnsPromise;
+}
+
+/* Payment columns arrived with online UPI, after orders already existed. Each
+   ALTER is a no-op once the column is there, so this stays cheap and the older
+   rows simply read as "no payment". */
+let orderColumnsPromise = null;
+
+const ORDER_PAY_COLUMNS = [
+  "ALTER TABLE orders ADD COLUMN upi_ref TEXT",
+  "ALTER TABLE orders ADD COLUMN upi_url TEXT",
+  "ALTER TABLE orders ADD COLUMN upi_intent TEXT",
+  "ALTER TABLE orders ADD COLUMN upi_status TEXT",
+  "ALTER TABLE orders ADD COLUMN upi_utr TEXT",
+  "ALTER TABLE orders ADD COLUMN upi_amount REAL NOT NULL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN upi_seq INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN upi_attempts INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN upi_checked_at INTEGER",
+  "ALTER TABLE orders ADD COLUMN upi_paid_at INTEGER"
+];
+
+async function ensureOrderColumns(env) {
+  if (!orderColumnsPromise) {
+    orderColumnsPromise = (async function () {
+      for (const sql of ORDER_PAY_COLUMNS) {
+        await env.DB.prepare(sql)
+          .run()
+          .catch(function () {
+            /* already there */
+          });
+      }
+    })();
+  }
+  await orderColumnsPromise;
 }
 
 /* ------------------------------------------------------------
@@ -255,6 +302,7 @@ export async function database(env) {
   }
   await schemaPromise;
   await ensureUserColumns(env);
+  await ensureOrderColumns(env);
   return env.DB;
 }
 
@@ -717,7 +765,7 @@ export async function createOrder(request, env, body) {
 }
 
 const ORDER_FIELDS =
-  "id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, distance_m, status, gold_delivery, created_at";
+  "id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, distance_m, status, gold_delivery, created_at, upi_ref, upi_url, upi_intent, upi_status, upi_utr, upi_amount, upi_seq, upi_attempts, upi_checked_at, upi_paid_at";
 
 export function shapeOrder(row) {
   if (!row) return null;
@@ -745,7 +793,12 @@ export function shapeOrder(row) {
     status: row.status,
     user_id: row.user_id || null,
     gold_delivery: Boolean(row.gold_delivery),
-    created_at: row.created_at
+    created_at: row.created_at,
+    // Only present once an online UPI payment was opened for this order.
+    upi_status: row.upi_status || null,
+    upi_amount: Number(row.upi_amount || 0),
+    upi_utr: row.upi_utr || null,
+    upi_paid_at: row.upi_paid_at || null
   };
 }
 
@@ -757,6 +810,247 @@ export async function myOrders(env, userId, limit) {
     .bind(userId, limit || 20)
     .all();
   return (rows.results || []).map(shapeOrder);
+}
+
+/* ------------------------------------------------------------
+   Online UPI payments
+   ------------------------------------------------------------
+   Zeva's Worker is the merchant here; the money moves through the
+   self-hosted gateway in ./upi.js. Two rules keep that honest:
+     - the amount comes from the orders row, never from the browser;
+     - an order is marked paid only by a verified signed webhook or
+       by reading the status straight from the gateway. "I paid" from
+       the phone is a prompt to check, never proof.
+   With no gateway secrets set, everything here answers 503 and
+   /api/config reports upi:false, so the app shows nothing new. */
+
+const UPI_REPOLL_MS = 4000;
+
+const PAY_ORDER_FIELDS =
+  "id, user_id, name, phone, mode, payment, total, status, upi_ref, upi_url, upi_intent, upi_status, upi_utr, upi_amount, upi_seq, upi_attempts, upi_checked_at";
+
+// Amounts the gateway understands: rupees with at most two decimals.
+function rupees(value) {
+  return "\u20b9" + (Math.round(Number(value || 0) * 100) / 100).toLocaleString("en-IN");
+}
+
+async function payableOrder(env, id) {
+  const db = await database(env);
+  if (!db) return { db: null, order: null };
+  const order = await db
+    .prepare("SELECT " + PAY_ORDER_FIELDS + " FROM orders WHERE id = ?")
+    .bind(String(id || "").trim())
+    .first();
+  return { db: db, order: order || null };
+}
+
+// POST /api/upi/pay {id} — open (or re-open) a payment for one order and hand
+// the app the gateway's hosted page plus the direct UPI intent.
+export async function startUpiPayment(request, env, body) {
+  if (!upiReady(env)) return json(503, { error: "online UPI is switched off" });
+  const found = await payableOrder(env, body && body.id);
+  if (!found.db) return json(503, { error: "accounts are not configured" });
+  const order = found.order;
+  if (!order) return json(404, { error: "unknown order" });
+  if (order.payment !== "upi") return json(400, { error: "this order is set to cash" });
+
+  if (order.upi_status === "paid") {
+    return json(200, { ok: true, paid: true, status: "paid", url: order.upi_url || "", intent: order.upi_intent || "", amount: Number(order.upi_amount || order.total) });
+  }
+  // A live payment link is reused: the gateway only accepts one client order
+  // id, and a customer who reopens the screen must get the same ₹ amount.
+  if (order.upi_status === "pending" && order.upi_url) {
+    return json(200, { ok: true, paid: false, status: "pending", url: order.upi_url, intent: order.upi_intent || "", amount: Number(order.upi_amount || order.total) });
+  }
+
+  const attempt = Number(order.upi_attempts || 0) + 1;
+  const result = await openPayment(env, order, attempt);
+  if (!result.ok) {
+    console.error("[upi] order=" + order.id + " create failed: " + result.error);
+    return json(result.status || 502, { error: result.error });
+  }
+  const pay = result.payment;
+  await found.db
+    .prepare(
+      "UPDATE orders SET upi_ref = ?, upi_url = ?, upi_intent = ?, upi_status = ?, upi_amount = ?, upi_attempts = ?, upi_checked_at = ? WHERE id = ?"
+    )
+    .bind(pay.ref, pay.url, pay.intent, pay.status === "paid" ? "paid" : "pending", pay.amount || Number(order.total || 0), attempt, Date.now(), order.id)
+    .run();
+  if (pay.status === "paid") await markUpiPaid(found.db, env, order, pay);
+  return json(200, {
+    ok: true,
+    paid: pay.status === "paid",
+    status: pay.status,
+    url: pay.url,
+    intent: pay.intent,
+    amount: pay.amount || Number(order.total || 0),
+    expires_at: pay.expires_at,
+    test: pay.test
+  });
+}
+
+// GET /api/upi/status?id= — what the phone polls while the customer is in
+// their UPI app. The gateway is asked at most once every few seconds, so ten
+// open tabs cost the same as one.
+export async function upiPaymentStatus(env, id) {
+  const found = await payableOrder(env, id);
+  if (!found.db) return json(503, { error: "accounts are not configured" });
+  const order = found.order;
+  if (!order) return json(404, { error: "unknown order" });
+  if (!order.upi_ref) return json(200, { ok: true, status: "none" });
+  if (order.upi_status === "paid") {
+    return json(200, { ok: true, status: "paid", utr: order.upi_utr || "", amount: Number(order.upi_amount || order.total) });
+  }
+  const fresh = order.upi_checked_at && Date.now() - Number(order.upi_checked_at) < UPI_REPOLL_MS;
+  if (fresh || !upiReady(env)) {
+    return json(200, { ok: true, status: order.upi_status || "pending", url: order.upi_url || "", intent: order.upi_intent || "" });
+  }
+
+  const result = await pollPayment(env, order.upi_ref);
+  const now = Date.now();
+  if (!result.ok) {
+    await found.db.prepare("UPDATE orders SET upi_checked_at = ? WHERE id = ?").bind(now, order.id).run();
+    return json(200, { ok: true, status: order.upi_status || "pending", url: order.upi_url || "", stale: true });
+  }
+  const pay = result.payment;
+  if (pay.status === "paid") {
+    const done = await markUpiPaid(found.db, env, order, pay);
+    return json(200, { ok: true, status: done.mismatch ? "mismatch" : "paid", utr: pay.utr || "", amount: pay.amount });
+  }
+  const status = pay.status === "review" ? "review" : pay.status === "expired" ? "expired" : pay.status === "failed" ? "expired" : "pending";
+  await found.db.prepare("UPDATE orders SET upi_status = ?, upi_checked_at = ? WHERE id = ?").bind(status, now, order.id).run();
+  return json(200, { ok: true, status: status, url: order.upi_url || "", intent: order.upi_intent || "" });
+}
+
+// One place applies "money arrived", whether the news came from a webhook or
+// from a status poll, so the notice cannot be sent twice.
+async function markUpiPaid(db, env, order, payment) {
+  const paid = Number(payment && payment.amount ? payment.amount : order.upi_amount || order.total || 0);
+  const due = Number(order.total || 0);
+  const utr = String((payment && payment.utr) || "");
+  const now = Date.now();
+
+  if (Math.abs(paid - due) > 0.01) {
+    await db
+      .prepare("UPDATE orders SET upi_status = 'mismatch', upi_amount = ?, upi_utr = ?, upi_checked_at = ? WHERE id = ?")
+      .bind(paid, utr, now, order.id)
+      .run();
+    if (order.user_id) {
+      await pushNotice(env, {
+        user_id: order.user_id,
+        title: "#" + order.id + " \u00b7 payment needs a check",
+        body: rupees(paid) + " arrived against an order of " + rupees(due) + ". The counter is checking it before the kitchen starts.",
+        order_id: order.id
+      });
+    }
+    return { paid: false, mismatch: true };
+  }
+
+  const current = await db.prepare("SELECT upi_status FROM orders WHERE id = ?").bind(order.id).first();
+  if (current && current.upi_status === "paid") return { paid: true, mismatch: false };
+
+  await db
+    .prepare("UPDATE orders SET upi_status = 'paid', upi_utr = ?, upi_amount = ?, upi_paid_at = ?, upi_checked_at = ? WHERE id = ?")
+    .bind(utr, paid, now, now, order.id)
+    .run();
+  if (order.user_id) {
+    await pushNotice(env, {
+      user_id: order.user_id,
+      title: "#" + order.id + " \u00b7 payment received",
+      body: rupees(paid) + " reached us by UPI. The counter still has to accept the order before the kitchen starts.",
+      order_id: order.id
+    });
+  }
+  return { paid: true, mismatch: false };
+}
+
+async function findPaymentOrder(db, clientId, reference) {
+  let row = null;
+  if (reference) row = await db.prepare("SELECT " + PAY_ORDER_FIELDS + " FROM orders WHERE upi_ref = ?").bind(reference).first();
+  if (!row && clientId) row = await db.prepare("SELECT " + PAY_ORDER_FIELDS + " FROM orders WHERE id = ?").bind(clientId).first();
+  if (!row && clientId) {
+    const base = clientId.replace(/-r\d+$/, "");
+    if (base !== clientId) row = await db.prepare("SELECT " + PAY_ORDER_FIELDS + " FROM orders WHERE id = ?").bind(base).first();
+  }
+  return row || null;
+}
+
+// Returns true when this event id is new, false when we have already applied it.
+async function recordUpiEvent(db, eventId, kind, orderId, sequence, amount) {
+  if (!eventId) return true;
+  const result = await db
+    .prepare("INSERT OR IGNORE INTO upi_events (event_id, event, order_id, sequence, amount, received_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(eventId, kind, orderId, sequence, amount, Date.now())
+    .run();
+  return !result || !result.meta || Number(result.meta.changes || 0) > 0;
+}
+
+// POST /api/upi/webhook — the gateway's signed notification. Deliberately not
+// same-origin: it is a server-to-server call, so the HMAC signature is the
+// whole authentication. Every accepted delivery answers 200 so the gateway
+// stops retrying; a bad signature answers 401 and changes nothing.
+export async function upiWebhook(request, env) {
+  const raw = await request.text();
+  const check = await verifyWebhook(env, raw, request.headers.get("x-signature"));
+  if (!check.ok) {
+    console.warn("[upi] rejected webhook: " + check.error);
+    return json(check.code || 401, { error: check.error });
+  }
+  let event;
+  try {
+    event = JSON.parse(raw);
+  } catch (error) {
+    return json(400, { error: "bad json" });
+  }
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+
+  const kind = String((event && event.event) || "");
+  const data = (event && event.data) || {};
+  const eventId = String((event && event.event_id) || "");
+  const sequence = Number((event && event.event_sequence) || 0);
+  const amount = Number(data.amount || 0);
+  const order = await findPaymentOrder(db, String(data.client_order_id || ""), String(data.order_id || ""));
+
+  if (!order) {
+    await recordUpiEvent(db, eventId, kind, String(data.client_order_id || data.order_id || ""), sequence, amount);
+    console.warn("[upi] webhook for an order we do not have: " + (data.client_order_id || data.order_id || "?"));
+    return json(200, { ok: true, ignored: "unknown order" });
+  }
+  if (!(await recordUpiEvent(db, eventId, kind, order.id, sequence, amount))) {
+    return json(200, { ok: true, duplicate: true });
+  }
+
+  if (kind === "order.paid") {
+    // A paid event is final: it must apply even if an expiry arrived first.
+    const result = await markUpiPaid(db, env, order, { amount: amount || order.total, utr: String(data.utr || "") });
+    return json(200, { ok: true, paid: result.paid, mismatch: Boolean(result.mismatch) });
+  }
+
+  if (kind === "order.expired" || kind === "order.failed" || kind === "order.timeout") {
+    if (order.upi_status === "paid") return json(200, { ok: true, ignored: "already paid" });
+    // Older events must not overwrite newer state for the same order.
+    if (sequence && sequence <= Number(order.upi_seq || 0)) return json(200, { ok: true, ignored: "stale sequence" });
+    await db.prepare("UPDATE orders SET upi_status = 'expired', upi_seq = ?, upi_checked_at = ? WHERE id = ?").bind(sequence, Date.now(), order.id).run();
+    return json(200, { ok: true, status: "expired" });
+  }
+
+  if (kind === "order.under_review") {
+    if (order.upi_status === "paid") return json(200, { ok: true, ignored: "already paid" });
+    if (sequence && sequence <= Number(order.upi_seq || 0)) return json(200, { ok: true, ignored: "stale sequence" });
+    await db.prepare("UPDATE orders SET upi_status = 'review', upi_seq = ?, upi_checked_at = ? WHERE id = ?").bind(sequence, Date.now(), order.id).run();
+    if (order.user_id) {
+      await pushNotice(env, {
+        user_id: order.user_id,
+        title: "#" + order.id + " \u00b7 payment under review",
+        body: "Your UPI payment is being checked by the bank. The counter will confirm the order once it clears.",
+        order_id: order.id
+      });
+    }
+    return json(200, { ok: true, status: "review" });
+  }
+
+  return json(200, { ok: true, ignored: kind || "unknown event" });
 }
 
 /* ------------------------------------------------------------
@@ -778,6 +1072,7 @@ export async function profilePayload(request, env) {
     signed_in: Boolean(user),
     google: googleReady(env),
     whatsapp: whatsappReady(env),
+    upi: upiReady(env),
     dev: env.ZEVA_DEV_LOGIN === "1",
     gold: gold,
     gold_plan: GOLD,
@@ -1135,13 +1430,14 @@ export async function handleAccounts(request, env, url) {
     return json(200, {
       google: googleReady(env),
       whatsapp: whatsappReady(env),
+      upi: upiReady(env),
       gold: GOLD,
       dev: env.ZEVA_DEV_LOGIN === "1"
     });
   }
 
   if (path === "/api/me") {
-    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
+    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), upi: upiReady(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
     return json(200, await profilePayload(request, env));
   }
 
@@ -1201,6 +1497,21 @@ export async function handleAccounts(request, env, url) {
   if (path === "/api/orders" && request.method === "POST") {
     if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
     return createOrder(request, env, await readJson(request));
+  }
+
+  if (path === "/api/upi/pay" && request.method === "POST") {
+    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    return startUpiPayment(request, env, await readJson(request));
+  }
+
+  if (path === "/api/upi/status" && request.method === "GET") {
+    return upiPaymentStatus(env, url.searchParams.get("id"));
+  }
+
+  // The gateway calls this server-to-server, so there is no Origin to check —
+  // the signature over the raw body is the authentication.
+  if (path === "/api/upi/webhook" && request.method === "POST") {
+    return upiWebhook(request, env);
   }
 
   if (path === "/api/gold/join" && request.method === "POST") {

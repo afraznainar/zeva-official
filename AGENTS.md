@@ -144,6 +144,49 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   `deploy/local-accounts.js`, a `node:sqlite` shim of the D1 API using
   `deploy/.local-zeva.sqlite` (gitignored). Test data in that file is disposable.
 
+## Online UPI payments
+
+Online payment is the self-hosted [UPI gateway](https://github.com/mynkdev-21/upi-gateway)
+(Laravel 12 + MySQL, MIT). It cannot run on this Worker or on Sites, so it lives
+on its own PHP hosting and Zeva is a merchant of it; `deploy/worker/upi.js` is
+the client half. Until these exist in Sites → Secrets, `/api/config` reports
+`upi:false` and the app says nothing about paying online:
+
+- `UPI_GATEWAY_URL` — e.g. `https://pay.zeva.example`
+- `UPI_GATEWAY_KEY` / `UPI_GATEWAY_SECRET` — the merchant key and secret from
+  the gateway dashboard; `test_key_…` / `test_sec_…` rehearse in its Sandbox
+- `UPI_WEBHOOK_SECRET` — the webhook signing secret for that environment, with
+  the dashboard's webhook URL set to `https://<site>/api/upi/webhook`
+
+Flow: the order is placed exactly as before (`POST /api/orders`, WhatsApp
+message, counter print); then `POST /api/upi/pay {id}` asks the gateway for a
+payment and returns its hosted page plus the `upi://` intent. The amount comes
+from the orders row, never from the browser, and a live link is reused until it
+expires (a retry is `…-r2`, `…-r3`). `GET /api/upi/status?id=` is what the app
+polls — at most one gateway read every four seconds — and is one of the two
+ways a payment can be confirmed.
+
+A payment is marked paid only by a verified webhook or by that status read.
+`orders.upi_status` runs `pending → paid | expired | review | mismatch`, with
+`upi_utr`, `upi_amount` and `upi_paid_at` beside it. The webhook is
+server-to-server, so it sits outside the same-origin rule and trusts only
+`X-Signature: t=…,v1=…` (HMAC-SHA256 of `t.body`, five-minute window, deduped
+by `event_id` in `upi_events`). A paid event always wins over an expiry; an
+amount that does not equal the order total becomes `mismatch` with a notice to
+the customer instead of a paid order. The dashboard shows the UPI state on each
+order card, and the app's order list says "UPI paid".
+
+Hosting the gateway needs PHP 8.2+, MySQL, `QUEUE_CONNECTION=database` and the
+two cron entries from its `docs/CPANEL.md` (or `docs/VPS.md`) — scheduler plus
+queue worker. Without those crons no webhook ever leaves the gateway, and the
+app falls back to the status poll.
+
+Local testing uses the gitignored stub: `node .tools/upi-stub.mjs` on 4198, and
+`deploy/server.js` started with the four variables pointing at it
+(`UPI_GATEWAY_URL=http://127.0.0.1:4198`, `key_test_zeva` / `sec_test_zeva`,
+`UPI_WEBHOOK_SECRET=whsec_test_zeva`). Its `/_pay/<ref>`, `/_expire/<ref>`,
+`/_review/<ref>` and `/_replay` routes fire the gateway's side by hand.
+
 ## Staff dashboard
 
 `deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),

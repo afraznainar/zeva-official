@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.10">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.11">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -713,6 +713,8 @@
   var activeSizeCat = '';
   var activeSizeItem = '';
   var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
+  var payInfo = null;     // UPI payment opened for the order just sent
+  var payTimer = null;
   // WhatsApp sign-up: 0 = buttons, 1 = asking for the number, 2 = asking for the code.
   var waStep = 0;
   var waSession = '';
@@ -1015,6 +1017,7 @@
         '<h2>Order sent</h2>' +
         '<p>It stays <b>pending</b> until our team replies <b>CONFIRM</b> on WhatsApp. Preparation takes about 20 minutes after that.</p>' +
         '<div class="ref">#' + esc(orderRef) + '</div>' +
+        payBlock() +
         '<div class="mini">' + (printState === 'ok' ? 'Counter copy printed.' : printState === 'fail' ? 'Counter copy not printed &mdash; the kitchen still has your order on WhatsApp.' : 'Sending the counter copy&hellip;') + '</div>' +
         (cashbackNote ? '<div class="mini" style="color:var(--good);margin-top:7px">' + esc(cashbackNote) + '</div>' : '') +
         '</div>';
@@ -1066,7 +1069,11 @@
       '<div class="sect"><h3>Payment</h3><div class="seg">' +
         '<button type="button" class="' + (pay === 'cash' ? 'on' : '') + '" data-pay="cash">Cash</button>' +
         '<button type="button" class="' + (pay === 'upi' ? 'on' : '') + '" data-pay="upi">UPI</button>' +
-      '</div></div>' + bills() +
+      '</div>' +
+      (pay === 'upi' && ACCT && ACCT.upi
+        ? '<div class="status ok" style="margin-top:10px">The UPI payment page opens for exactly ' + rupee(grandTotal()) + ' once you send this order &mdash; nothing to type.</div>'
+        : '') +
+      '</div>' + bills() +
       (goldActive()
         ? '<div class="status ok">Zeva Gold: free delivery inside 5 km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
         : signedIn()
@@ -1126,6 +1133,8 @@
   function sendOrder() {
     orderRef = ref();
     cashbackNote = '';
+    payInfo = null;
+    stopPayPoll();
     var payload = {
       id: orderRef,
       mode: mode,
@@ -1152,6 +1161,7 @@
         .then(function (d) {
           if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
           if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
+          if (d && d.ok && pay === 'upi' && ACCT && ACCT.upi) openUpiPayment(payload.id);
           if (d && d.ok) loadAccount();
           if (screen === 'done') renderCartScreen();
         })
@@ -1180,6 +1190,81 @@
     renderCartChrome();
     renderMenu();
     renderCartScreen();
+  }
+
+  /* ---------------- UPI payment ----------------
+     The order is already in the kitchen queue; the money goes straight to the
+     restaurant's own UPI account through the gateway. The server owns the
+     amount, and this screen only ever shows what the server says — a payment
+     counts once the gateway confirms it, not when the button is tapped. */
+  function openUpiPayment(id) {
+    stopPayPoll();
+    payInfo = { status: 'opening', amount: 0 };
+    fetch('/api/upi/pay', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: id })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.d || !res.d.ok) {
+          payInfo = { status: 'error', error: (res.d && res.d.error) || 'The UPI payment page is unavailable right now.' };
+        } else {
+          payInfo = res.d;
+        }
+        if (screen === 'done') renderCartScreen();
+        if (payInfo && payInfo.status === 'pending') startPayPoll();
+      })
+      .catch(function () {
+        payInfo = { status: 'error', error: 'Could not reach the UPI payment page.' };
+        if (screen === 'done') renderCartScreen();
+      });
+  }
+
+  function startPayPoll() {
+    stopPayPoll();
+    payTimer = setInterval(function () {
+      if (!payInfo || payInfo.status !== 'pending') { stopPayPoll(); return; }
+      fetch('/api/upi/status?id=' + encodeURIComponent(orderRef))
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (!d || !d.status || d.status === payInfo.status) return;
+          payInfo = Object.assign({}, payInfo, d);
+          if (screen === 'done') renderCartScreen();
+          if (d.status !== 'pending') stopPayPoll();
+        })
+        .catch(function () {});
+    }, 4000);
+  }
+
+  function stopPayPoll() {
+    if (payTimer) { clearInterval(payTimer); payTimer = null; }
+  }
+
+  function payBlock() {
+    if (!ACCT || !ACCT.upi || !payInfo) return '';
+    var st = payInfo.status;
+    if (st === 'paid') {
+      return '<div class="status ok" style="margin-top:12px">UPI payment received &mdash; ' + rupee(payInfo.amount) + '. The kitchen has it.</div>';
+    }
+    if (st === 'mismatch' || st === 'review') {
+      return '<div class="status warn" style="margin-top:12px">Your payment is being checked against this order. The counter will confirm it shortly.</div>';
+    }
+    if (st === 'expired') {
+      return '<div class="status warn" style="margin-top:12px">That UPI link expired before the payment went through.' +
+        ' <button class="btn ghost" type="button" data-act="payagain" style="margin-top:8px">Get a fresh link</button></div>';
+    }
+    if (st === 'error') {
+      return '<div class="status bad" style="margin-top:12px">' + esc(payInfo.error || 'The UPI payment page is unavailable right now.') +
+        ' You can still pay cash or UPI at delivery.</div>';
+    }
+    if (st !== 'pending') return '';
+    var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || Boolean(window.Capacitor);
+    return '<div class="sect" style="margin-top:14px"><h3>Pay ' + rupee(payInfo.amount) + ' by UPI</h3>' +
+      '<p class="muted" style="margin:0 0 10px">This order\u2019s exact amount is already filled in. Come back after paying &mdash; this screen updates by itself.</p>' +
+      (payInfo.url ? '<a class="btn" href="' + esc(payInfo.url) + '" target="_blank" rel="noopener">Open the payment page</a>' : '') +
+      (phone && payInfo.intent ? '<a class="btn ghost" href="' + esc(payInfo.intent) + '" rel="noopener">Open GPay / PhonePe</a>' : '') +
+      '<div class="mini" style="margin-top:8px">Waiting for the payment to reach us&hellip;</div></div>';
   }
 
   /* ---------------- geolocation ---------------- */
@@ -1286,6 +1371,7 @@
     }
     else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
     else if (what === 'send') sendOrder();
+    else if (what === 'payagain') openUpiPayment(orderRef);
     else if (what === 'neworder') {
       closeScreen('cart');
       screen = 'home';
@@ -1740,7 +1826,7 @@
       '</div></div></div>';
 
     var history = past.map(function (o) {
-      return '<li><span>#' + esc(o.id) + '<span class="st">' + esc(statusLabel(o.status)) + ' &middot; ' + (o.mode === 'pickup' ? 'pickup' : 'delivery') + ' &middot; ' + dateText(o.created_at) + '</span></span>' +
+      return '<li><span>#' + esc(o.id) + '<span class="st">' + esc(statusLabel(o.status)) + ' &middot; ' + (o.mode === 'pickup' ? 'pickup' : 'delivery') + ' &middot; ' + dateText(o.created_at) + (o.upi_status === 'paid' ? ' &middot; UPI paid' : '') + '</span></span>' +
         '<span style="color:var(--brass-2);font-variant-numeric:tabular-nums">' + rupee(o.total) + '</span></li>';
     }).join('');
 
@@ -1752,7 +1838,8 @@
         '<h3>#' + esc(o.id) + '<span class="gold-pill">' + esc(statusLabel(o.status)) + '</span></h3>' +
         '<p>' + esc(statusHint(o)) + '</p>' +
         '<div class="osteps">' + bars + '</div>' +
-        '<p class="st-now">' + (o.mode === 'pickup' ? 'Pickup' : 'Delivery') + ' \u00b7 ' + rupee(o.total) + ' \u00b7 ' + dateText(o.created_at) + '</p>' +
+        '<p class="st-now">' + (o.mode === 'pickup' ? 'Pickup' : 'Delivery') + ' \u00b7 ' + rupee(o.total) + ' \u00b7 ' + dateText(o.created_at) +
+          (o.upi_status === 'paid' ? ' \u00b7 <span style="color:var(--good)">UPI paid</span>' : o.payment === 'upi' ? ' \u00b7 UPI on delivery' : '') + '</p>' +
       '</div>';
     }).join('');
 
