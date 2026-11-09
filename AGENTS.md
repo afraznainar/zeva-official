@@ -168,7 +168,14 @@ comes from `apk/version.json` (see **App version**), never from the script.
 
 ## App download link
 
-`/apk` is the short install link customers open on their phone: the Worker serves
+`/download` is the page customers land on: the Zeva mark inside a glowing canvas
+card (the pointer drives the glow, tapping fires a burst and sends the browser to
+`/apk`), plus a plain button and link for anyone without canvas. It reads
+`version.json` for the build label. Keep it customer-only — it is not a shop
+window for the web app.
+
+The page's button and the home-page footer link point at `/apk`, the short
+install link customers open on their phone: the Worker serves
 `deploy/dist/zeva.apk` as `application/vnd.android.package-archive` with
 `attachment; filename="Zeva.apk"` and `no-store`, so a phone never keeps an old
 download. That file is gitignored — `node scripts/stage-apk.mjs` copies the built
