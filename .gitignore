@@ -28,6 +28,10 @@ apk/android/
 apk/*.apk
 apk/local.properties
 
+# The current APK staged for /apk (scripts/stage-apk.mjs); uploaded by the deploy
+# but never committed — a 4 MB binary per release does not belong in history
+deploy/dist/*.apk
+
 # Wrangler dev variables (never commit)
 .dev.vars
 

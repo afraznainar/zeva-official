@@ -239,6 +239,28 @@ export default {
       return json(200, { ok: true, queued: true, printer: "BILL" });
     }
 
+    // GET /apk -> the installable Android build shipped with this deploy, so a
+    // customer can open one short link on the phone. scripts/stage-apk.mjs puts
+    // the current build at dist/zeva.apk; a deploy without one answers 404.
+    if (url.pathname === "/apk" || url.pathname === "/apk/") {
+      const asset = await env.ASSETS.fetch(new URL("/zeva.apk", url.origin).toString());
+      if (!asset.ok) {
+        return new Response("The Android app is not published yet — call 070227 71888 and we will send it.", {
+          status: 404,
+          headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" }
+        });
+      }
+      return new Response(asset.body, {
+        status: 200,
+        headers: {
+          "content-type": "application/vnd.android.package-archive",
+          "content-disposition": 'attachment; filename="Zeva.apk"',
+          // A phone must never reuse yesterday's download.
+          "cache-control": "no-store"
+        }
+      });
+    }
+
     return env.ASSETS.fetch(request);
   }
 };

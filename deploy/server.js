@@ -104,6 +104,23 @@ const server = http.createServer(async (req, res) => {
     const api = await accountsApi();
     if (await api.handle(req, res, url)) return;
 
+    // ---- GET /apk — mirrors the Worker's short install link ----
+    if ((url.pathname === "/apk" || url.pathname === "/apk/") && req.method === "GET") {
+      const apkPath = path.join(ROOT, "zeva.apk");
+      let apkStat;
+      try { apkStat = fs.statSync(apkPath); } catch {
+        return send(res, 404, "The Android app is not published yet.", "text/plain; charset=utf-8");
+      }
+      res.writeHead(200, {
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": 'attachment; filename="Zeva.apk"',
+        "Content-Length": apkStat.size,
+        "Cache-Control": "no-store"
+      });
+      fs.createReadStream(apkPath).pipe(res);
+      return;
+    }
+
     // ---- static ----
     if (req.method === "GET" || req.method === "HEAD") {
       let p = decodeURIComponent(url.pathname);
