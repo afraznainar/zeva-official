@@ -517,6 +517,9 @@
     if (o.status === 'out') acts.push('<button class="primary" data-set="' + esc(o.id) + '|done">Delivered</button>');
     if (o.status !== 'done' && o.status !== 'cancelled') acts.push('<button class="danger" data-set="' + esc(o.id) + '|cancelled">Cancel</button>');
     if (o.status === 'cancelled' || o.status === 'done') acts.push('<button data-set="' + esc(o.id) + '|pending">Reopen</button>');
+    // UPI money is confirmed here, after checking the UPI app or the bank SMS.
+    if (o.payment === 'upi' && o.upi_status !== 'paid') acts.push('<button class="primary" data-upi="' + esc(o.id) + '|paid">Mark UPI paid</button>');
+    if (o.payment === 'upi' && o.upi_status === 'paid') acts.push('<button data-upi="' + esc(o.id) + '|pending">Undo UPI payment</button>');
     if (o.user_id) acts.push('<button data-notify="' + esc(o.id) + '">Message this customer</button>');
 
     var flash = flashIds[o.id] ? ' flash' : '';
@@ -622,6 +625,25 @@
       }).then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function () { firstLoad = true; load(false); })
         .catch(function () { set.disabled = false; });
+      return;
+    }
+    var upi = e.target.closest('[data-upi]');
+    if (upi) {
+      var upiBits = upi.getAttribute('data-upi').split('|');
+      var marking = upiBits[1] === 'paid';
+      if (marking && !window.confirm('Has the \u20b9 money for #' + upiBits[0] + ' landed in the Zeva UPI account? Only confirm what you can see in the bank app or SMS.')) return;
+      upi.disabled = true;
+      fetch('/api/admin/upi', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: upiBits[0], paid: marking })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.mismatch) window.alert('The amount does not match this order. Check it in the bank app before accepting the order.');
+          firstLoad = true;
+          load(false);
+        })
+        .catch(function () { upi.disabled = false; });
       return;
     }
     var filterBtn = e.target.closest('[data-filter]');

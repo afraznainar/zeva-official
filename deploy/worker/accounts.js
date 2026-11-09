@@ -13,7 +13,15 @@
    ZEVA_DEV_LOGIN=1 exists only for local development.
    ============================================================ */
 
-import { upiReady, openPayment, pollPayment, verifyWebhook } from "./upi.js";
+import { upiReady, directReady, directPayment, openPayment, pollPayment, verifyWebhook } from "./upi.js";
+
+// Online UPI works in two modes and they share the same order fields:
+//   gateway — the self-hosted gateway creates the payment and confirms it;
+//   direct  — the app pays the shop's own UPI ID and the counter confirms.
+// The gateway wins when both are configured.
+function onlineUpi(env) {
+  return upiReady(env) || directReady(env);
+}
 
 export const GOLD = {
   price: 499,
@@ -847,7 +855,7 @@ async function payableOrder(env, id) {
 // POST /api/upi/pay {id} — open (or re-open) a payment for one order and hand
 // the app the gateway's hosted page plus the direct UPI intent.
 export async function startUpiPayment(request, env, body) {
-  if (!upiReady(env)) return json(503, { error: "online UPI is switched off" });
+  if (!onlineUpi(env)) return json(503, { error: "online UPI is switched off" });
   const found = await payableOrder(env, body && body.id);
   if (!found.db) return json(503, { error: "accounts are not configured" });
   const order = found.order;
@@ -857,6 +865,30 @@ export async function startUpiPayment(request, env, body) {
   if (order.upi_status === "paid") {
     return json(200, { ok: true, paid: true, status: "paid", url: order.upi_url || "", intent: order.upi_intent || "", amount: Number(order.upi_amount || order.total) });
   }
+
+  // Direct mode: no provider page to open, just the shop's own UPI ID with this
+  // order's amount already filled in. Rebuilt on every open — it never expires.
+  if (!upiReady(env) && directReady(env)) {
+    const direct = directPayment(env, order);
+    if (!direct.ok) return json(direct.status || 502, { error: direct.error });
+    const pay = direct.payment;
+    await found.db
+      .prepare("UPDATE orders SET upi_url = '', upi_intent = ?, upi_status = 'pending', upi_amount = ?, upi_checked_at = ? WHERE id = ?")
+      .bind(pay.intent, pay.amount, Date.now(), order.id)
+      .run();
+    return json(200, {
+      ok: true,
+      paid: false,
+      status: "pending",
+      mode: "direct",
+      url: "",
+      intent: pay.intent,
+      amount: pay.amount,
+      vpa: pay.vpa,
+      payee: pay.payee
+    });
+  }
+
   // A live payment link is reused: the gateway only accepts one client order
   // id, and a customer who reopens the screen must get the same ₹ amount.
   if (order.upi_status === "pending" && order.upi_url) {
@@ -881,6 +913,7 @@ export async function startUpiPayment(request, env, body) {
     ok: true,
     paid: pay.status === "paid",
     status: pay.status,
+    mode: "gateway",
     url: pay.url,
     intent: pay.intent,
     amount: pay.amount || Number(order.total || 0),
@@ -897,7 +930,11 @@ export async function upiPaymentStatus(env, id) {
   if (!found.db) return json(503, { error: "accounts are not configured" });
   const order = found.order;
   if (!order) return json(404, { error: "unknown order" });
-  if (!order.upi_ref) return json(200, { ok: true, status: "none" });
+  // Direct-mode orders never have a gateway reference: the counter's dashboard
+  // is the only thing that can move them to paid, so there is nothing to poll.
+  if (!order.upi_ref) {
+    return json(200, { ok: true, status: order.upi_status || "none", url: order.upi_url || "", intent: order.upi_intent || "" });
+  }
   if (order.upi_status === "paid") {
     return json(200, { ok: true, status: "paid", utr: order.upi_utr || "", amount: Number(order.upi_amount || order.total) });
   }
@@ -962,6 +999,31 @@ async function markUpiPaid(db, env, order, payment) {
     });
   }
   return { paid: true, mismatch: false };
+}
+
+// The counter's side of direct-mode UPI: nobody but the restaurant can say the
+// money arrived, so staff confirm it here after checking the UPI app or the
+// bank SMS. Opening the payment again never needs this — only the confirmation.
+export async function adminSetUpiPaid(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+  const id = String((body && body.id) || "").trim();
+  if (!id) return json(400, { error: "bad request" });
+  const order = await db.prepare("SELECT " + PAY_ORDER_FIELDS + " FROM orders WHERE id = ?").bind(id).first();
+  if (!order) return json(404, { error: "unknown order" });
+  if (order.payment !== "upi") return json(400, { error: "this order is set to cash" });
+
+  if (body && body.paid === false) {
+    await db
+      .prepare("UPDATE orders SET upi_status = 'pending', upi_paid_at = NULL, upi_utr = '', upi_checked_at = ? WHERE id = ?")
+      .bind(Date.now(), id)
+      .run();
+    return json(200, { ok: true, id: id, status: "pending" });
+  }
+
+  const amount = Number((body && body.amount) || order.upi_amount || order.total || 0);
+  const result = await markUpiPaid(db, env, order, { amount: amount, utr: String((body && body.utr) || "") });
+  return json(200, { ok: true, id: id, status: result.mismatch ? "mismatch" : "paid", mismatch: Boolean(result.mismatch) });
 }
 
 async function findPaymentOrder(db, clientId, reference) {
@@ -1072,7 +1134,8 @@ export async function profilePayload(request, env) {
     signed_in: Boolean(user),
     google: googleReady(env),
     whatsapp: whatsappReady(env),
-    upi: upiReady(env),
+    upi: onlineUpi(env),
+    upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "",
     dev: env.ZEVA_DEV_LOGIN === "1",
     gold: gold,
     gold_plan: GOLD,
@@ -1430,14 +1493,15 @@ export async function handleAccounts(request, env, url) {
     return json(200, {
       google: googleReady(env),
       whatsapp: whatsappReady(env),
-      upi: upiReady(env),
+      upi: onlineUpi(env),
+      upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "",
       gold: GOLD,
       dev: env.ZEVA_DEV_LOGIN === "1"
     });
   }
 
   if (path === "/api/me") {
-    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), upi: upiReady(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
+    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), upi: onlineUpi(env), upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "", gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
     return json(200, await profilePayload(request, env));
   }
 
@@ -1544,6 +1608,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/order" && request.method === "POST") {
       if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
       return adminSetStatus(env, await readJson(request));
+    }
+    if (path === "/api/admin/upi" && request.method === "POST") {
+      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      return adminSetUpiPaid(env, await readJson(request));
     }
     if (path === "/api/admin/notify" && request.method === "POST") {
       if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });

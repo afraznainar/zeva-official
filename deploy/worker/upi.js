@@ -31,6 +31,49 @@ function gatewayBase(env) {
   return String((env && env.UPI_GATEWAY_URL) || "").trim().replace(/\/+$/, "");
 }
 
+/* Direct mode: no gateway, no hosting — the customer pays the restaurant's own
+   UPI ID and the counter confirms the money on the dashboard. Set UPI_ID (the
+   VPA, e.g. "zeva@okhdfcbank") and optionally UPI_PAYEE_NAME. This is what runs
+   when no gateway secrets exist; the gateway wins whenever both are set. */
+export function upiId(env) {
+  return String((env && env.UPI_ID) || "").trim();
+}
+
+export function directReady(env) {
+  const id = upiId(env);
+  return Boolean(id && id.includes("@") && id.length <= 100);
+}
+
+export function directPayment(env, order) {
+  const amount = Math.round(Number(order.total || 0) * 100) / 100;
+  if (!(amount >= 1)) return { ok: false, status: 400, error: "this order is below the ₹1 UPI minimum" };
+  const note = ("Zeva order #" + order.id).slice(0, 50);
+  const params = new URLSearchParams();
+  params.set("pa", upiId(env));
+  params.set("pn", String((env && env.UPI_PAYEE_NAME) || "Zeva Mandi & Grills").slice(0, 50));
+  params.set("am", amount.toFixed(2));
+  params.set("cu", "INR");
+  // npci's consumer apps reject P2P links that carry a transaction ref, so the
+  // order number rides in the note instead.
+  params.set("tn", note);
+  return {
+    ok: true,
+    payment: {
+      ref: "",
+      client_id: String(order.id),
+      amount: amount,
+      status: "pending",
+      url: "",
+      intent: "upi://pay?" + params.toString(),
+      utr: "",
+      vpa: upiId(env),
+      payee: String((env && env.UPI_PAYEE_NAME) || "Zeva Mandi & Grills"),
+      expires_at: null,
+      test: false
+    }
+  };
+}
+
 export function upiReady(env) {
   return Boolean(
     gatewayBase(env) &&

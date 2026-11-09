@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.11">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.12">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -715,6 +715,7 @@
   var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
   var payInfo = null;     // UPI payment opened for the order just sent
   var payTimer = null;
+  var payTicks = 0;       // how long we have been waiting, so polling cannot run forever
   // WhatsApp sign-up: 0 = buttons, 1 = asking for the number, 2 = asking for the code.
   var waStep = 0;
   var waSession = '';
@@ -1223,8 +1224,10 @@
 
   function startPayPoll() {
     stopPayPoll();
+    payTicks = 0;
     payTimer = setInterval(function () {
       if (!payInfo || payInfo.status !== 'pending') { stopPayPoll(); return; }
+      if (++payTicks > 120) { stopPayPoll(); return; }
       fetch('/api/upi/status?id=' + encodeURIComponent(orderRef))
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (d) {
@@ -1260,6 +1263,18 @@
     }
     if (st !== 'pending') return '';
     var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || Boolean(window.Capacitor);
+    var direct = payInfo.mode === 'direct';
+    if (direct) {
+      // Direct mode: the money goes to our own UPI ID, so the counter is what
+      // confirms it. Show the ID plainly for anyone whose app will not open.
+      return '<div class="sect" style="margin-top:14px"><h3>Pay ' + rupee(payInfo.amount) + ' by UPI</h3>' +
+        '<p class="muted" style="margin:0 0 10px">The amount is already filled in \u2014 just approve it in your UPI app. Our counter confirms the payment, usually within a minute.</p>' +
+        (payInfo.intent ? '<a class="btn" href="' + esc(payInfo.intent) + '" rel="noopener">' + (phone ? 'Open GPay / PhonePe' : 'Open your UPI app') + '</a>' : '') +
+        '<div class="mini" style="margin-top:10px">Paying to <b>' + esc(payInfo.vpa || '') + '</b>' +
+          (payInfo.payee ? ' (' + esc(payInfo.payee) + ')' : '') + '</div>' +
+        '<button class="btn ghost" type="button" data-act="copyupi">Copy UPI ID</button>' +
+        '<div class="mini" style="margin-top:8px">Waiting for the counter to confirm&hellip;</div></div>';
+    }
     return '<div class="sect" style="margin-top:14px"><h3>Pay ' + rupee(payInfo.amount) + ' by UPI</h3>' +
       '<p class="muted" style="margin:0 0 10px">This order\u2019s exact amount is already filled in. Come back after paying &mdash; this screen updates by itself.</p>' +
       (payInfo.url ? '<a class="btn" href="' + esc(payInfo.url) + '" target="_blank" rel="noopener">Open the payment page</a>' : '') +
@@ -1372,6 +1387,15 @@
     else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
     else if (what === 'send') sendOrder();
     else if (what === 'payagain') openUpiPayment(orderRef);
+    else if (what === 'copyupi') {
+      var vpa = (payInfo && payInfo.vpa) || '';
+      if (!vpa) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(vpa).then(function () { toast('UPI ID copied', vpa); }).catch(function () { toast('UPI ID', vpa); });
+      } else {
+        toast('UPI ID', vpa);
+      }
+    }
     else if (what === 'neworder') {
       closeScreen('cart');
       screen = 'home';

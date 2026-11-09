@@ -93,6 +93,8 @@ function localEnv() {
     WHATSAPP_OTP_API: process.env.WHATSAPP_OTP_API || "",
     WHATSAPP_OTP_TEXT: process.env.WHATSAPP_OTP_TEXT || "",
     WHATSAPP_COUNTRY_CODE: process.env.WHATSAPP_COUNTRY_CODE || "",
+    UPI_ID: process.env.UPI_ID || "",
+    UPI_PAYEE_NAME: process.env.UPI_PAYEE_NAME || "",
     UPI_GATEWAY_URL: process.env.UPI_GATEWAY_URL || "",
     UPI_GATEWAY_KEY: process.env.UPI_GATEWAY_KEY || "",
     UPI_GATEWAY_SECRET: process.env.UPI_GATEWAY_SECRET || "",

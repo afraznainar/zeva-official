@@ -146,11 +146,24 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 
 ## Online UPI payments
 
-Online payment is the self-hosted [UPI gateway](https://github.com/mynkdev-21/upi-gateway)
-(Laravel 12 + MySQL, MIT). It cannot run on this Worker or on Sites, so it lives
-on its own PHP hosting and Zeva is a merchant of it; `deploy/worker/upi.js` is
-the client half. Until these exist in Sites → Secrets, `/api/config` reports
-`upi:false` and the app says nothing about paying online:
+Online UPI has two modes and the same order fields serve both; the gateway wins
+whenever its secrets are present.
+
+**Direct mode needs no hosting at all.** Set `UPI_ID` (the restaurant's VPA, e.g.
+`zeva@okhdfcbank`) and optionally `UPI_PAYEE_NAME` — the app then offers the
+order's exact amount as a `upi://` intent to that ID, and the counter confirms
+the money on the dashboard with **Mark UPI paid** (it asks first, and an undo
+sits beside it for mistakes). This path sends nothing to any provider: the
+bank's own app and SMS are the source of truth, so there is no per-transaction
+fee and nothing new to host. It is what runs today whenever `UPI_ID` is set and
+the gateway is not.
+
+**Gateway mode** is the self-hosted [UPI gateway](https://github.com/mynkdev-21/upi-gateway)
+(Laravel 12 + MySQL, MIT), which cannot run on this Worker or on Sites, so it
+lives on its own PHP hosting and Zeva is a merchant of it; `deploy/worker/upi.js`
+is the client half. Until its secrets exist in Sites → Secrets, `/api/config`
+reports `upi:false` (unless direct mode is on) and the app says nothing about
+paying online:
 
 - `UPI_GATEWAY_URL` — e.g. `https://pay.zeva.example`
 - `UPI_GATEWAY_KEY` / `UPI_GATEWAY_SECRET` — the merchant key and secret from
@@ -166,7 +179,8 @@ expires (a retry is `…-r2`, `…-r3`). `GET /api/upi/status?id=` is what the a
 polls — at most one gateway read every four seconds — and is one of the two
 ways a payment can be confirmed.
 
-A payment is marked paid only by a verified webhook or by that status read.
+In gateway mode a payment is marked paid only by a verified webhook or by that
+status read; in direct mode only the dashboard can mark one paid.
 `orders.upi_status` runs `pending → paid | expired | review | mismatch`, with
 `upi_utr`, `upi_amount` and `upi_paid_at` beside it. The webhook is
 server-to-server, so it sits outside the same-origin rule and trusts only
