@@ -1054,7 +1054,7 @@
         : signedIn()
           ? '<div class="status warn">Zeva Gold gives free delivery inside 5 km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
           : (ACCT && ACCT.google
-            ? '<a class="geo" href="/api/auth/google/start?next=/app" style="text-decoration:none;justify-content:center">Sign in with Google &mdash; save this order and earn cashback</a>'
+            ? '<a class="geo" data-act="glogin" href="/api/auth/google/start?next=/app" style="text-decoration:none;justify-content:center">Sign in with Google &mdash; save this order and earn cashback</a>'
             : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>')) +
       '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes to our WhatsApp and stays <b>pending</b> until the team replies CONFIRM.</p>';
 
@@ -1487,7 +1487,7 @@
           '<p>Your orders, your wallet and Zeva Gold &mdash; all in one place.</p>' +
           '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside 5 km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
           (ACCT.google
-            ? '<a class="btn" style="margin-top:12px" href="/api/auth/google/start?next=/app">Continue with Google</a>'
+            ? '<a class="btn" style="margin-top:12px" data-act="glogin" href="/api/auth/google/start?next=/app">Continue with Google</a>'
             : '<div class="status warn" style="margin-top:12px">Google sign-in is being connected to this site &mdash; the button appears here as soon as the keys are in place.</div>') +
           (ACCT.dev ? '<button class="btn ghost" type="button" data-act="devlogin">Local test sign-in</button>' : '') +
           '<p class="muted">We only keep your name, email and photo from Google. No password is stored.</p>' +
@@ -1780,6 +1780,79 @@
     });
   });
 
+  /* ---------------- sign in ---------------- */
+  // Google refuses OAuth in an embedded WebView (error 403 disallowed_useragent),
+  // so inside the APK the Google screen opens in the phone's browser instead. The
+  // Worker finishes there and redirects to zeva://auth?code=… — Android hands that
+  // back to us, and the one-time code is swapped for the session cookie here.
+  function nativeShell() {
+    try {
+      return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+    } catch (e) { return false; }
+  }
+
+  function googleSignIn() {
+    var url = location.origin + '/api/auth/google/start?next=/app&app=1';
+    var B = capPlugin('Browser');
+    if (!B || !B.open) {
+      toast('Sign-in needs the updated app', 'Install the latest Zeva APK to sign in on this phone.');
+      return;
+    }
+    B.open({ url: url }).catch(function () {
+      toast('Could not open the browser', 'Open zeva.com in Chrome and sign in there once.');
+    });
+  }
+
+  function claimLoginCode(link) {
+    var code = '';
+    try { code = new URL(link).searchParams.get('code') || ''; } catch (e) { code = ''; }
+    if (!code) return;
+    fetch('/api/auth/exchange', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    }).then(function (r) { return r.ok; }).catch(function () { return false; })
+      .then(function (ok) {
+        var B = capPlugin('Browser');
+        if (B && B.close) B.close().catch(function () {});
+        if (!ok) { toast('Sign-in expired', 'The Google code was already used or is too old. Try again.'); return; }
+        loadAccount();
+        setTimeout(function () {
+          if (ACCT && ACCT.user) toast('Signed in', 'Your orders, wallet and Zeva Gold are on this phone.');
+          else toast('Sign-in did not stick', 'Please try once more, or sign in on the website.');
+        }, 1200);
+      });
+  }
+
+  function watchAuthLinks() {
+    if (!nativeShell()) return;
+    // Taps on the sign-in buttons must not navigate the WebView to Google.
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest && e.target.closest('[data-act="glogin"]');
+      if (!link) return;
+      e.preventDefault();
+      googleSignIn();
+    }, true);
+    var App = capPlugin('App');
+    if (!App) return;
+    if (App.addListener) App.addListener('appUrlOpen', function (e) { if (e && e.url) claimLoginCode(e.url); });
+    // Cold start: the app was killed while the browser finished the sign-in.
+    if (App.getLaunchUrl) {
+      App.getLaunchUrl().then(function (r) { if (r && r.url) claimLoginCode(r.url); }).catch(function () {});
+    }
+  }
+
+  function readAuthResult() {
+    var reason = '';
+    try { reason = new URL(location.href).searchParams.get('auth') || ''; } catch (e) { return; }
+    if (!reason) return;
+    try { history.replaceState({}, '', location.pathname + location.hash); } catch (e) {}
+    setTimeout(function () {
+      toast('Sign-in was cancelled', 'Tap Continue with Google in the You tab whenever you are ready.');
+    }, 700);
+  }
+
   /* ---------------- boot ---------------- */
   renderCartChrome();
   loadMenu(false);
@@ -1790,6 +1863,8 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
   }
+  watchAuthLinks();
+  readAuthResult();
 })();
 </script>
 </body>
