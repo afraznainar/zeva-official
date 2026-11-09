@@ -562,7 +562,9 @@ export async function whatsappStart(env, body) {
   let result;
   try {
     result = await whatsappCall(env, "/auth/start", {
-      phone: phone,
+      // The provider wants E.164 with the plus sign; the session table keeps
+      // plain digits so a number is one key whatever format was typed.
+      phone: "+" + phone,
       otp_length: 6,
       message_template: String(env.WHATSAPP_OTP_TEXT || "Your Zeva code is {code}. It expires in 5 minutes.")
     });
