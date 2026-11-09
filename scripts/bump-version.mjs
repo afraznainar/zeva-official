@@ -4,7 +4,10 @@
 // `apk/package.json` holds the version (`1.2.1`); everything else is derived:
 //
 //   apk/version.json        name + Android versionCode, read by patch-android.mjs
+//                           (which also puts it in the launcher label)
 //   deploy/dist/version.json    what the app prints in the You tab
+//   deploy/dist/manifest.webmanifest + the iOS meta title in app.html
+//                           the name under the icon on a phone's home screen
 //   deploy/dist/sw.js       the service-worker cache name, so an update
 //                           replaces the cached app shell instead of serving it
 //
@@ -73,6 +76,25 @@ try {
 
 await writeJson(apkVersionPath, { name: name, code: code, built: built });
 await writeJson(webVersionPath, { name: name, code: code, built: built });
+
+// An installed Zeva shows its name under the icon; putting the version there is
+// how you tell last week's install from today's without opening it.
+const manifestPath = path.join(root, "deploy/dist/manifest.webmanifest");
+const appHtmlPath = path.join(root, "deploy/dist/app.html");
+const label = "Zeva " + name;
+
+const manifest = await readJson(manifestPath);
+manifest.name = "Zeva Mandi & Grills " + name;
+manifest.short_name = label;
+await writeJson(manifestPath, manifest);
+
+// iOS takes the home-screen label from this meta tag, not the manifest.
+const html = await readFile(appHtmlPath, "utf8");
+const nextHtml = html.replace(
+  /(<meta name="apple-mobile-web-app-title" content=")[^"]*(">)/,
+  "$1" + label + "$2"
+);
+if (nextHtml !== html) await writeFile(appHtmlPath, nextHtml);
 
 const sw = await readFile(swPath, "utf8");
 const nextSw = sw.replace(/var VERSION = '[^']*';/, "var VERSION = 'zeva-app-v" + code + "';");

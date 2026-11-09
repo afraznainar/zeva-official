@@ -28,7 +28,11 @@ change deserves it) and derives everything from it: `apk/version.json` (Android
 always installs over the last one), `deploy/dist/version.json` (printed as
 `Zeva app v…` at the bottom of the You tab, so a phone can prove which build it
 is on) and the `deploy/dist/sw.js` cache name — without that the service worker
-keeps serving the cached app shell after a deploy.
+keeps serving the cached app shell after a deploy. It also writes the name the
+phone shows under the icon: the Android launcher label (`Zeva 1.2.3`, applied by
+`patch-android.mjs` into the gitignored `strings.xml`) and the home-screen name in
+`manifest.webmanifest` / the iOS meta title in `app.html`. Two installs side by
+side are then distinguishable at a glance.
 
 `.githooks/pre-commit` runs the bump whenever a commit touches `deploy/dist/` or
 `apk/` and stages the files it wrote, so an app change cannot ship without a new

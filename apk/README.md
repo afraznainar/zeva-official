@@ -138,8 +138,11 @@ without signing in.
 Every app change bumps the version by itself: the repo's pre-commit hook runs
 `scripts/bump-version.mjs`, which adds a patch to `package.json` (1.2.1 → 1.2.2),
 writes the matching Android `versionCode` (1.2.2 → 10202) and new
-service-worker cache name. The installed app prints it at the bottom of the You
-tab as **Zeva app v1.2.2**, which is the quickest way to confirm a phone actually
+service-worker cache name. The same version goes into the name the phone shows
+under the icon — the Android launcher label becomes **Zeva 1.2.3** instead of
+"Zeva Mandi & Grills", so an old install and a new one are distinguishable
+without opening either — and the installed app prints it at the bottom of the You
+tab as **Zeva app v1.2.3**, which is the quickest way to confirm a phone actually
 picked up the update. Bump a minor or major yourself with
 `npm run bump -- --minor` when the change deserves it.
 

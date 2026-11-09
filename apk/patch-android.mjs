@@ -67,6 +67,22 @@ if (manifest.includes('android:scheme="zeva"')) {
   console.log("patch-android: added zeva://auth intent filter");
 }
 
+// The launcher label carries the version, so two installs sitting next to each
+// other on a phone can be told apart without opening either one. "Zeva 1.2.3"
+// also fits under an icon; the full brand name does not.
+const stringsPath = path.join(here, "android/app/src/main/res/values/strings.xml");
+if (existsSync(stringsPath)) {
+  const label = "Zeva " + VERSION_NAME;
+  const strings = await readFile(stringsPath, "utf8");
+  const next = strings.replace(/(<string name="app_name">)[^<]*(<\/string>)/, "$1" + label + "$2");
+  if (next !== strings) {
+    await writeFile(stringsPath, next);
+    console.log('patch-android: launcher name "' + label + '"');
+  } else {
+    console.log('patch-android: launcher name already "' + label + '"');
+  }
+}
+
 let gradle = await readFile(gradlePath, "utf8");
 const before = gradle;
 gradle = gradle.replace(/\bversionCode\s+\d+/, "versionCode " + VERSION_CODE);
