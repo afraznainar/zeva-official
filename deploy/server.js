@@ -49,6 +49,11 @@ function readEnv() {
 }
 
 const env = readEnv();
+// Google sign-in credentials for local testing live in deploy/.env (gitignored);
+// the accounts module reads them straight off process.env.
+for (const key of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]) {
+  if (!process.env[key] && env[key]) process.env[key] = env[key];
+}
 const OPENROUTER_API_KEY = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 const OPENROUTER_BASE = env.OPENROUTER_BASE || process.env.OPENROUTER_BASE || "https://openrouter.ai/api/v1";

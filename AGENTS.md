@@ -46,9 +46,16 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 
 - Sign-in is Google OAuth. Until `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
   are set in Sites → Secrets, `/api/config` reports `google:false` and the app
-  shows a setup notice instead of the Google button. Authorised redirect URIs:
-  `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/api/auth/google/callback`
-  and `http://localhost:4173/api/auth/google/callback`.
+  shows a setup notice instead of the Google button. Authorised redirect URIs
+  (they must match Google's list character for character):
+  `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/api/auth/google/callback`,
+  `http://localhost:4173/api/auth/google/callback` and
+  `http://127.0.0.1:4173/api/auth/google/callback`. Locally the two credentials
+  can live in `deploy/.env` (gitignored) instead of the shell env.
+- The OAuth `state` is a signed token carrying `next` and the "opened from the
+  Android shell" flag, because Google hands back nothing but `code` and `state`.
+  A cancelled Google screen bounces back to `/app?auth=…` instead of an error
+  page, and a failed token exchange shows Google's own reason.
 - Sessions are HMAC-signed cookies (`zeva_sid`, 90 days; `zeva_admin`, 30 days)
   signed with `SESSION_SECRET` — there is no session table. Rotating that secret
   signs everybody out.

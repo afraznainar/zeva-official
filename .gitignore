@@ -30,3 +30,8 @@ apk/local.properties
 
 # Wrangler dev variables (never commit)
 .dev.vars
+
+# Local env files — API keys and OAuth credentials live here
+.env
+.env.*
+!.env.example

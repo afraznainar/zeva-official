@@ -341,7 +341,10 @@ function redirectUri(request, env) {
 export async function googleStart(request, env) {
   const url = new URL(request.url);
   const next = String(url.searchParams.get("next") || "/app").slice(0, 200);
-  const state = await sign(env, { n: next, exp: Date.now() + 10 * 60000 });
+  // Google only hands back code + state, so anything the callback needs to
+  // remember (like "this came from the Android shell") has to ride in state.
+  const app = url.searchParams.get("app") === "1" ? 1 : 0;
+  const state = await sign(env, { n: next, a: app, exp: Date.now() + 10 * 60000 });
   const target = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   target.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
   target.searchParams.set("redirect_uri", redirectUri(request, env));
@@ -355,6 +358,9 @@ export async function googleStart(request, env) {
 export async function googleCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  // Cancelling the Google screen is not an error page — just go back.
+  const refusal = url.searchParams.get("error");
+  if (refusal) return Response.redirect(canonicalOrigin(request) + "/app?auth=" + encodeURIComponent(refusal.slice(0, 60)), 302);
   const state = await unseal(env, url.searchParams.get("state"));
   if (!code || !state) return new Response("Sign-in could not be verified. Please try again.", { status: 400 });
   let next = String(state.n || "/app");
@@ -371,7 +377,7 @@ export async function googleCallback(request, env) {
       grant_type: "authorization_code"
     })
   });
-  if (!tokenResponse.ok) return new Response("Google rejected the sign-in. Please try again.", { status: 400 });
+  if (!tokenResponse.ok) return new Response("Google rejected the sign-in. " + (await googleReason(tokenResponse)), { status: 400 });
   const tokens = await tokenResponse.json();
   const claims = decodeIdToken(tokens.id_token);
   if (!claims || !claims.sub) return new Response("Google did not return a profile.", { status: 400 });
@@ -386,7 +392,7 @@ export async function googleCallback(request, env) {
   const session = await startSession(env, user.id);
   // Opening from the Android shell? Hand back a one-time code instead of a
   // cookie the WebView could not receive.
-  if (url.searchParams.get("app") === "1") {
+  if (state.a) {
     const code2 = b64u(crypto.getRandomValues(new Uint8Array(24)));
     await (await database(env))
       .prepare("INSERT INTO login_codes (code, user_id, expires_at) VALUES (?, ?, ?)")
@@ -398,6 +404,19 @@ export async function googleCallback(request, env) {
     status: 302,
     headers: { location: next, "set-cookie": cookieHeader("zeva_sid", session, SESSION_DAYS * 86400) }
   });
+}
+
+// Google's token endpoint explains itself ("redirect_uri_mismatch",
+// "invalid_client"); showing that beats a generic failure while setting up.
+async function googleReason(response) {
+  try {
+    const body = JSON.parse(await response.text());
+    const detail = String(body.error_description || body.error || "").trim();
+    if (detail) return "Google said: " + detail.slice(0, 160);
+  } catch (error) {
+    /* fall through to the generic message */
+  }
+  return "Please try again.";
 }
 
 function decodeIdToken(idToken) {
