@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.9">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.10">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap"></noscript>
 <style>
   :root {
     --ink-950: #0e0a08;
@@ -307,6 +307,17 @@
   }
   .field input:focus, .field textarea:focus { border-color: rgba(192, 133, 54, .6); }
   .field textarea { min-height: 64px; resize: vertical; }
+  .avatar-row { display: flex; align-items: center; gap: 13px; margin: 4px 0 14px; }
+  .avatar {
+    width: 64px; height: 64px; flex: 0 0 64px; border-radius: 50%; overflow: hidden;
+    display: grid; place-items: center; background: rgba(192, 133, 54, .14);
+    border: 1px solid rgba(192, 133, 54, .5); color: var(--brass-2);
+    font-weight: 700; font-size: 22px;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .avatar-btns .btn { padding: 8px 12px; font-size: 12.5px; }
+  .avatar-note { font-size: 11.5px; color: var(--text-3); margin-top: 6px; min-height: 1em; }
   .geo {
     display: flex; align-items: center; gap: 9px; width: 100%;
     padding: 10px 12px; border-radius: 10px; margin-top: 8px;
@@ -1426,6 +1437,25 @@
           loadAccount();
         })
         .catch(function () { act.disabled = false; });
+    } else if (what === 'pickphoto') {
+      var picker = document.getElementById('u-photo');
+      if (picker) picker.click();
+    } else if (what === 'clearphoto') {
+      act.disabled = true;
+      var note = document.getElementById('u-photo-note');
+      if (note) note.textContent = 'Removing\u2026';
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ picture: '' })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.ok) { loadAccount(); return; }
+          act.disabled = false;
+          if (note) note.textContent = (d && d.error) || 'Could not remove that photo.';
+        })
+        .catch(function () { act.disabled = false; if (note) note.textContent = 'No connection to Zeva. Try again.'; });
     } else if (what === 'editprofile') {
       var details = document.getElementById('details');
       if (details) details.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1483,6 +1513,63 @@
         if (screen === 'checkout') renderCartScreen();
       })
       .catch(function () { renderYou(); });
+  }
+
+  /* ---------------- profile photo ---------------- */
+  document.getElementById('youBody').addEventListener('change', function (e) {
+    if (!e.target || e.target.id !== 'u-photo') return;
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (file) savePhoto(file);
+  });
+
+  function photoNote(text) {
+    var note = document.getElementById('u-photo-note');
+    if (note) note.textContent = text;
+  }
+
+  function savePhoto(file) {
+    if (!file.type || file.type.indexOf('image/') !== 0) {
+      photoNote('Pick a photo from your gallery.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      photoNote('That photo is over 8 MB \u2014 pick a smaller one.');
+      return;
+    }
+    photoNote('Preparing your photo\u2026');
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      // Square crop from the middle at 320 px, then a JPEG: the Zeva card and
+      // the achievement cards never draw bigger than that, and a small image
+      // keeps the account payload light on a slow phone.
+      var side = Math.min(img.width, img.height);
+      var size = 320;
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      canvas.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      var data = canvas.toDataURL('image/jpeg', 0.82);
+      if (data.length > 150000) data = canvas.toDataURL('image/jpeg', 0.6);
+      photoNote('Saving your photo\u2026');
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ picture: data })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          if (d && d.ok) { loadAccount(); return; }
+          photoNote((d && d.error) || 'Could not save that photo.');
+        })
+        .catch(function () { photoNote('No connection to Zeva. Try again.'); });
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      photoNote('That file is not a photo we can read.');
+    };
+    img.src = url;
   }
 
   /* ---------------- notifications from the counter ---------------- */
@@ -1681,6 +1768,18 @@
               : 'Your WhatsApp number is verified \u2014 just add who you are and where the rider should go.') +
             ' Add the name' + (u.phone ? '' : ' and mobile') + ' and the address the rider should look for \u2014 checkout fills itself in after this.</p>'
           : '') +
+        '<div class="avatar-row">' +
+          '<div class="avatar" id="u-avatar">' +
+            (u.picture
+              ? '<img src="' + esc(u.picture) + '" alt="" referrerpolicy="no-referrer">'
+              : esc((u.name || 'Z').slice(0, 1).toUpperCase())) +
+          '</div>' +
+          '<div><div class="avatar-btns">' +
+            '<button class="btn ghost" type="button" data-act="pickphoto">' + (u.picture ? 'Change photo' : 'Add photo') + '</button>' +
+            (u.picture ? '<button class="btn ghost" type="button" data-act="clearphoto">Remove</button>' : '') +
+          '</div><div class="avatar-note" id="u-photo-note">' + (u.picture ? 'Your photo shows on your Zeva card.' : 'A square photo works best.') + '</div></div>' +
+          '<input type="file" id="u-photo" accept="image/*" hidden>' +
+        '</div>' +
         '<div class="field"><label for="u-name">Name</label><input id="u-name" value="' + esc(u.name || '') + '" autocomplete="name"></div>' +
         '<div class="field"><label for="u-phone">Mobile</label><input id="u-phone" value="' + esc(u.phone || '') + '" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile"></div>' +
         '<div class="field"><label for="u-addr">Delivery address</label><textarea id="u-addr" placeholder="House, street, Bolar \u2014 what the rider should look for">' + esc(u.address || '') + '</textarea></div>' +

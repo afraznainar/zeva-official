@@ -860,11 +860,31 @@ export async function updateProfile(request, env, body) {
   const user = await currentUser(request, env);
   if (!user) return json(401, { error: "sign in first" });
   const db = await database(env);
-  const phone = String((body && body.phone) || "").replace(/[^\d+]/g, "").slice(0, 16);
+  // A form that only carries a photo must not wipe the rest of the profile, so
+  // every field falls back to what is already stored.
+  const rawPhone = body && body.phone !== undefined ? body.phone : user.phone;
+  const phone = String(rawPhone || "").replace(/[^\d+]/g, "").slice(0, 16);
   const name = String((body && body.name) || user.name || "").slice(0, 80);
   const address = String((body && body.address !== undefined ? body.address : user.address) || "").slice(0, 400);
-  await db.prepare("UPDATE users SET phone = ?, name = ?, address = ? WHERE id = ?").bind(phone, name, address, user.id).run();
-  return json(200, { ok: true, user: publicUser({ ...user, phone: phone, name: name, address: address }) });
+
+  let picture = user.picture || "";
+  if (body && body.picture !== undefined) {
+    const raw = String(body.picture || "").trim();
+    if (!raw) {
+      picture = "";
+    } else if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(raw)) {
+      return json(400, { error: "Send the photo as a JPEG or PNG image." });
+    } else if (raw.length > 200000) {
+      return json(413, { error: "That photo is too large. Try a smaller one." });
+    } else {
+      picture = raw;
+    }
+  }
+
+  await db.prepare("UPDATE users SET phone = ?, name = ?, address = ?, picture = ? WHERE id = ?")
+    .bind(phone, name, address, picture, user.id)
+    .run();
+  return json(200, { ok: true, user: publicUser({ ...user, phone: phone, name: name, address: address, picture: picture }) });
 }
 
 /* ------------------------------------------------------------

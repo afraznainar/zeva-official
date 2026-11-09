@@ -27,7 +27,7 @@
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"></noscript>
 <style>
   html { -webkit-text-size-adjust: 100%; }
 
@@ -51,7 +51,11 @@
   body { font-family: var(--body); color: var(--cream); background: #0c0505; line-height: 1.6; overflow-x: clip; }
   /* Brand pattern — background overlay (fixed, covers viewport, subtle) */
   body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url("assets/img/zeva-pattern.webp") center / cover no-repeat; opacity: .08; }
+    background:
+      repeating-linear-gradient(45deg, rgba(188,120,53,.95) 0 1px, transparent 1px 42px),
+      repeating-linear-gradient(-45deg, rgba(188,120,53,.8) 0 1px, transparent 1px 42px),
+      radial-gradient(circle at 30% 20%, rgba(188,120,53,.9), transparent 55%),
+      radial-gradient(circle at 75% 80%, rgba(188,120,53,.75), transparent 50%); opacity: .08; }
   a { color: var(--gold-bright); }
   .wrap { max-width: 1140px; margin: 0 auto; padding: 0 22px; }
 

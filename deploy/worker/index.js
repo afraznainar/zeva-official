@@ -261,6 +261,21 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(request);
+    return withAssetCaching(url, await env.ASSETS.fetch(request));
   }
 };
+
+// Asset filenames never change between deploys, and the platform sends every
+// one of them with "must-revalidate" — so a repeat visit paid a round trip per
+// photo while downloading nothing (twelve on the home page, five menu scans on
+// the menu page). Photos and the logo are effectively static, so they carry a
+// week; styles, scripts and icons get an hour so a deploy still lands quickly.
+function withAssetCaching(url, response) {
+  if (!response.ok || !url.pathname.startsWith("/assets/")) return response;
+  const ext = (url.pathname.split(".").pop() || "").toLowerCase();
+  const images = ["jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "ico"];
+  const age = images.indexOf(ext) !== -1 ? 604800 : 3600;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "public, max-age=" + age);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers: headers });
+}

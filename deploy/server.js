@@ -134,7 +134,11 @@ const server = http.createServer(async (req, res) => {
       if (stat.isDirectory()) return send(res, 404, { error: "not found" });
       if (req.method === "HEAD") return send(res, 200, "", "text/plain");
       const contentType = contentTypeFor(filePath);
-      res.writeHead(200, { "Content-Type": contentType, "Content-Length": stat.size, "Cache-Control": "no-cache" });
+      // Same cache policy as worker/index.js, so local testing matches the site.
+      const ext = path.extname(filePath).toLowerCase();
+      const week = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".svg", ".ico"];
+      const cacheControl = p.startsWith("/assets/") ? "public, max-age=" + (week.includes(ext) ? 604800 : 3600) : "no-cache";
+      res.writeHead(200, { "Content-Type": contentType, "Content-Length": stat.size, "Cache-Control": cacheControl });
       const stream = fs.createReadStream(filePath);
       stream.pipe(res);
       stream.on("error", () => send(res, 500, { error: "server error" }));

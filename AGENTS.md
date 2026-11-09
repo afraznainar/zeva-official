@@ -106,6 +106,13 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   tab renders its details card first, titled **Finish your profile**, whenever
   `phone` or `address` is still empty; once both are saved the card drops back
   below Zeva Gold. Checkout prefills itself from the saved profile.
+- Anyone can add a profile photo from the You tab: the app crops it square at
+  320 px in the browser, encodes a JPEG and posts it to `/api/profile` as a
+  `data:` URL, which lands in `users.picture` (the same column Google uses). No
+  image bucket is involved, and the server refuses anything that is not a
+  jpeg/png/webp data URL or is over ~200 kB. `picture` is only written when the
+  request carries it, so saving the name and address never clears the photo.
+  It shows on the foil profile card, the achievement cards and the avatar.
 - Order statuses: `pending` (customer sees "Pending confirmation") → `preparing`
   (staff pressed **Accept order**) → `out` → `done`, plus `cancelled`. The
   schema batch also rewrites legacy `new`/`ready` rows into the new names.
@@ -184,6 +191,19 @@ download. That file is gitignored — `node scripts/stage-apk.mjs` copies the bu
 current `apk/version.json`, which is the usual way a stale build gets published.
 Rebuild after every version bump, stage, then deploy. A deploy with no APK
 staged answers 404 and names the counter's phone number.
+
+## Keeping it fast
+
+The pages carry their own inline CSS and load `assets/site.css` once; the brand
+texture on every page is a CSS gradient lattice, not `zeva-pattern.webp` (that
+113 kB photo was drawn at 8 % opacity and dominated the home page's weight).
+Google Fonts is loaded with `media="print"` + `onload`, so first paint never
+waits on Google or the woff2 files, with a `<noscript>` fallback.
+
+`worker/index.js` rewrites the cache policy for `/assets/`: images and the logo
+carry a week, CSS/JS an hour. Without it the platform's `must-revalidate` made
+every repeat visit pay a round trip per photo while downloading nothing.
+`deploy/server.js` applies the same rule so local testing matches the live site.
 
 ## Menu spreadsheet
 
