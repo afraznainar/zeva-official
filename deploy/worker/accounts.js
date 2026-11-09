@@ -559,12 +559,18 @@ export async function whatsappStart(env, body) {
     return json(429, { error: "Too many codes for this number. Try again in ten minutes." });
   }
 
+  // LoginWA rejects a full E.164 number in `phone` ("Enter a valid WhatsApp
+  // number with country code") and only sends when the local number and the
+  // country code arrive as two fields, so split them. otp_sessions still keeps
+  // the full digits, so one customer is one key whatever format they typed.
+  const country = String((env.WHATSAPP_COUNTRY_CODE) || "91").replace(/\D/g, "") || "91";
+  const national = phone.startsWith(country) ? phone.slice(country.length) : phone;
+
   let result;
   try {
     result = await whatsappCall(env, "/auth/start", {
-      // The provider wants E.164 with the plus sign; the session table keeps
-      // plain digits so a number is one key whatever format was typed.
-      phone: "+" + phone,
+      phone: national,
+      country_code: country,
       otp_length: 6,
       message_template: String(env.WHATSAPP_OTP_TEXT || "Your Zeva code is {code}. It expires in 5 minutes.")
     });
