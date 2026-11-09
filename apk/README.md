@@ -33,7 +33,8 @@ customers directly or for testing, but Play Store uploads need a release keystor
 
 `apk/Zeva-Mandi-and-Grills.apk` is a signed debug build (package
 `com.zeva.mandi`, label "Zeva Mandi & Grills", min Android 5.1, target 34,
-version 1.1). The next build is version 1.2, which adds in-app Google sign-in. It bundles `@capacitor/local-notifications`, so order updates and
+version 1.2). Version 1.2 is the first build that can sign in: install it even if
+1.1 still works, because sign-in needs the native plugins and the `zeva://` filter. It bundles `@capacitor/local-notifications`, so order updates and
 counter messages arrive as real Android notifications while the app is running;
 `@capacitor/app` and `@capacitor/browser` carry the Google sign-in round trip.
 Native plugins are the only reason a rebuild is needed — reinstall the APK after
