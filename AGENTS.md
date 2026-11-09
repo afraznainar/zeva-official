@@ -146,17 +146,20 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 
 ## Online UPI payments
 
-Online UPI has two modes and the same order fields serve both; the gateway wins
-whenever its secrets are present.
+Online UPI has two modes and the same order fields serve both. **Direct mode wins
+whenever `UPI_ID` is set** — the customer pays the shop's own VPA or nothing at
+all — and the gateway is only reached on a site that has no `UPI_ID`.
 
-**Direct mode needs no hosting at all.** Set `UPI_ID` (the restaurant's VPA, e.g.
-`zeva@okhdfcbank`) and optionally `UPI_PAYEE_NAME` — the app then offers the
+**Direct mode needs no hosting at all.** Set `UPI_ID` (the restaurant's VPA,
+`9880510193@upi`, and the only address this code will ever ask a customer to
+pay — there is no built-in fallback) and optionally `UPI_PAYEE_NAME` — the app then offers the
 order's exact amount as a `upi://` intent to that ID, and the counter confirms
 the money on the dashboard with **Mark UPI paid** (it asks first, and an undo
 sits beside it for mistakes). This path sends nothing to any provider: the
 bank's own app and SMS are the source of truth, so there is no per-transaction
-fee and nothing new to host. It is what runs today whenever `UPI_ID` is set and
-the gateway is not.
+fee and nothing new to host. It is what runs today, and a malformed value (a
+paste with a stray space or newline) switches online UPI off rather than
+producing a link to the wrong address.
 
 **On the website** (`deploy/dist/menu.html`) choosing UPI pays first and sends
 second. Tapping **Pay … by UPI** writes the order row, asks `POST /api/upi/pay`
@@ -177,9 +180,9 @@ order hit `duplicate order` and look like a failed payment.
 **Gateway mode** is the self-hosted [UPI gateway](https://github.com/mynkdev-21/upi-gateway)
 (Laravel 12 + MySQL, MIT), which cannot run on this Worker or on Sites, so it
 lives on its own PHP hosting and Zeva is a merchant of it; `deploy/worker/upi.js`
-is the client half. Until its secrets exist in Sites → Secrets, `/api/config`
-reports `upi:false` (unless direct mode is on) and the app says nothing about
-paying online:
+is the client half. It only runs on a site with no `UPI_ID`; with one set the
+gateway secrets are inert. Until either mode is configured, `/api/config`
+reports `upi:false` and the app says nothing about paying online:
 
 - `UPI_GATEWAY_URL` — e.g. `https://pay.zeva.example`
 - `UPI_GATEWAY_KEY` / `UPI_GATEWAY_SECRET` — the merchant key and secret from

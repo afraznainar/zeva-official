@@ -22,7 +22,8 @@
      UPI_WEBHOOK_SECRET  webhook signing secret for that key's environment
 
    Until those are set, /api/config reports upi:false and the app
-   keeps its "cash or UPI" wording exactly as before.
+   keeps its "cash or UPI" wording exactly as before. If UPI_ID is also
+   set, direct mode wins and the gateway is never contacted at all.
    ============================================================ */
 
 const HMAC_WINDOW_SECONDS = 300;
@@ -32,16 +33,20 @@ function gatewayBase(env) {
 }
 
 /* Direct mode: no gateway, no hosting — the customer pays the restaurant's own
-   UPI ID and the counter confirms the money on the dashboard. Set UPI_ID (the
-   VPA, e.g. "zeva@okhdfcbank") and optionally UPI_PAYEE_NAME. This is what runs
-   when no gateway secrets exist; the gateway wins whenever both are set. */
+   UPI ID and the counter confirms the money on the dashboard. UPI_ID is the
+   only place that address lives (Sites -> Secrets: 9880510193@upi) and there
+   is no built-in fallback, so a site with no UPI_ID simply offers no online
+   payment instead of sending money somewhere unexpected. Direct mode also wins
+   over the gateway whenever UPI_ID is set: the shop's own VPA, or nothing. */
 export function upiId(env) {
   return String((env && env.UPI_ID) || "").trim();
 }
 
+// One VPA: something@handle, no spaces, no scheme — a pasted memo with a stray
+// newline must switch the feature off rather than build a link nobody can pay.
 export function directReady(env) {
   const id = upiId(env);
-  return Boolean(id && id.includes("@") && id.length <= 100);
+  return Boolean(id && /^[^\s@/]+@[^\s@/]+$/.test(id) && id.length <= 100);
 }
 
 export function directPayment(env, order) {

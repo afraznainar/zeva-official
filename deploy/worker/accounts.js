@@ -20,7 +20,14 @@ import { upiReady, directReady, directPayment, openPayment, pollPayment, verifyW
 //   direct  — the app pays the shop's own UPI ID and the counter confirms.
 // The gateway wins when both are configured.
 function onlineUpi(env) {
-  return upiReady(env) || directReady(env);
+  return directReady(env) || upiReady(env);
+}
+
+// Which mode is really in use. This must agree with startUpiPayment, where the
+// shop's own UPI_ID is checked first — otherwise the app would draw the gateway
+// screen for a payment that actually goes to the VPA.
+function upiMode(env) {
+  return directReady(env) ? "direct" : upiReady(env) ? "gateway" : "";
 }
 
 export const GOLD = {
@@ -868,7 +875,9 @@ export async function startUpiPayment(request, env, body) {
 
   // Direct mode: no provider page to open, just the shop's own UPI ID with this
   // order's amount already filled in. Rebuilt on every open — it never expires.
-  if (!upiReady(env) && directReady(env)) {
+  // It is checked before the gateway on purpose: the customer must pay the VPA
+  // in UPI_ID, so a site that has one never routes money anywhere else.
+  if (directReady(env)) {
     const direct = directPayment(env, order);
     if (!direct.ok) return json(direct.status || 502, { error: direct.error });
     const pay = direct.payment;
@@ -1135,7 +1144,7 @@ export async function profilePayload(request, env) {
     google: googleReady(env),
     whatsapp: whatsappReady(env),
     upi: onlineUpi(env),
-    upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "",
+    upi_mode: upiMode(env),
     dev: env.ZEVA_DEV_LOGIN === "1",
     gold: gold,
     gold_plan: GOLD,
@@ -1494,14 +1503,14 @@ export async function handleAccounts(request, env, url) {
       google: googleReady(env),
       whatsapp: whatsappReady(env),
       upi: onlineUpi(env),
-      upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "",
+      upi_mode: upiMode(env),
       gold: GOLD,
       dev: env.ZEVA_DEV_LOGIN === "1"
     });
   }
 
   if (path === "/api/me") {
-    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), upi: onlineUpi(env), upi_mode: upiReady(env) ? "gateway" : directReady(env) ? "direct" : "", gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
+    if (!env.DB) return json(200, { user: null, signed_in: false, google: googleReady(env), whatsapp: whatsappReady(env), upi: onlineUpi(env), upi_mode: upiMode(env), gold: { status: "none" }, gold_plan: GOLD, wallet: { balance: 0, entries: [] }, orders: [] });
     return json(200, await profilePayload(request, env));
   }
 
