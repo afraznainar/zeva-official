@@ -12,5 +12,8 @@ app=$(printf '%s\n' "$staged" | grep -E '^(deploy/dist/|apk/)' \
 [ -z "$app" ] && exit 0
 
 node scripts/bump-version.mjs || exit 1
-git add apk/package.json apk/package-lock.json apk/version.json deploy/dist/version.json deploy/dist/sw.js
+# Everything the bump rewrites has to be staged, or the tree is left dirty.
+git add apk/package.json apk/package-lock.json apk/version.json \
+  deploy/dist/version.json deploy/dist/sw.js \
+  deploy/dist/app.html deploy/dist/manifest.webmanifest
 exit 0
