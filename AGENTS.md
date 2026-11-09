@@ -172,7 +172,8 @@ comes from `apk/version.json` (see **App version**), never from the script.
 card (the pointer drives the glow, tapping fires a burst and sends the browser to
 `/apk`), plus a plain button and link for anyone without canvas. It reads
 `version.json` for the build label. Keep it customer-only — it is not a shop
-window for the web app.
+window for the web app. Every page's **App** nav item points here; the ordering
+app itself stays at `/app` (this page links to it as "Open Zeva").
 
 The page's button and the home-page footer link point at `/apk`, the short
 install link customers open on their phone: the Worker serves
