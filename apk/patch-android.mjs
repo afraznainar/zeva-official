@@ -9,14 +9,25 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Bump these together whenever a build should install over the previous APK —
-// Android refuses an APK with a lower versionCode than the installed one.
-const VERSION_CODE = 3;
-const VERSION_NAME = "1.2";
-
 const here = path.dirname(fileURLToPath(import.meta.url));
 const manifestPath = path.join(here, "android/app/src/main/AndroidManifest.xml");
 const gradlePath = path.join(here, "android/app/build.gradle");
+
+// The version comes from apk/version.json, which scripts/bump-version.mjs writes
+// (and the pre-commit hook keeps current) — never edit it by hand. Android
+// refuses an APK whose versionCode is lower than the installed one.
+async function appVersion() {
+  if (existsSync(path.join(here, "version.json"))) {
+    const parsed = JSON.parse(await readFile(path.join(here, "version.json"), "utf8"));
+    if (parsed && parsed.name && Number(parsed.code) > 0) return { name: String(parsed.name), code: Number(parsed.code) };
+  }
+  const pkg = JSON.parse(await readFile(path.join(here, "package.json"), "utf8"));
+  const parts = String(pkg.version || "0.0.0").split(".").map(Number);
+  const [major = 0, minor = 0, patch = 0] = parts;
+  return { name: String(pkg.version || "0.0.0"), code: major * 10000 + minor * 100 + patch };
+}
+
+const { name: VERSION_NAME, code: VERSION_CODE } = await appVersion();
 
 // Google sign-in finishes in the phone's browser and comes back to the app on
 // zeva://auth?code=… — that scheme has to be declared for Android to route it.

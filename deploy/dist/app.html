@@ -331,6 +331,7 @@
   .done .mini { font-size: 11.5px; color: var(--text-3); }
 
   /* ---------- you / profile ---------- */
+  .appver { margin-top: 14px; text-align: center; font-size: 11.5px; letter-spacing: .06em; color: var(--text-3); }
   .who { display: flex; align-items: center; gap: 12px; padding: 14px 0 6px; }
   .who .av {
     width: 52px; height: 52px; border-radius: 50%; flex: none;
@@ -701,6 +702,7 @@
   var activeSizeCat = '';
   var activeSizeItem = '';
   var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
+  var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
   var NOTICE_KEY = 'zeva_notice_after';
   var GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 };
@@ -1363,6 +1365,17 @@
     });
   }
 
+  // Printed at the bottom of the You tab so whoever holds the phone can tell
+  // whether the update actually landed — the stored build can lag a deploy.
+  function loadVersion() {
+    return fetch('/version.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.name && d.name !== APPVER) { APPVER = d.name; if (ACCT) renderYou(); }
+      })
+      .catch(function () {});
+  }
+
   function loadAccount() {
     fetch('/api/me', { headers: { accept: 'application/json' }, cache: 'no-store' })
       .then(function (r) { return r.json(); })
@@ -1592,7 +1605,8 @@
         '<p class="muted">Get a notification here when the counter accepts your order, when it leaves for delivery and when it is delivered. Also used for messages from Zeva.</p>' +
         '<button class="btn ghost" type="button" data-act="notify-on" style="margin-top:10px">' + (notifyState === 'granted' ? 'Notifications are on' : 'Turn on notifications') + '</button>' +
       '</div>';
-    foot.innerHTML = '<button class="btn ghost" type="button" data-act="logout">Log out</button>';
+    foot.innerHTML = '<button class="btn ghost" type="button" data-act="logout">Log out</button>' +
+      (APPVER ? '<div class="appver">Zeva app v' + esc(APPVER) + '</div>' : '');
     tiltAll();
   }
 
@@ -1874,6 +1888,7 @@
   }
   watchAuthLinks();
   readAuthResult();
+  loadVersion();
 })();
 </script>
 </body>

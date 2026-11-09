@@ -1,0 +1,16 @@
+#!/bin/sh
+# Keeps the app version in step with the app itself: any commit that touches the
+# web app or the Android project bumps the patch version (apk/package.json ->
+# apk/version.json -> Android versionCode, and the service-worker cache name)
+# and stages the files it wrote. Version bookkeeping alone does not bump, so the
+# bump commit is stable. Enable with: git config core.hooksPath .githooks
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+app=$(printf '%s\n' "$staged" | grep -E '^(deploy/dist/|apk/)' \
+  | grep -vE '^(deploy/dist/version\.json|deploy/dist/sw\.js|apk/version\.json|apk/package\.json|apk/package-lock\.json)$')
+[ -z "$app" ] && exit 0
+
+node scripts/bump-version.mjs || exit 1
+git add apk/package.json apk/package-lock.json apk/version.json deploy/dist/version.json deploy/dist/sw.js
+exit 0
