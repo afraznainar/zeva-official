@@ -977,8 +977,10 @@ async function markUpiPaid(db, env, order, payment) {
   const now = Date.now();
 
   if (Math.abs(paid - due) > 0.01) {
+    // A mismatch is not a payment: clear any earlier paid stamp, otherwise the
+    // card would show a "paid at" time next to money we have not counted.
     await db
-      .prepare("UPDATE orders SET upi_status = 'mismatch', upi_amount = ?, upi_utr = ?, upi_checked_at = ? WHERE id = ?")
+      .prepare("UPDATE orders SET upi_status = 'mismatch', upi_amount = ?, upi_utr = ?, upi_paid_at = NULL, upi_checked_at = ? WHERE id = ?")
       .bind(paid, utr, now, order.id)
       .run();
     if (order.user_id) {
