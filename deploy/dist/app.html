@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.16">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.17">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -711,6 +711,8 @@
   var orderRef = '';
   var printState = 'idle';
   var orderState = 'idle'; // did /api/orders actually take the order
+  var orderErr = '';      // why it did not, in the customer's words
+  var orderTry = 0;       // attempts for the current id, so a retry can spot its own order
 
   var activeSizeCat = '';
   var activeSizeItem = '';
@@ -1022,7 +1024,8 @@
         body.innerHTML =
           '<div class="done"><div class="ring">!</div>' +
           '<h2>We could not reach our kitchen</h2>' +
-          '<p>Nothing was charged and your cart is still here. Check your connection and try again &mdash; or send it to the counter on WhatsApp.</p>' +
+          '<p>Nothing was charged and your cart is still here. Try again &mdash; or send it to the counter on WhatsApp.</p>' +
+          (orderErr ? '<p class="muted">' + esc(orderErr) + '</p>' : '') +
           '</div>';
         foot.innerHTML =
           '<button class="btn" type="button" data-act="send">Try again</button>' +
@@ -1160,7 +1163,12 @@
   }
 
   function sendOrder() {
-    orderRef = ref();
+    // A retry keeps the same id: if the first attempt did reach the kitchen and
+    // only the reply was lost, the second one comes back "duplicate order"
+    // instead of quietly printing a second ticket.
+    if (!orderRef) orderRef = ref();
+    orderTry++;
+    orderErr = '';
     cashbackNote = '';
     payInfo = null;
     orderState = 'sending';
@@ -1181,15 +1189,25 @@
       items_total: total(), cgst: cgst(), sgst: sgst(), delivery: deliveryFee(), total: grandTotal(), tip: 0
     };
     try {
+      var orderStatus = 0;
       fetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(Object.assign({}, payload, totals)),
         keepalive: true
       })
-        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (r) {
+          orderStatus = r.status;
+          return r.json().catch(function () { return {}; });
+        })
         .then(function (d) {
-          orderState = (d && d.ok) ? 'ok' : 'fail';
+          if (d && d.ok) orderState = 'ok';
+          // Our own earlier attempt landed and only its reply went missing.
+          else if (orderStatus === 409 && orderTry > 1) orderState = 'ok';
+          else {
+            orderState = 'fail';
+            orderErr = (d && d.error) ? 'The counter said: ' + String(d.error) + '.' : 'The counter answered ' + (orderStatus || 'nothing') + '.';
+          }
           if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
           if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
           if (orderState === 'ok') {
@@ -1204,8 +1222,18 @@
           }
           if (screen === 'done') renderCartScreen();
         })
-        .catch(function () { orderState = 'fail'; if (screen === 'done') renderCartScreen(); });
-    } catch (e) { orderState = 'fail'; }
+        .catch(function () {
+          orderState = 'fail';
+          orderErr = (navigator.onLine === false)
+            ? 'Your phone is offline. Turn data or Wi-Fi back on and try again.'
+            : 'The connection dropped before the kitchen answered, so the order may or may not have arrived.';
+          if (screen === 'done') renderCartScreen();
+        });
+    } catch (e) {
+      orderState = 'fail';
+      orderErr = 'This phone could not send the order.';
+      if (screen === 'done') renderCartScreen();
+    }
 
     printState = 'sending';
     var printPayload = {
@@ -1436,6 +1464,7 @@
       screen = 'home';
       mode = ''; pay = ''; pos = { state: 'idle', metres: null }; printState = 'idle';
       orderState = 'idle'; payInfo = null; stopPayPoll();
+      orderRef = ''; orderErr = ''; orderTry = 0;
       window.scrollTo({ top: 0 });
     }
   });
