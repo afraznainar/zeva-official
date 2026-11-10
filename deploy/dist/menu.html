@@ -1429,7 +1429,8 @@
     if (upiState === 'starting') return;
     // Coming back to the payment for the same cart reuses its order row; a fresh
     // attempt gets its own id, so a second order can never overwrite the first.
-    if (upiState === 'ready' || upiState === 'paid') { view = 'upi'; render(); return; }
+    if (upiState === 'paid') { view = 'send'; render(); return; }
+    if (upiState === 'ready') { view = 'upi'; render(); return; }
     orderRef = ref();
     upiState = 'starting';
     upiErr = '';
@@ -1494,7 +1495,10 @@
           upiPaid = true;
           upiState = 'paid';
           stopUpiPoll();
-          if (view === 'upi') render();
+          // The money is in, so the payment screen has nothing left to ask:
+          // hand the customer on to the one step that is left, sending it.
+          if (view === 'upi') goStep('send');
+          else if (view === 'send') render();
           return;
         }
         if (d.status === 'mismatch' || d.status === 'review') {
@@ -1688,10 +1692,15 @@
     } else if (view === 'send') {
       var ready = detailsValid() && !!mode && !!pay && (mode !== 'delivery' || deliveryOk());
       var upiFirst = pay === 'upi' && UPI_CFG.on;
-      h += '<button class="btn btn-wa" data-act="send"' + (ready ? '' : ' disabled') + '>' +
-        (upiFirst ? 'Pay ' + rupee(grandTotal()) + ' by UPI \u2192' : 'Send order to WhatsApp') + '</button>';
-      h += '<button class="btn btn-outline" data-act="prev">\u2190 Back</button>';
-      if (!ready) h += '<div class="co-hint">Choose pickup or delivery, then cash or UPI, to send your order.</div>';
+      if (upiPaid) {
+        // Nothing else is left to do, so the send button is the whole footer.
+        h += '<button class="btn btn-wa" data-act="sendpaid">Send order to WhatsApp \u2014 paid</button>';
+      } else {
+        h += '<button class="btn btn-wa" data-act="send"' + (ready ? '' : ' disabled') + '>' +
+          (upiFirst ? 'Pay ' + rupee(grandTotal()) + ' by UPI \u2192' : 'Send order to WhatsApp') + '</button>';
+        h += '<button class="btn btn-outline" data-act="prev">\u2190 Back</button>';
+        if (!ready) h += '<div class="co-hint">Choose pickup or delivery, then cash or UPI, to send your order.</div>';
+      }
     } else if (view === 'upi') {
       if (upiState === 'paid') {
         h += '<button class="btn btn-wa" data-act="sendpaid">Send order to WhatsApp \u2014 paid</button>';
@@ -1773,6 +1782,13 @@
         (UPI_CFG.on ? '<div class="co-hint">Paying by UPI comes first here: we open this order\u2019s exact amount, and our counter confirms the money before the order goes to WhatsApp.</div>' : '');
     } else if (view === 'upi') {
       body.innerHTML = upiHtml();
+    } else if (upiPaid) {
+      // Paid: no tip chooser (the money is already taken) and no second ask
+      // for money \u2014 just the payment confirmation and one send button.
+      body.innerHTML =
+        '<div class="co-block"><h3>Payment received \u2014 ' + rupee(upi && upi.amount ? upi.amount : grandTotal()) + '</h3>' +
+        '<div class="co-status pay-ok">\u2705 Our counter saw your UPI payment land. One tap below sends this order to our WhatsApp, marked <strong>PAID</strong>.</div></div>' +
+        sum + sendSummaryHtml();
     } else {
       body.innerHTML = sum + tipHtml() + sendSummaryHtml() +
         (pay === 'upi' && UPI_CFG.on ? '<div class="co-hint">Next step asks for the money first \u2014 then your order goes to our WhatsApp marked <strong>paid</strong> or <strong>not paid</strong>, whichever is true.</div>' : '');
@@ -1890,7 +1906,8 @@
     }
     else if (act === 'tip') { tip = Number(t.getAttribute('data-val')) || 0; render(); }
     else if (act === 'send') {
-      if (pay === 'upi' && UPI_CFG.on) startUpiPay();
+      if (upiPaid) openWhatsApp(true);
+      else if (pay === 'upi' && UPI_CFG.on) startUpiPay();
       else openWhatsApp();
     }
     else if (act === 'sendpaid') openWhatsApp(true);
