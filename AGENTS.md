@@ -171,6 +171,15 @@ they tap send, and that message says `UPI — PAID ₹X` (the counter confirmed 
 or `UPI — NOT PAID YET ₹X`; the printed bill says `UPI PAID` for the same
 reason. Sending early is allowed, and simply lands as unpaid.
 
+**In the app** (`deploy/dist/app.html`) there is no WhatsApp step: the checkout
+button is **Confirm & pay ₹X by UPI** (or **Confirm order · ₹X** for cash), and
+it posts `POST /api/orders` and `POST /api/print` and shows the order screen, so
+the customer confirms and pays without leaving the app. On the order screen the
+footer carries the `upi://` intent for the server's amount, and
+`GET /api/upi/status` turns it into "UPI payment received" once the counter
+confirms. WhatsApp is only a fallback: if the order post fails, the screen says
+so, keeps the cart, and offers the counter's chat with the same order text.
+
 The website's order body carries the real totals and `payment`, which matters
 more than it looks: without them every website order was stored as cash with a
 ₹0 total, so there was nothing for the payment amount to come from. Each payment
