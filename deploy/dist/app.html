@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.14">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.15">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -1806,7 +1806,11 @@
         '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
           '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside 5 km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
         '</div>';
-      foot.innerHTML = '<a class="btn ghost" href="tel:+917022771888">Call the counter</a>';
+      // The build label has to be here too: a freshly installed APK has not
+      // signed in yet, and that is exactly when someone needs to prove which
+      // build the phone is running.
+      foot.innerHTML = '<a class="btn ghost" href="tel:+917022771888">Call the counter</a>' +
+        (APPVER ? '<div class="appver">Zeva app v' + esc(APPVER) + '</div>' : '');
       return;
     }
 
