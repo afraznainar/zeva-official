@@ -290,6 +290,18 @@ carry a week, CSS/JS an hour. Without it the platform's `must-revalidate` made
 every repeat visit pay a round trip per photo while downloading nothing.
 `deploy/server.js` applies the same rule so local testing matches the live site.
 
+## Home page Instagram strip
+
+`deploy/dist/index.html` builds the strip in script: 24 photo cards (six pictures
+— `insta-11, 12, 2, 4, 6, 3` — repeated four times) drift past a brass scanner
+bar at the strip's centre, which clips each photo into generated cypher text as
+it crosses. One `--edge` percentage on the card drives both clip paths (photo
+shows left of the bar, code right of it), the line wraps by half its own width
+so the loop is seamless, and the code text is rewritten only for the card under
+the bar. Dragging flings the strip; `prefers-reduced-motion` gets still photos
+and no loop. Ported from a card-stream scanner demo, minus its Three.js
+particle canvas, which this page does not load.
+
 ## Menu spreadsheet
 
 `Zeva-Menu.xlsx` is generated from `deploy/dist/menu.html` by
