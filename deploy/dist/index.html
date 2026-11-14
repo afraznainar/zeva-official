@@ -231,10 +231,7 @@
   .gallery .scan-bar { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; transform: translateX(-50%); z-index: 3; pointer-events: none;
     background: linear-gradient(180deg, rgba(255, 236, 205, 0), rgba(255, 244, 228, .95) 16%, rgba(255, 244, 228, .95) 84%, rgba(255, 236, 205, 0));
     box-shadow: 0 0 18px 4px rgba(200, 132, 62, .5), 0 0 64px 20px rgba(200, 132, 62, .2); }
-  .gallery .scan-effect { position: absolute; inset: 0; pointer-events: none; z-index: 2;
-    background: linear-gradient(90deg, rgba(255, 240, 215, 0), rgba(255, 240, 215, .38) 50%, rgba(255, 240, 215, 0));
-    animation: scanFlash .6s ease-out forwards; }
-  @keyframes scanFlash { from { opacity: .9; transform: translateX(-28%); } to { opacity: 0; transform: translateX(28%); } }
+
 
   /* ---------- testimonials ---------- */
   .quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -1039,23 +1036,14 @@
         var innerLeft = left + bw;
         var innerW = Math.max(1, cardW - bw * 2);
         var edge;
-        if (right < sl) edge = 0;                 // already scanned: all code
+        // Only the card on the bar shows code: once it has crossed the line it
+        // goes back to being a plain photo.
+        if (right < sl) edge = 100;               // already past the bar: all photo
         else if (left > sr) edge = 100;           // not there yet: all photo
         else edge = Math.max(0, Math.min(100, ((sr - innerLeft) / innerW) * 100));
         if (edge !== c.edge) {
           c.wrap.style.setProperty('--edge', edge + '%');
           c.edge = edge;
-        }
-        if (edge > 0 && edge < 100 && !c.flashed) {
-          c.flashed = true;
-          var flash = document.createElement('div');
-          flash.className = 'scan-effect';
-          c.wrap.appendChild(flash);
-          window.setTimeout(function (node) { return function () {
-            if (node.parentNode) node.parentNode.removeChild(node);
-          }; }(flash), 620);
-        } else if (edge <= 0 || edge >= 100) {
-          c.flashed = false;
         }
       }
     }

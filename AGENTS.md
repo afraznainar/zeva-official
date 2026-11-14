@@ -298,7 +298,7 @@ bar at the strip's centre, which clips each photo into generated cypher text as
 it crosses. One `--edge` percentage on the card drives both clip paths (photo
 shows left of the bar, code right of it), the line wraps by half its own width
 so the loop is seamless, and the code text is rewritten only for the card under
-the bar. Dragging flings the strip; `prefers-reduced-motion` gets still photos
+the bar — a card that has crossed the line turns back into a plain photo. Dragging flings the strip; `prefers-reduced-motion` gets still photos
 and no loop. Ported from a card-stream scanner demo, minus its Three.js
 particle canvas, which this page does not load.
 
