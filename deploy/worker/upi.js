@@ -34,7 +34,8 @@ function gatewayBase(env) {
 
 /* Direct mode: no gateway, no hosting — the customer pays the restaurant's own
    UPI ID and the counter confirms the money on the dashboard. UPI_ID is the
-   only place that address lives (Sites -> Secrets: 9880510193@upi) and there
+   only place that address lives (Sites -> Secrets: Vyapar.175694251103@hdfcbank,
+   the HDFC VPA since 15 Nov 2026) and there
    is no built-in fallback, so a site with no UPI_ID simply offers no online
    payment instead of sending money somewhere unexpected. Direct mode also wins
    over the gateway whenever UPI_ID is set: the shop's own VPA, or nothing. */

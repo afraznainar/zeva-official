@@ -151,7 +151,7 @@ whenever `UPI_ID` is set** — the customer pays the shop's own VPA or nothing a
 all — and the gateway is only reached on a site that has no `UPI_ID`.
 
 **Direct mode needs no hosting at all.** Set `UPI_ID` (the restaurant's VPA,
-`9880510193@upi`, and the only address this code will ever ask a customer to
+`Vyapar.175694251103@hdfcbank` — HDFC, changed 15 Nov 2026 — and the only address this code will ever ask a customer to
 pay — there is no built-in fallback) and optionally `UPI_PAYEE_NAME` — the app then offers the
 order's exact amount as a `upi://` intent to that ID, and the counter confirms
 the money on the dashboard with **Mark UPI paid** (it asks first, and an undo
