@@ -277,6 +277,20 @@ current `apk/version.json`, which is the usual way a stale build gets published.
 Rebuild after every version bump, stage, then deploy. A deploy with no APK
 staged answers 404 and names the counter's phone number.
 
+## Short link
+
+`zevamandi.foo.ng` is a printable address for the restaurant, and it is **not**
+a custom domain on this site: the platform answers `403 Forbidden` to any Host
+header that is not its own, so a CNAME straight at the site can never render.
+Instead the name has one CNAME at the free `foo.ng` registry
+(`Pokymon/foo.ng`, PR #382) pointing at `afraznainar.github.io`, where the
+public repo `afraznainar/zeva-link` is a one-page redirect that forwards to the
+live site with the path and query intact (`CNAME` file in that repo carries the
+custom domain, and Pages issues the certificate once DNS lands). If the site
+ever gets a real custom domain instead, the Worker's origin check
+(`SITE` in `accounts.js` / `index.js`) has to learn the new origin or every
+order POST answers 403.
+
 ## Keeping it fast
 
 The pages carry their own inline CSS and load `assets/site.css` once; the brand
