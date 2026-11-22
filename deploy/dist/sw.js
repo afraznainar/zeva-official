@@ -2,7 +2,7 @@
    Keeps the app shell and the menu readable on a weak connection:
    pages are network-first (fresh prices), images and icons cache-first. */
 
-var VERSION = 'zeva-app-v10219';
+var VERSION = 'zeva-app-v10220';
 var SHELL = [
   '/app.html',
   '/menu.html',

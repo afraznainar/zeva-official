@@ -42,10 +42,13 @@ this clone); a docs-only commit does not bump. `apk/patch-android.mjs` reads
 
 ## Deploys
 
-The live site is the Freebuff Sites preview
-`https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page`, deployed from
-`deploy/sites.manifest.json`. Social share tags carry that origin absolutely —
-if the site moves to a custom domain, run `node .tools/fix-og.js <new-origin>`.
+The live site is Production at **`https://www.zevamandiandgrills.in`**, deployed
+from `deploy/sites.manifest.json`. Every page's canonical/OG/JSON-LD tags carry
+that origin absolutely; `node .tools/fix-og.js <origin>` rewrites them off
+whichever origin they last carried (it knows every address this site has had),
+so run it if the domain ever changes. The platform's own Production address
+(`https://site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page`) still serves the
+same Worker, which is how to tell "the domain" apart from "the deploy".
 
 **Two environments, two databases.** Preview (`site-67005eaa…`) is now staging:
 its D1 holds the orders and accounts from before the domain launched.
@@ -54,21 +57,33 @@ customer-facing copy, with its own D1 and its own secrets — the same secret na
 is a separate value in each environment, so anything added to one has to be
 added to the other by hand.
 
-**The custom domain is `www.zevamandiandgrills.in`.** The platform accepts a
-subdomain for Production, never an apex, so the bare `zevamandiandgrills.in`
-has to be forwarded at the registrar (Hostinger) rather than attached here.
+**The custom domain is `www.zevamandiandgrills.in`, attached to Production and
+live** (22 Nov 2026: CNAME `www` → the `customers.freebuff.page` target plus the
+`_freebuff.www` TXT record, TTL 300). The platform accepts a subdomain for
+Production, never an apex, and Hostinger refuses to forward a domain to its own
+`www` (`[Domains:2047] Domain and redirect url cannot be the same`), so the bare
+`zevamandiandgrills.in` is a GitHub Pages redirect instead: repo
+`afraznainar/zeva-apex` (its `CNAME` is the apex, and the zone's `@` A/AAAA
+records point at GitHub's Pages addresses) hands the visit to the `www` site with
+the path and query intact. Never point `@` back at Hostinger's CDN
+(`*.cdn.hstgr.net`): that is what answered 403 for the bare domain before it
+launched.
 Whichever hostname Production gets must also be in the Production secret
 `SITE_ORIGINS` (comma separated, e.g.
 `https://www.zevamandiandgrills.in,https://zevamandiandgrills.in`), because
 `canonicalOrigin()` refuses writes from an origin it does not recognise — the
-symptom is every order POST answering 403 on the new domain.
-Once the domain is the address customers use, the canonical/OG tags, the
-manifest `start_url` and the APK's `server.url` all move with it.
+symptom is every order POST answering 403 on the new domain. `SITE` in
+`worker/accounts.js` and `worker/index.js` is now the domain, which is the
+fallback origin for anything that has to name one.
 
-The zone itself is at Hostinger. `scripts/hostinger-dns.mjs list` prints it and
-`cname www <target>` writes a record through Hostinger's public API, so the DNS
-step needs no hPanel clicks once an account API token sits in the gitignored
-`deploy/hostinger.secret` — the script reads that file and never prints it. SSH
+The zone itself is at Hostinger. `scripts/hostinger-dns.mjs list` prints it;
+`cname`/`txt`/`record <TYPE> <name> <value>` write a record, `delete <TYPE>
+<name>` removes one and `forward <url>` sets the registrar's own redirect. All of
+it goes through Hostinger's public API, so the DNS step needs no hPanel clicks
+once an account API token sits in the gitignored `deploy/hostinger.secret` — the
+script reads that file and never prints it. A PUT appends to a record set rather
+than replacing it, so an existing record of the same type has to be deleted first
+(Hostinger answers 4005 for a second CNAME). SSH
 into the hosting plan is a different thing entirely: it reaches files, not the
 zone, and that plan cannot run this site (it is a Worker plus D1).
 
@@ -111,7 +126,7 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in Sites → Secrets,
   `/api/config` reports `google:false` and no Google button is drawn. Authorised
   redirect URIs (they must match Google's list character for character):
-  `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/api/auth/google/callback`,
+  `https://www.zevamandiandgrills.in/api/auth/google/callback`,
   `http://localhost:4173/api/auth/google/callback` and
   `http://127.0.0.1:4173/api/auth/google/callback`. Locally the two credentials
   can live in `deploy/.env` (gitignored) instead of the shell env.

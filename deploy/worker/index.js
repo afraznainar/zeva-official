@@ -9,7 +9,7 @@
 
 import { handleAccounts } from "./accounts.js";
 
-const SITE = "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page";
+const SITE = "https://www.zevamandiandgrills.in";
 
 const KNOWLEDGE = `
 RESTAURANT

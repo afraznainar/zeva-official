@@ -15,10 +15,16 @@
 //   node scripts/hostinger-dns.mjs cname www site-xxxx.freebuff.page
 //   node scripts/hostinger-dns.mjs txt _freebuff.www freebuff-verify=xxxx
 //   node scripts/hostinger-dns.mjs delete CNAME www
+//   node scripts/hostinger-dns.mjs forward https://www.example.in
 //
 // PUT appends to an existing record set instead of replacing it (Hostinger
 // answers 4005 "RRset ... has more than one record" for a second CNAME), so a
 // record that already points somewhere is deleted first.
+//
+// The bare domain cannot be pointed at the site: the platform only ever serves
+// a hostname it has been given, and it refuses an apex. So the apex is a 301 at
+// the registrar instead — POST /api/domains/v1/forwarding, which also replaces
+// the zone's own @ A/AAAA records with the ones that answer the redirect.
 //
 // Nothing here is Zeva-specific: the zone name is an argument.
 
@@ -51,8 +57,8 @@ function token() {
 
 const ZONE = "zevamandiandgrills.in";
 
-async function call(method, suffix, body) {
-  const response = await fetch(API + "/api/dns/v1/zones/" + encodeURIComponent(ZONE) + suffix, {
+async function request(method, pathname, body) {
+  const response = await fetch(API + pathname, {
     method,
     headers: {
       authorization: "Bearer " + token(),
@@ -62,10 +68,14 @@ async function call(method, suffix, body) {
   });
   const text = await response.text();
   if (!response.ok) {
-    console.error(method + " " + suffix + " -> " + response.status + " " + text.slice(0, 400));
+    console.error(method + " " + pathname + " -> " + response.status + " " + text.slice(0, 400));
     process.exit(1);
   }
   return text ? JSON.parse(text) : null;
+}
+
+function call(method, suffix, body) {
+  return request(method, "/api/dns/v1/zones/" + encodeURIComponent(ZONE) + suffix, body);
 }
 
 const [action, name, target] = process.argv.slice(2);
@@ -102,6 +112,21 @@ if (action === "list") {
             .join(" | ")
       : "no " + type + " named " + name + " came back — check the zone by hand"
   );
+} else if (action === "record") {
+  // record <TYPE> <name> <value> — for the record types cname/txt do not cover,
+  // e.g. the four A and four AAAA records a GitHub Pages apex needs.
+  const type = String(name || "").toUpperCase();
+  const recordName = target;
+  const value = process.argv[5];
+  if (!type || !recordName || !value) {
+    console.error("usage: node scripts/hostinger-dns.mjs record <TYPE> <name> <value>");
+    process.exit(1);
+  }
+  const result = await call("PUT", "", {
+    overwrite: false,
+    zone: [{ name: recordName, type, ttl: 300, records: [{ content: value }] }]
+  });
+  console.log("put ok:", type, recordName, "->", value, JSON.stringify(result));
 } else if (action === "delete") {
   // delete <type> <name>
   const type = String(name || "").toUpperCase();
@@ -118,7 +143,28 @@ if (action === "list") {
       ? "still present — check the zone by hand"
       : "removed: " + type + " " + target
   );
+} else if (action === "forward") {
+  // forward <url> — 301 the bare domain (and its www-less visitors) to <url>.
+  const url = name;
+  if (!url) {
+    console.error("usage: node scripts/hostinger-dns.mjs forward <https://url>");
+    process.exit(1);
+  }
+  const forwarding = "/api/domains/v1/forwarding";
+  const result = await request("POST", forwarding, {
+    domain: ZONE,
+    redirect_type: "301",
+    redirect_url: url
+  });
+  console.log("forward ok:", JSON.stringify(result));
+  console.log("now reading back:", JSON.stringify(await request("GET", forwarding + "/" + ZONE)));
+} else if (action === "forward-show") {
+  console.log(JSON.stringify(await request("GET", "/api/domains/v1/forwarding/" + ZONE), null, 2));
+} else if (action === "forward-delete") {
+  console.log("forward deleted:", JSON.stringify(await request("DELETE", "/api/domains/v1/forwarding/" + ZONE)));
 } else {
-  console.error("usage: node scripts/hostinger-dns.mjs list|cname|txt|delete <name> <value>");
+  console.error(
+    "usage: node scripts/hostinger-dns.mjs list|cname|txt|delete <type> <name>|forward <url>|forward-show|forward-delete"
+  );
   process.exit(1);
 }

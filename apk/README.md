@@ -8,7 +8,7 @@ in sync, and a menu or price edit on the site updates the installed app.
 ## What the app is
 
 - App id `com.zeva.mandi`, name "Zeva Mandi & Grills".
-- `capacitor.config.json` loads `https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page/app`
+- `capacitor.config.json` loads `https://www.zevamandiandgrills.in/app`
   in the WebView. A custom domain means editing that one `server.url` line.
 - Everything the app can do (order, Gold, wallet, history) is the same code the
   website runs, so features do not need to be rebuilt for Android.

@@ -47,7 +47,10 @@ export const CARDS = [
   { key: "diamond", name: "Diamond", orders: 1000 }
 ];
 
-export const SITE = "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page";
+// The address customers use. The preview keeps answering on its own platform
+// host (that is what makes it staging), but anything that has to name one
+// origin names this one.
+export const SITE = "https://www.zevamandiandgrills.in";
 
 // Every environment of this site is served by the platform from
 // <name>.<this>, so a host under it is this site — never somebody else's page.
