@@ -51,7 +51,7 @@ function readEnv() {
 const env = readEnv();
 // Google sign-in credentials for local testing live in deploy/.env (gitignored);
 // the accounts module reads them straight off process.env.
-for (const key of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "UPI_ID", "UPI_PAYEE_NAME", "UPI_GATEWAY_URL", "UPI_GATEWAY_KEY", "UPI_GATEWAY_SECRET", "UPI_WEBHOOK_SECRET"]) {
+for (const key of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "UPI_ID", "UPI_PAYEE_NAME", "UPI_GATEWAY_URL", "UPI_GATEWAY_KEY", "UPI_GATEWAY_SECRET", "UPI_WEBHOOK_SECRET", "SITE_ORIGINS"]) {
   if (!process.env[key] && env[key]) process.env[key] = env[key];
 }
 const OPENROUTER_API_KEY = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;

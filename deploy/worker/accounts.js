@@ -283,18 +283,34 @@ function clearCookie(name) {
   return name + "=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 }
 
-export function canonicalOrigin(request) {
+// Every origin that is really us: the platform address, plus whatever hostname
+// Production has been given. A custom domain reaches this same Worker with its
+// own Host, so the allowlist has to live in config (env.SITE_ORIGINS, comma
+// separated) — otherwise every order POST from the domain answers 403.
+export function ourOrigins(env) {
+  return [SITE].concat(
+    String((env && env.SITE_ORIGINS) || "")
+      .split(",")
+      .map(function (s) { return s.trim().replace(/\/+$/, ""); })
+      .filter(Boolean)
+  );
+}
+
+export function canonicalOrigin(request, env) {
   const url = new URL(request.url);
   if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(url.hostname)) return url.origin;
-  return SITE;
+  // Stay on the host the visitor came in on, so an OAuth return or an error
+  // bounce never throws them onto a different address mid-flow.
+  return ourOrigins(env).indexOf(url.origin) !== -1 ? url.origin : SITE;
 }
 
 // Guard cookie-authenticated writes against cross-site form posts.
-export function sameOrigin(request) {
+export function sameOrigin(request, env) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    return new URL(origin).origin === new URL(canonicalOrigin(request)).origin;
+    const o = new URL(origin).origin;
+    return o === new URL(canonicalOrigin(request, env)).origin || ourOrigins(env).indexOf(o) !== -1;
   } catch (error) {
     return false;
   }
@@ -411,7 +427,7 @@ export function googleReady(env) {
 }
 
 function redirectUri(request, env) {
-  return canonicalOrigin(request) + "/api/auth/google/callback";
+  return canonicalOrigin(request, env) + "/api/auth/google/callback";
 }
 
 export async function googleStart(request, env) {
@@ -436,7 +452,7 @@ export async function googleCallback(request, env) {
   const code = url.searchParams.get("code");
   // Cancelling the Google screen is not an error page — just go back.
   const refusal = url.searchParams.get("error");
-  if (refusal) return Response.redirect(canonicalOrigin(request) + "/app?auth=" + encodeURIComponent(refusal.slice(0, 60)), 302);
+  if (refusal) return Response.redirect(canonicalOrigin(request, env) + "/app?auth=" + encodeURIComponent(refusal.slice(0, 60)), 302);
   const state = await unseal(env, url.searchParams.get("state"));
   if (!code || !state) return new Response("Sign-in could not be verified. Please try again.", { status: 400 });
   let next = String(state.n || "/app");
@@ -1269,7 +1285,7 @@ export async function adminGate(request, env) {
 
 export async function adminLogin(request, env, body) {
   if (!env.ADMIN_PASSCODE) return json(503, { error: "admin dashboard is not configured" });
-  if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+  if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
   const pass = String((body && body.passcode) || "");
   const expected = String(env.ADMIN_PASSCODE);
   const a = b64u(await hmac(secretFor(env), pass));
@@ -1527,12 +1543,12 @@ export async function handleAccounts(request, env, url) {
   }
 
   if (path === "/api/auth/whatsapp/start" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return whatsappStart(env, await readJson(request));
   }
 
   if (path === "/api/auth/whatsapp/verify" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return whatsappVerify(request, env, await readJson(request));
   }
 
@@ -1565,17 +1581,17 @@ export async function handleAccounts(request, env, url) {
   }
 
   if (path === "/api/profile" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return updateProfile(request, env, await readJson(request));
   }
 
   if (path === "/api/orders" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return createOrder(request, env, await readJson(request));
   }
 
   if (path === "/api/upi/pay" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return startUpiPayment(request, env, await readJson(request));
   }
 
@@ -1590,7 +1606,7 @@ export async function handleAccounts(request, env, url) {
   }
 
   if (path === "/api/gold/join" && request.method === "POST") {
-    if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return joinGold(request, env);
   }
 
@@ -1617,20 +1633,20 @@ export async function handleAccounts(request, env, url) {
       return adminOrders(env, url.searchParams.get("after"));
     }
     if (path === "/api/admin/order" && request.method === "POST") {
-      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminSetStatus(env, await readJson(request));
     }
     if (path === "/api/admin/upi" && request.method === "POST") {
-      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminSetUpiPaid(env, await readJson(request));
     }
     if (path === "/api/admin/notify" && request.method === "POST") {
-      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminNotify(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {
-      if (!sameOrigin(request)) return json(403, { error: "cross-origin request" });
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminGoldSet(env, await readJson(request));
     }
     return json(404, { error: "unknown admin route" });

@@ -98,7 +98,8 @@ function localEnv() {
     UPI_GATEWAY_URL: process.env.UPI_GATEWAY_URL || "",
     UPI_GATEWAY_KEY: process.env.UPI_GATEWAY_KEY || "",
     UPI_GATEWAY_SECRET: process.env.UPI_GATEWAY_SECRET || "",
-    UPI_WEBHOOK_SECRET: process.env.UPI_WEBHOOK_SECRET || ""
+    UPI_WEBHOOK_SECRET: process.env.UPI_WEBHOOK_SECRET || "",
+    SITE_ORIGINS: process.env.SITE_ORIGINS || ""
   };
 }
 
