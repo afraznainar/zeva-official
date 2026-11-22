@@ -47,6 +47,24 @@ The live site is the Freebuff Sites preview
 `deploy/sites.manifest.json`. Social share tags carry that origin absolutely —
 if the site moves to a custom domain, run `node .tools/fix-og.js <new-origin>`.
 
+**Two environments, two databases.** Preview (`site-67005eaa…`) is now staging:
+its D1 holds the orders and accounts from before the domain launched.
+Production (`site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page`) is the
+customer-facing copy, with its own D1 and its own secrets — the same secret name
+is a separate value in each environment, so anything added to one has to be
+added to the other by hand.
+
+**The custom domain is `www.zevamandiandgrills.in`.** The platform accepts a
+subdomain for Production, never an apex, so the bare `zevamandiandgrills.in`
+has to be forwarded at the registrar (Hostinger) rather than attached here.
+Whichever hostname Production gets must also be in the Production secret
+`SITE_ORIGINS` (comma separated, e.g.
+`https://www.zevamandiandgrills.in,https://zevamandiandgrills.in`), because
+`canonicalOrigin()` refuses writes from an origin it does not recognise — the
+symptom is every order POST answering 403 on the new domain.
+Once the domain is the address customers use, the canonical/OG tags, the
+manifest `start_url` and the APK's `server.url` all move with it.
+
 ## Android app (PWA)
 
 `deploy/dist/app.html` is the installable ordering app at `/app`; it reads the
