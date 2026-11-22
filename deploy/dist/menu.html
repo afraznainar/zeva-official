@@ -1130,11 +1130,10 @@
   var fab = document.getElementById('cart-fab');
   var fabCount = document.getElementById('cart-count');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var view = 'list';              // list | details | mode | pay | send | done
+  var view = 'list';              // list | details | mode | send | done
   var pos = { state: 'idle', lat: null, lon: null, metres: null, source: null };
   var mode = '';                  // 'pickup' | 'delivery'
   var tip = 0;                    // optional tip in rupees: 0, 25, 50 or 100
-  var pay = '';                   // 'cash' | 'upi'
   var gateNote = false;           // show the "above 480" note on the cart step
   var formErr = false;            // show form validation errors on the details step
   var modeMsg = '';               // status message on the pickup/delivery step
@@ -1142,13 +1141,6 @@
   var printState = 'idle';        // idle | sending | ok | fail
   var printErr = '';              // why the counter bill could not be printed
 
-  // Online UPI: only offered when the Worker has a UPI ID or gateway configured.
-  var UPI_CFG = { on: false, mode: '' };  // filled from /api/config
-  var upiState = 'idle';          // idle | starting | ready | paid | error
-  var upi = null;                 // { intent, amount, vpa, payee } once opened
-  var upiErr = '';                // why the payment was not confirmed
-  var upiPaid = false;            // the counter saw the money land
-  var upiCreated = false;         // the order row already exists on the server
   var upiTimer = null, upiTicks = 0;
 
   var order = { name: '', phone: '', addr: '', note: '' };
@@ -1196,7 +1188,7 @@
     save(); render();
   }
   function removeLine(id) { cart = cart.filter(function (l) { return l.id !== id; }); save(); render(); }
-  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; pay = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; printState = 'idle'; printErr = ''; orderRef = ''; stopUpiPoll(); upiState = 'idle'; upi = null; upiErr = ''; upiPaid = false; upiCreated = false; save(); render(); }
+  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; printState = 'idle'; printErr = ''; orderRef = ''; save(); render(); }
 
   function distanceKnown() { return pos.metres !== null; }
   // Delivery is never gated on distance: when the guest types a distance the fee
@@ -1272,12 +1264,10 @@
   }
 
 
-  // What the counter reads in the WhatsApp message. The website asks for the
-  // money before the order is sent, so this says PAID only when our own counter
-  // has seen it land \u2014 never because the customer said so.
+  // Nothing is taken online: the order goes to WhatsApp and the money is paid
+  // at handover, in cash or by UPI.
   function payLine() {
-    if (pay !== 'upi') return 'CASH';
-    return upiPaid ? 'UPI \u2014 PAID ' + rupee(grandTotal()) : 'UPI \u2014 NOT PAID YET ' + rupee(grandTotal());
+    return 'PAY ON HANDOVER \u2014 cash or UPI';
   }
 
   function buildMessage() {
@@ -1311,11 +1301,7 @@
       '(GST on food only; delivery charge untaxed)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
       '*Payment: ' + payLine() + '*' + '\n' +
-      (pay === 'upi'
-        ? (upiPaid
-            ? '(UPI payment confirmed by our counter \u2014 ' + rupee(grandTotal()) + ' received)\n'
-            : '(UPI payment NOT confirmed \u2014 check your bank app / the dashboard before handover)\n')
-        : '') + '\n' +
+      '(nothing is taken online \u2014 pay the bill when it reaches you)\n' +
       '*Customer*' + '\n' +
       'Name: ' + (order.name || '\u2014') + '\n' +
       'Phone: ' + (order.phone || '\u2014') + '\n' +
@@ -1339,8 +1325,8 @@
     return {
       id: orderRef,
       mode: mode,
-      pay: pay,
-      payment: pay,
+      pay: 'cash',
+      payment: 'cash',
       name: order.name,
       phone: order.phone,
       address: order.addr,
@@ -1360,25 +1346,21 @@
 
   // Hand the order to the server so the counter printer can print the bill
   // and PetPooja can receive the order. WhatsApp stays the customer's copy.
-  // `alreadyCreated` means the UPI step wrote the row before the payment, so
-  // this does not write it a second time.
-  function submitOrder(alreadyCreated) {
-    if (!alreadyCreated) {
-      try {
+  function submitOrder() {
+    try {
         fetch('/api/orders', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(orderBody()),
           keepalive: true
         }).catch(function () {});
-      } catch (e) { /* the WhatsApp message still carries the order */ }
-    }
+    } catch (e) { /* the WhatsApp message still carries the order */ }
 
     // Also stage the order bill to the BILL printer queue (optional: may be disabled on some installs)
     var printPayload = {
       id: orderRef,
       mode: mode,
-      pay: pay === 'upi' && upiPaid ? 'UPI PAID' : pay,
+      pay: 'cash',
       name: order.name,
       phone: order.phone,
       address: order.addr,
@@ -1418,169 +1400,18 @@
     }
   }
 
-  function openWhatsApp(alreadyCreated) {
-    if (!detailsValid() || !mode || !pay || (mode === 'delivery' && !deliveryOk())) return;
+  function openWhatsApp() {
+    if (!detailsValid() || !mode || (mode === 'delivery' && !deliveryOk())) return;
     if (!orderRef) orderRef = ref();
     var msg = buildMessage();
     var url = 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(msg);
-    stopUpiPoll();
-    submitOrder(!!alreadyCreated);
+    submitOrder();
     window.open(url, '_blank', 'noopener');
     view = 'done';
     render();
   }
 
-  /* ---------------- online UPI, paid before the order is sent -------------
-     Choosing UPI asks for the money first: the order row is created, the
-     shop's own payment request is opened for this order's exact amount, and
-     the page waits for the counter to confirm it. Only then is the order
-     handed to WhatsApp \u2014 and the message says PAID or NOT PAID according to
-     what our dashboard actually saw, not what the customer claims. */
-  function startUpiPay() {
-    if (upiState === 'starting') return;
-    // Coming back to the payment for the same cart reuses its order row; a fresh
-    // attempt gets its own id, so a second order can never overwrite the first.
-    if (upiState === 'paid') { view = 'send'; render(); return; }
-    if (upiState === 'ready') { view = 'upi'; render(); return; }
-    orderRef = ref();
-    upiState = 'starting';
-    upiErr = '';
-    upi = null;
-    upiPaid = false;
-    upiTicks = 0;
-    view = 'upi';
-    render();
-    var body = orderBody();
-    fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (d) {
-        if (!d || !d.ok) throw new Error((d && d.error) || 'the order could not be saved');
-        upiCreated = true;
-        return fetch('/api/upi/pay', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ id: body.id })
-        });
-      })
-      .then(function (r) {
-        return r.json().catch(function () { return {}; }).then(function (d) {
-          if (!r.ok || !d || !d.ok) throw new Error((d && d.error) || 'the UPI request could not be opened');
-          return d;
-        });
-      })
-      .then(function (d) {
-        upi = {
-          intent: d.intent || '',
-          amount: Number(d.amount || grandTotal()),
-          vpa: d.vpa || '',
-          payee: d.payee || '',
-          url: d.url || ''
-        };
-        if (d.paid) { upiPaid = true; upiState = 'paid'; render(); return; }
-        upiState = 'ready';
-        render();
-        startUpiPoll();
-      })
-      .catch(function (err) {
-        upiState = 'error';
-        upiErr = (err && err.message) ? err.message : 'the UPI request could not be opened';
-        render();
-      });
-  }
-
-  function stopUpiPoll() {
-    if (upiTimer) { clearInterval(upiTimer); upiTimer = null; }
-  }
-
-  function upiCheck() {
-    if (!orderRef || view !== 'upi') return;
-    fetch('/api/upi/status?id=' + encodeURIComponent(orderRef))
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (d) {
-        if (!d || !d.ok) return;
-        if (d.status === 'paid') {
-          upiPaid = true;
-          upiState = 'paid';
-          stopUpiPoll();
-          // The money is in, so the payment screen has nothing left to ask:
-          // hand the customer on to the one step that is left, sending it.
-          if (view === 'upi') goStep('send');
-          else if (view === 'send') render();
-          return;
-        }
-        if (d.status === 'mismatch' || d.status === 'review') {
-          upiErr = 'The amount that reached us does not match this order \u2014 our counter will call you before anything is cooked.';
-          upiState = 'error';
-          stopUpiPoll();
-          if (view === 'upi') render();
-        }
-      })
-      .catch(function () {});
-  }
-
-  // One read every four seconds \u2014 the Worker answers from the order row, so
-  // this costs nothing until the counter taps Mark UPI paid.
-  function startUpiPoll() {
-    stopUpiPoll();
-    upiTicks = 0;
-    upiTimer = setInterval(function () {
-      upiTicks += 1;
-      if (upiTicks > 120) { stopUpiPoll(); return; }
-      upiCheck();
-    }, 4000);
-  }
-
-  // A phone that left for its UPI app comes back to a tab the browser froze:
-  // check the moment it is visible again instead of waiting for the next tick.
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && view === 'upi' && upiState === 'ready') upiCheck();
-  });
-
-  function copyUpi(btn) {
-    var vpa = (upi && upi.vpa) || '';
-    if (!vpa) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(vpa).then(function () {
-        if (btn) btn.textContent = 'UPI ID copied \u2014 ' + vpa;
-      }).catch(function () {
-        if (btn) btn.textContent = vpa;
-      });
-    } else if (btn) {
-      btn.textContent = vpa;
-    }
-  }
-
-  function upiHtml() {
-    var h = '';
-    if (upiState === 'starting') {
-      h += '<div class="co-block"><h3>Opening your UPI payment\u2026</h3>';
-      h += '<div class="co-status">Setting up this order\u2019s exact amount.</div></div>';
-    } else if (upiState === 'error') {
-      h += '<div class="co-block"><h3>Payment not confirmed</h3>';
-      h += '<div class="co-status bad">' + esc(upiErr || 'We could not open the UPI payment.') + '</div>';
-      h += '<div class="co-hint">Send the order anyway and our counter will take the money at handover, or call <a href="tel:+917022771888">070227 71888</a>.</div></div>';
-    } else if (upiState === 'paid') {
-      h += '<div class="co-block"><h3>Payment received \u2014 ' + rupee(upi && upi.amount ? upi.amount : grandTotal()) + '</h3>';
-      h += '<div class="co-status pay-ok">\u2705 Our counter saw your UPI payment land. Send the order to WhatsApp now and it reaches the kitchen marked <strong>PAID</strong>.</div></div>';
-    } else {
-      h += '<div class="co-block"><h3>Pay ' + rupee(upi && upi.amount ? upi.amount : grandTotal()) + ' by UPI</h3>';
-      h += '<div class="co-status">The amount is already filled in \u2014 approve it in your UPI app, then come back to this tab.</div>';
-      if (upi && upi.intent) h += '<a class="btn btn-maroon" href="' + esc(upi.intent) + '" rel="noopener" style="display:block;text-align:center">Open your UPI app</a>';
-      if (upi && upi.vpa) {
-        h += '<div class="co-hint">Paying to <strong>' + esc(upi.vpa) + '</strong>' + (upi.payee ? ' (' + esc(upi.payee) + ')' : '') + '</div>';
-        h += '<button class="btn btn-outline" type="button" data-act="copyupi" style="width:100%">Copy UPI ID</button>';
-      }
-      h += '<div class="co-status" style="margin-top:10px">Waiting for our counter to confirm\u2026 this page updates by itself.</div></div>';
-    }
-    h += sendSummaryHtml();
-    return h;
-  }
-
-  // ---- rendering ----
+  // ---- rendering ----  // ---- rendering ----
   var lastCount = 0;
   function renderFab() {
     var c = count();
@@ -1642,11 +1473,7 @@
     if (printState === 'ok') h += '<div class="co-status ok">\ud83e\uddfe Bill sent to our counter printer.</div>';
     else if (printState === 'fail') h += '<div class="co-status">\u26a0\ufe0f The counter printer could not be reached \u2014 your WhatsApp order still reached us.</div>';
     h += '<div class="co-hint"><strong>Your order is PENDING.</strong> It is <em>not</em> confirmed yet. Our team must reply <strong>CONFIRM</strong> on WhatsApp to accept it. If you don\u2019t get a confirmation, please call <a href="tel:+917022771888">070227 71888</a>.</div>';
-    if (pay === 'upi') {
-      h += upiPaid
-        ? '<div class="co-status pay-ok">\ud83d\udcb0 UPI ' + rupee(grandTotal()) + ' received \u2014 our WhatsApp message says <strong>PAID</strong>.</div>'
-        : '<div class="co-status bad">\u26a0\ufe0f UPI not confirmed yet \u2014 our WhatsApp message says <strong>NOT PAID</strong>. Pay at handover or call the counter.</div>';
-    }
+    h += '<div class="co-status">\ud83d\udcb0 Pay ' + rupee(grandTotal()) + ' when the bill reaches you \u2014 cash or UPI.</div>';
     h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="neworder">Start another order</button></div>';
     h += '</div>';
     return h;
@@ -1698,29 +1525,11 @@
     } else if (view === 'mode') {
       if (modeMsg) h += '<div class="co-status">' + modeMsg + '</div>';
       h += '<button class="btn btn-outline" data-act="prev">\u2190 Back to order details</button>';
-    } else if (view === 'pay') {
-      h += '<button class="btn btn-outline" data-act="prev">\u2190 Back</button>';
     } else if (view === 'send') {
-      var ready = detailsValid() && !!mode && !!pay && (mode !== 'delivery' || deliveryOk());
-      var upiFirst = pay === 'upi' && UPI_CFG.on;
-      if (upiPaid) {
-        // Nothing else is left to do, so the send button is the whole footer.
-        h += '<button class="btn btn-wa" data-act="sendpaid">Send order to WhatsApp \u2014 paid</button>';
-      } else {
-        h += '<button class="btn btn-wa" data-act="send"' + (ready ? '' : ' disabled') + '>' +
-          (upiFirst ? 'Pay ' + rupee(grandTotal()) + ' by UPI \u2192' : 'Send order to WhatsApp') + '</button>';
-        h += '<button class="btn btn-outline" data-act="prev">\u2190 Back</button>';
-        if (!ready) h += '<div class="co-hint">Choose pickup or delivery, then cash or UPI, to send your order.</div>';
-      }
-    } else if (view === 'upi') {
-      if (upiState === 'paid') {
-        h += '<button class="btn btn-wa" data-act="sendpaid">Send order to WhatsApp \u2014 paid</button>';
-      } else if (upiState === 'error') {
-        h += '<button class="btn btn-wa" data-act="sendunpaid">Send order anyway \u2014 payment pending</button>';
-      } else {
-        h += '<button class="btn btn-outline" data-act="sendunpaid">Send now \u2014 payment pending</button>';
-      }
+      var ready = detailsValid() && !!mode && (mode !== 'delivery' || deliveryOk());
+      h += '<button class="btn btn-wa" data-act="send"' + (ready ? '' : ' disabled') + '>Send order to WhatsApp</button>';
       h += '<button class="btn btn-outline" data-act="prev">\u2190 Back</button>';
+      if (!ready) h += '<div class="co-hint">Choose pickup or delivery to send your order.</div>';
     }
     foot.innerHTML = h;
     if (view === 'details') bindCheckout();
@@ -1737,7 +1546,7 @@
   }
   function softRefresh() {
     var send = foot.querySelector('[data-act="send"]');
-    if (send) send.disabled = !(detailsValid() && !!mode && !!pay && (mode !== 'delivery' || deliveryOk()));
+    if (send) send.disabled = !(detailsValid() && !!mode && (mode !== 'delivery' || deliveryOk()));
     if (view === 'details') {
       var gate = body.querySelector('.co-gate');
       if (gate) {
@@ -1759,7 +1568,7 @@
     if (tip > 0) h += '<div class="co-row"><span>Tip <small>(optional)</small></span><span>' + rupee(tip) + '</span></div>';
     h += '<div class="co-row co-grand"><span>Total</span><span>' + rupee(grandTotal()) + '</span></div>';
     h += '<div class="co-row"><span>Mode</span><span>' + (mode === 'pickup' ? 'Pickup' : 'Delivery') + '</span></div>';
-    h += '<div class="co-row"><span>Payment</span><span>' + (pay === 'cash' ? 'Cash' : 'UPI') + '</span></div>';
+    h += '<div class="co-row"><span>Payment</span><span>At handover</span></div>';
     h += '<div class="co-row"><span>Name</span><span>' + esc(order.name) + '</span></div>';
     h += '<div class="co-row"><span>Phone</span><span>' + esc(order.phone) + '</span></div>';
     h += '<div class="co-row"><span>Address</span><span>' + esc(order.addr) + '</span></div>';
@@ -1784,25 +1593,8 @@
         '<button class="bh-opt" type="button" data-act="mode" data-val="pickup"><canvas aria-hidden="true"></canvas><span class="bh-lbl">Pickup</span></button>' +
         '<button class="bh-opt" type="button" data-act="mode" data-val="delivery"><canvas aria-hidden="true"></canvas><span class="bh-lbl">Delivery</span></button>' +
         '</div>';
-    } else if (view === 'pay') {
-      body.innerHTML = sum + tipHtml() +
-        '<div class="bh-pair">' +
-        '<button class="bh-opt" type="button" data-act="pay" data-val="cash"><canvas aria-hidden="true"></canvas><span class="bh-lbl">Cash</span></button>' +
-        '<button class="bh-opt" type="button" data-act="pay" data-val="upi"><canvas aria-hidden="true"></canvas><span class="bh-lbl">UPI</span></button>' +
-        '</div>' +
-        (UPI_CFG.on ? '<div class="co-hint">Paying by UPI comes first here: we open this order\u2019s exact amount, and our counter confirms the money before the order goes to WhatsApp.</div>' : '');
-    } else if (view === 'upi') {
-      body.innerHTML = upiHtml();
-    } else if (upiPaid) {
-      // Paid: no tip chooser (the money is already taken) and no second ask
-      // for money \u2014 just the payment confirmation and one send button.
-      body.innerHTML =
-        '<div class="co-block"><h3>Payment received \u2014 ' + rupee(upi && upi.amount ? upi.amount : grandTotal()) + '</h3>' +
-        '<div class="co-status pay-ok">\u2705 Our counter saw your UPI payment land. One tap below sends this order to our WhatsApp, marked <strong>PAID</strong>.</div></div>' +
-        sum + sendSummaryHtml();
     } else {
-      body.innerHTML = sum + tipHtml() + sendSummaryHtml() +
-        (pay === 'upi' && UPI_CFG.on ? '<div class="co-hint">Next step asks for the money first \u2014 then your order goes to our WhatsApp marked <strong>paid</strong> or <strong>not paid</strong>, whichever is true.</div>' : '');
+      body.innerHTML = sum + tipHtml() + sendSummaryHtml();
     }
     bhOptsInit();
   }
@@ -1906,25 +1698,12 @@
       var mv = t.getAttribute('data-val');
       var bhEl = t.closest('.bh-opt');
       if (bhEl && bhEl._bh) bhEl._bh.burst();
-      if (mv === 'pickup') { mode = 'pickup'; modeMsg = ''; goStep('pay'); }
-      else { mode = 'delivery'; modeMsg = ''; goStep('pay'); }
-    }
-    else if (act === 'pay') {
-      var bhEl2 = t.closest('.bh-opt');
-      if (bhEl2 && bhEl2._bh) bhEl2._bh.burst();
-      pay = t.getAttribute('data-val');
-      goStep('send');
+      if (mv === 'pickup') { mode = 'pickup'; modeMsg = ''; goStep('send'); }
+      else { mode = 'delivery'; modeMsg = ''; goStep('send'); }
     }
     else if (act === 'tip') { tip = Number(t.getAttribute('data-val')) || 0; render(); }
-    else if (act === 'send') {
-      if (upiPaid) openWhatsApp(true);
-      else if (pay === 'upi' && UPI_CFG.on) startUpiPay();
-      else openWhatsApp();
-    }
-    else if (act === 'sendpaid') openWhatsApp(true);
-    else if (act === 'sendunpaid') openWhatsApp(upiCreated);
-    else if (act === 'copyupi') copyUpi(t);
-    else if (act === 'neworder') { clearCart(); view = 'list'; mode = ''; pay = ''; closeDrawer(); }
+    else if (act === 'send') openWhatsApp();
+    else if (act === 'neworder') { clearCart(); view = 'list'; mode = ''; closeDrawer(); }
   });
 
   // ---- blackhole animation (orbit / collapse / burst starfield) ----
@@ -2040,7 +1819,7 @@
 
   var bhTransition = document.getElementById('bh-transition');
   var bhOverlay = null, transitioning = false;
-  var STEP_ORDER = ['list', 'details', 'mode', 'pay', 'send', 'upi'];
+  var STEP_ORDER = ['list', 'details', 'mode', 'send'];
   function playTransition(mid) {
     if (reduce || transitioning) { mid(); return; }
     transitioning = true;
@@ -2057,7 +1836,6 @@
   }
   function goStep(next) { playTransition(function () { view = next; render(); }); }
   function goStepBack() {
-    if (view === 'upi') stopUpiPoll();
     var i = STEP_ORDER.indexOf(view);
     goStep(i > 0 ? STEP_ORDER[i - 1] : 'list');
   }
@@ -2079,20 +1857,6 @@
       el.addEventListener('blur', function () { inst.collapse(false); });
     });
   }
-
-  // Online UPI is offered only when the Worker has it configured, so a site
-  // with no UPI secrets keeps the old wording and the counter takes the money.
-  try {
-    fetch('/api/config')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d) return;
-        UPI_CFG.on = !!d.upi;
-        UPI_CFG.mode = d.upi_mode || '';
-        if (view === 'pay' || view === 'send') render();
-      })
-      .catch(function () {});
-  } catch (e) {}
 
   render();
 })();

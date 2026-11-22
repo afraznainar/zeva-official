@@ -34,7 +34,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.21">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.22">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -732,7 +732,6 @@
   var cart = read(CART_KEY, []);
   var form = read(FORM_KEY, { name: '', phone: '', addr: '', note: '' });
   var mode = '';
-  var pay = '';
   var pos = { state: 'idle', metres: null };
   var orderRef = '';
   var printState = 'idle';
@@ -743,9 +742,6 @@
   var activeSizeCat = '';
   var activeSizeItem = '';
   var ACCT = null;        // /api/me — profile, Zeva Money, Gold, past orders
-  var payInfo = null;     // UPI payment opened for the order just sent
-  var payTimer = null;
-  var payTicks = 0;       // how long we have been waiting, so polling cannot run forever
   // WhatsApp sign-up: 0 = buttons, 1 = asking for the number, 2 = asking for the code.
   var waStep = 0;
   var waSession = '';
@@ -1019,7 +1015,7 @@
     if (goldActive() && cart.length) {
       html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to Zeva Money on delivery</span></div>';
     }
-    html += '<div class="row total"><span>To pay' + (pay === 'cash' ? ' (cash)' : pay === 'upi' ? ' (UPI)' : '') + '</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
+    html += '<div class="row total"><span>To pay at handover</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
     return html;
   }
 
@@ -1044,7 +1040,7 @@
     if (screen === 'done') {
       // WhatsApp is the fallback, not the route: an order the API accepted is
       // already on the counter's screen and printed, so the customer confirms
-      // here and, if they chose UPI, pays its exact total from here too.
+      // here and pays at handover.
       if (orderState === 'fail') {
         title.textContent = 'Order not sent';
         body.innerHTML =
@@ -1058,24 +1054,19 @@
           '<a class="btn ghost" href="https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(buildMessage()) + '" rel="noopener">Send on WhatsApp</a>';
         return;
       }
-      var upiDue = orderState === 'ok' && pay === 'upi' && payInfo && payInfo.status === 'pending' && payInfo.intent;
-      title.textContent = upiDue ? 'Pay by UPI' : 'Your order';
+      title.textContent = 'Your order';
       body.innerHTML =
         '<div class="done"><div class="ring">' + (orderState === 'ok' ? '&#10003;' : '&hellip;') + '</div>' +
         '<h2>' + (orderState === 'ok' ? 'Order placed' : 'Sending your order&hellip;') + '</h2>' +
         '<p>' + (orderState === 'ok'
-          ? (pay === 'upi'
-            ? 'The kitchen has it. Paying now confirms it &mdash; the exact total is already in your UPI app.'
-            : 'The kitchen has it on their screen. It stays <b>pending</b> until they accept it, then about 20 minutes to cook.')
+          ? 'The kitchen has it on their screen. It stays <b>pending</b> until they accept it, then about 20 minutes to cook.'
           : 'Straight to the kitchen screen in the app.') + '</p>' +
         '<div class="ref">#' + esc(orderRef) + '</div>' +
-        payBlock() +
         '<div class="mini">' + (printState === 'ok' ? 'Counter copy printed.' : printState === 'fail' ? 'Counter copy did not print &mdash; the order is still on the counter screen.' : 'Sending the counter copy&hellip;') + '</div>' +
         (cashbackNote ? '<div class="mini" style="color:var(--good);margin-top:7px">' + esc(cashbackNote) + '</div>' : '') +
         '</div>';
       foot.innerHTML =
-        (upiDue ? '<a class="btn" href="' + esc(payInfo.intent) + '" rel="noopener">Pay ' + rupee(payInfo.amount) + ' by UPI</a>' : '') +
-        '<button class="btn' + (upiDue ? ' ghost' : '') + '" type="button" data-act="neworder">Start a new order</button>';
+        '<button class="btn" type="button" data-act="neworder">Start a new order</button>';
       return;
     }
 
@@ -1118,13 +1109,6 @@
         '<div class="field"><label for="f-note">Note for the kitchen (optional)</label><input id="f-note" value="' + esc(form.note) + '" placeholder="Less spice, extra rice&hellip;"></div>' +
       '</div>' +
 
-      '<div class="sect"><h3>Payment</h3><div class="seg">' +
-        '<button type="button" class="' + (pay === 'cash' ? 'on' : '') + '" data-pay="cash">Cash</button>' +
-        '<button type="button" class="' + (pay === 'upi' ? 'on' : '') + '" data-pay="upi">UPI</button>' +
-      '</div>' +
-      (pay === 'upi' && ACCT && ACCT.upi
-        ? '<div class="status ok" style="margin-top:10px">The UPI amount opens for exactly ' + rupee(grandTotal()) + ' the moment you confirm &mdash; nothing to type.</div>'
-        : '') +
       '</div>' + bills() +
       (goldActive()
         ? '<div class="status ok">Zeva Gold: free delivery inside 5 km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
@@ -1137,15 +1121,13 @@
               : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>'))) +
       '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes straight to the kitchen screen in the app and stays <b>pending</b> until they accept it.</p>';
 
-    var canPay = !!(mode && pay && form.name.trim().length > 1 &&
+    var canPay = !!(mode && form.name.trim().length > 1 &&
       /^[0-9]{10}$/.test(form.phone.replace(/\D/g, '')) &&
       (mode === 'pickup' || form.addr.trim().length > 4));
-    // Confirm happens here, not in WhatsApp: the order is already ours once it
-    // lands on the dashboard, and UPI pays its exact total in the same tap.
+    // The order is ours once it lands on the dashboard and the bill prints;
+    // the money is paid at handover.
     foot.innerHTML = '<button class="btn" type="button" data-act="send"' + (canPay ? '' : ' disabled') + '>' +
-      (pay === 'upi' && ACCT && ACCT.upi
-        ? 'Confirm &amp; pay ' + rupee(grandTotal()) + ' by UPI'
-        : 'Confirm order &middot; ' + rupee(grandTotal())) +
+      'Confirm order &middot; ' + rupee(grandTotal()) +
       '</button>';
   }
 
@@ -1178,7 +1160,7 @@
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
       '(GST on food only; delivery charge untaxed)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
-      '*Payment: ' + (pay === 'cash' ? 'CASH' : 'UPI') + '*' + '\n\n' +
+      '*Payment: PAY ON HANDOVER \u2014 cash or UPI*' + '\n\n' +
       '*Customer*' + '\n' +
       'Name: ' + (form.name || '\u2014') + '\n' +
       'Phone: ' + (form.phone || '\u2014') + '\n' +
@@ -1196,14 +1178,12 @@
     orderTry++;
     orderErr = '';
     cashbackNote = '';
-    payInfo = null;
     orderState = 'sending';
-    stopPayPoll();
     var payload = {
       id: orderRef,
       mode: mode,
-      pay: pay,
-      payment: pay,
+      pay: 'cash',
+      payment: 'cash',
       name: form.name,
       phone: form.phone,
       address: mode === 'pickup' ? 'Pickup at the counter' : form.addr,
@@ -1237,9 +1217,6 @@
           if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
           if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
           if (orderState === 'ok') {
-            // Straight into the payment, with the server's own amount: no
-            // WhatsApp round trip stands between confirming and paying.
-            if (pay === 'upi' && ACCT && ACCT.upi) openUpiPayment(payload.id);
             loadAccount();
             cart = [];
             write(CART_KEY, cart);
@@ -1281,97 +1258,7 @@
     renderCartScreen();
   }
 
-  /* ---------------- UPI payment ----------------
-     The order is already in the kitchen queue; the money goes straight to the
-     restaurant's own UPI account through the gateway. The server owns the
-     amount, and this screen only ever shows what the server says — a payment
-     counts once the gateway confirms it, not when the button is tapped. */
-  function openUpiPayment(id) {
-    stopPayPoll();
-    payInfo = { status: 'opening', amount: 0 };
-    fetch('/api/upi/pay', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: id })
-    })
-      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok || !res.d || !res.d.ok) {
-          payInfo = { status: 'error', error: (res.d && res.d.error) || 'The UPI payment page is unavailable right now.' };
-        } else {
-          payInfo = res.d;
-        }
-        if (screen === 'done') renderCartScreen();
-        if (payInfo && payInfo.status === 'pending') startPayPoll();
-      })
-      .catch(function () {
-        payInfo = { status: 'error', error: 'Could not reach the UPI payment page.' };
-        if (screen === 'done') renderCartScreen();
-      });
-  }
-
-  function startPayPoll() {
-    stopPayPoll();
-    payTicks = 0;
-    payTimer = setInterval(function () {
-      if (!payInfo || payInfo.status !== 'pending') { stopPayPoll(); return; }
-      if (++payTicks > 120) { stopPayPoll(); return; }
-      fetch('/api/upi/status?id=' + encodeURIComponent(orderRef))
-        .then(function (r) { return r.json().catch(function () { return {}; }); })
-        .then(function (d) {
-          if (!d || !d.status || d.status === payInfo.status) return;
-          payInfo = Object.assign({}, payInfo, d);
-          if (screen === 'done') renderCartScreen();
-          if (d.status !== 'pending') stopPayPoll();
-        })
-        .catch(function () {});
-    }, 4000);
-  }
-
-  function stopPayPoll() {
-    if (payTimer) { clearInterval(payTimer); payTimer = null; }
-  }
-
-  function payBlock() {
-    if (!ACCT || !ACCT.upi || !payInfo) return '';
-    var st = payInfo.status;
-    if (st === 'paid') {
-      return '<div class="status ok" style="margin-top:12px">UPI payment received &mdash; ' + rupee(payInfo.amount) + '. The kitchen has it.</div>';
-    }
-    if (st === 'mismatch' || st === 'review') {
-      return '<div class="status warn" style="margin-top:12px">Your payment is being checked against this order. The counter will confirm it shortly.</div>';
-    }
-    if (st === 'expired') {
-      return '<div class="status warn" style="margin-top:12px">That UPI link expired before the payment went through.' +
-        ' <button class="btn ghost" type="button" data-act="payagain" style="margin-top:8px">Get a fresh link</button></div>';
-    }
-    if (st === 'error') {
-      return '<div class="status bad" style="margin-top:12px">' + esc(payInfo.error || 'The UPI payment page is unavailable right now.') +
-        ' You can still pay cash or UPI at delivery.</div>';
-    }
-    if (st !== 'pending') return '';
-    var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || Boolean(window.Capacitor);
-    var direct = payInfo.mode === 'direct';
-    if (direct) {
-      // Direct mode: the money goes to our own UPI ID, so the counter is what
-      // confirms it. Show the ID plainly for anyone whose app will not open.
-      // The pay button itself sits in the footer (thumb reach); this explains
-      // the amount and where it goes.
-      return '<div class="sect" style="margin-top:14px"><h3>Pay ' + rupee(payInfo.amount) + ' by UPI</h3>' +
-        '<p class="muted" style="margin:0 0 10px">The amount is already filled in \u2014 just approve it in your UPI app. Our counter confirms the payment, usually within a minute.</p>' +
-        '<div class="mini" style="margin-top:2px">Paying to <b>' + esc(payInfo.vpa || '') + '</b>' +
-          (payInfo.payee ? ' (' + esc(payInfo.payee) + ')' : '') + '</div>' +
-        '<button class="btn ghost" type="button" data-act="copyupi">Copy UPI ID</button>' +
-        '<div class="mini" style="margin-top:8px">Waiting for the counter to confirm&hellip;</div></div>';
-    }
-    return '<div class="sect" style="margin-top:14px"><h3>Pay ' + rupee(payInfo.amount) + ' by UPI</h3>' +
-      '<p class="muted" style="margin:0 0 10px">This order\u2019s exact amount is already filled in. Come back after paying &mdash; this screen updates by itself.</p>' +
-      (payInfo.url ? '<a class="btn" href="' + esc(payInfo.url) + '" target="_blank" rel="noopener">Open the payment page</a>' : '') +
-      (phone && payInfo.intent ? '<a class="btn ghost" href="' + esc(payInfo.intent) + '" rel="noopener">Open GPay / PhonePe</a>' : '') +
-      '<div class="mini" style="margin-top:8px">Waiting for the payment to reach us&hellip;</div></div>';
-  }
-
-  /* ---------------- geolocation ---------------- */
+  /* ---------------- geolocation ---------------- */  /* ---------------- geolocation ---------------- */
   function haversine(lat1, lon1, lat2, lon2) {
     var R = 6371000;
     var dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1453,8 +1340,6 @@
     if (q) { changeQty(q.getAttribute('data-id'), parseInt(q.getAttribute('data-q'), 10)); return; }
     var modeBtn = e.target.closest('[data-mode]');
     if (modeBtn) { mode = modeBtn.getAttribute('data-mode'); renderCartScreen(); return; }
-    var payBtn = e.target.closest('[data-pay]');
-    if (payBtn) { pay = payBtn.getAttribute('data-pay'); renderCartScreen(); return; }
 
     var act = e.target.closest('[data-act]');
     if (!act) return;
@@ -1475,21 +1360,11 @@
     }
     else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
     else if (what === 'send') sendOrder();
-    else if (what === 'payagain') openUpiPayment(orderRef);
-    else if (what === 'copyupi') {
-      var vpa = (payInfo && payInfo.vpa) || '';
-      if (!vpa) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(vpa).then(function () { toast('UPI ID copied', vpa); }).catch(function () { toast('UPI ID', vpa); });
-      } else {
-        toast('UPI ID', vpa);
-      }
-    }
     else if (what === 'neworder') {
       closeScreen('cart');
       screen = 'home';
-      mode = ''; pay = ''; pos = { state: 'idle', metres: null }; printState = 'idle';
-      orderState = 'idle'; payInfo = null; stopPayPoll();
+      mode = ''; pos = { state: 'idle', metres: null }; printState = 'idle';
+      orderState = 'idle';
       orderRef = ''; orderErr = ''; orderTry = 0;
       window.scrollTo({ top: 0 });
     }
@@ -1505,7 +1380,7 @@
     else return;
     write(FORM_KEY, form);
     var send = document.querySelector('[data-act="send"]');
-    var canPay = !!(mode && pay && form.name.trim().length > 1 &&
+    var canPay = !!(mode && form.name.trim().length > 1 &&
       /^[0-9]{10}$/.test(form.phone.replace(/\D/g, '')) &&
       (mode === 'pickup' || form.addr.trim().length > 4));
     if (send) send.disabled = !canPay;
