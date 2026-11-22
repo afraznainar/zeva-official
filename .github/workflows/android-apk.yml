@@ -16,6 +16,12 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The runner image already carries the Android SDK with its licences
+    # accepted. android-actions/setup-android@v3 now fails on that image
+    # ("Failed to find package 'tools'"), so the build uses the SDK as it is.
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +33,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-
-      - uses: android-actions/setup-android@v3
 
       - name: Install Capacitor
         working-directory: apk
