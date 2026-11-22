@@ -65,6 +65,13 @@ symptom is every order POST answering 403 on the new domain.
 Once the domain is the address customers use, the canonical/OG tags, the
 manifest `start_url` and the APK's `server.url` all move with it.
 
+The zone itself is at Hostinger. `scripts/hostinger-dns.mjs list` prints it and
+`cname www <target>` writes a record through Hostinger's public API, so the DNS
+step needs no hPanel clicks once an account API token sits in the gitignored
+`deploy/hostinger.secret` — the script reads that file and never prints it. SSH
+into the hosting plan is a different thing entirely: it reaches files, not the
+zone, and that plan cannot run this site (it is a Worker plus D1).
+
 ## Android app (PWA)
 
 `deploy/dist/app.html` is the installable ordering app at `/app`; it reads the
