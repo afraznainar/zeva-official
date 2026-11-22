@@ -49,6 +49,10 @@ export const CARDS = [
 
 export const SITE = "https://site-67005eaaea074aab9c2d40a25debe4c7.freebuff.page";
 
+// Every environment of this site is served by the platform from
+// <name>.<this>, so a host under it is this site — never somebody else's page.
+const PLATFORM_HOST = "freebuff.page";
+
 const DB_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
      id TEXT PRIMARY KEY,
@@ -296,11 +300,21 @@ export function ourOrigins(env) {
   );
 }
 
+// Any environment of this site, whichever address it was given: the platform
+// serves every one of them from <name>.freebuff.page, so those hosts are us by
+// definition. Without this, a request arriving on Production was compared
+// against the Preview URL below and its own Origin looked foreign, so every
+// order placed there answered "cross-origin request".
+function platformHost(hostname) {
+  return hostname === PLATFORM_HOST || hostname.endsWith("." + PLATFORM_HOST);
+}
+
 export function canonicalOrigin(request, env) {
   const url = new URL(request.url);
   if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(url.hostname)) return url.origin;
   // Stay on the host the visitor came in on, so an OAuth return or an error
   // bounce never throws them onto a different address mid-flow.
+  if (platformHost(url.hostname)) return url.origin;
   return ourOrigins(env).indexOf(url.origin) !== -1 ? url.origin : SITE;
 }
 
@@ -310,7 +324,11 @@ export function sameOrigin(request, env) {
   if (!origin) return true;
   try {
     const o = new URL(origin).origin;
-    return o === new URL(canonicalOrigin(request, env)).origin || ourOrigins(env).indexOf(o) !== -1;
+    // Same host that answered this very request: same-origin, whatever address
+    // that host happens to be.
+    if (o === new URL(request.url).origin) return true;
+    if (ourOrigins(env).indexOf(o) !== -1) return true;
+    return o === new URL(canonicalOrigin(request, env)).origin;
   } catch (error) {
     return false;
   }
