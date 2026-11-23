@@ -1,7 +1,7 @@
 {
   "name": "zeva-apk",
   "private": true,
-  "version": "1.2.25",
+  "version": "1.2.26",
   "description": "Capacitor shell that wraps the Zeva order app for Android.",
   "scripts": {
     "add:android": "cap add android && node patch-android.mjs",
