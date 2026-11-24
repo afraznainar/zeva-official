@@ -68,6 +68,15 @@ records point at GitHub's Pages addresses) hands the visit to the `www` site wit
 the path and query intact. Never point `@` back at Hostinger's CDN
 (`*.cdn.hstgr.net`): that is what answered 403 for the bare domain before it
 launched.
+
+That redirect only exists while `zeva-apex` is **public**: GitHub Pages is not
+available for a private repo on the free plan, and with the Pages site gone the
+`@` records still point at GitHub, which answers `404 Site not found` over HTTP
+and serves its own `*.github.io` certificate over HTTPS (24 Nov 2026). If the
+bare domain has to work, flip that repo back to public (`gh repo edit
+--visibility public`) and it republishes from `main`; nothing else in the zone
+has to change.
+
 Whichever hostname Production gets must also be in the Production secret
 `SITE_ORIGINS` (comma separated, e.g.
 `https://www.zevamandiandgrills.in,https://zevamandiandgrills.in`), because
