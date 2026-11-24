@@ -69,13 +69,27 @@ the path and query intact. Never point `@` back at Hostinger's CDN
 (`*.cdn.hstgr.net`): that is what answered 403 for the bare domain before it
 launched.
 
-That redirect only exists while `zeva-apex` is **public**: GitHub Pages is not
-available for a private repo on the free plan, and with the Pages site gone the
-`@` records still point at GitHub, which answers `404 Site not found` over HTTP
-and serves its own `*.github.io` certificate over HTTPS (24 Nov 2026). If the
-bare domain has to work, flip that repo back to public (`gh repo edit
---visibility public`) and it republishes from `main`; nothing else in the zone
-has to change.
+`zeva-apex` must stay **public**: GitHub Pages is not available for a private
+repo on the free plan, and when the repo went private the Pages site vanished
+while the zone still pointed at GitHub, so the apex answered `404 Site not
+found` under a `*.github.io` certificate until the repo was made public again
+(24 Nov 2026). Re-creating the site is one call —
+`gh api -X POST repos/afraznainar/zeva-apex/pages -f source[branch]=main -f
+'source[path]=/'` — and the build picks its `CNAME` up on its own. `index.html`
+and `404.html` carry the same hand-over script, so even a deep path like `/menu`
+(which GitHub answers with a 404 status) still lands on the www page, and
+`https_enforced` can only be turned on once GitHub finishes issuing the
+certificate (`https_certificate.state` `dns_changed` → `approved`); until then
+plain HTTP is served rather than redirected.
+
+A real 301 is possible instead, because the domain's hosting plan also carries a
+vhost for the apex (`/home/u199112185/domains/zevamandiandgrills.in/public_html`,
+server 217.21.85.253). `.tools/apex-redirect.mjs` uploads an `.htaccess` there
+that 301s every path to `www` with the query intact, and with `@` pointed at that
+IP the redirect is instant and certificate-backed — GitHub Pages can only ever
+serve a page that redirects itself. Swapping between the two is just the `@`
+A/AAAA records: GitHub's four `185.199.10x.153` / `2606:50c0:800x::153`, or the
+one hosting IP.
 
 Whichever hostname Production gets must also be in the Production secret
 `SITE_ORIGINS` (comma separated, e.g.
