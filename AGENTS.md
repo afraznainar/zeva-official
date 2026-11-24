@@ -84,12 +84,19 @@ plain HTTP is served rather than redirected.
 
 A real 301 is possible instead, because the domain's hosting plan also carries a
 vhost for the apex (`/home/u199112185/domains/zevamandiandgrills.in/public_html`,
-server 217.21.85.253). `.tools/apex-redirect.mjs` uploads an `.htaccess` there
-that 301s every path to `www` with the query intact, and with `@` pointed at that
-IP the redirect is instant and certificate-backed — GitHub Pages can only ever
-serve a page that redirects itself. Swapping between the two is just the `@`
-A/AAAA records: GitHub's four `185.199.10x.153` / `2606:50c0:800x::153`, or the
-one hosting IP.
+server 217.21.85.253). `.tools/apex-redirect.mjs on` uploads an
+`.htaccess` there that 301s every path to `www` with the query intact, and with
+`@` pointed at that IP the redirect is instant and certificate-backed — GitHub
+Pages can only ever serve a page that redirects itself. Swapping between the two
+is just the `@` A/AAAA records: GitHub's four `185.199.10x.153` /
+`2606:50c0:800x::153`, or the one hosting IP.
+
+The vhost is stood down while GitHub serves the apex: `node
+.tools/apex-redirect.mjs off` replaces its `index.html` with an inert placeholder
+(no redirect, `noindex`), and the vhost has no `.htaccess` — Hostinger's file API
+only uploads, lists and reads, so a file put there can be overwritten but never
+deleted. Anything that plan serves should therefore stay harmless, because the
+domain does not resolve to it.
 
 Whichever hostname Production gets must also be in the Production secret
 `SITE_ORIGINS` (comma separated, e.g.
