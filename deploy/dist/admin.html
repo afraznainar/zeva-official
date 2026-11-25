@@ -221,6 +221,13 @@
 
     <h2 class="sect">Members</h2>
     <div class="stats" id="membercounts" style="margin-bottom:12px"></div>
+    <div class="compose" style="margin-bottom:12px">
+      <input id="v_phone" type="text" inputmode="tel" placeholder="WhatsApp number of a walk-in member" />
+      <div class="acts" style="margin-top:7px">
+        <button class="primary" type="button" id="v_add">Add a stamp</button>
+        <span class="hint" id="v_state">Stamps a walk-in visit onto their card (10 stamps = one spin).</span>
+      </div>
+    </div>
     <div class="compose">
       <select id="m_audience">
         <option value="all">Every member with WhatsApp</option>
@@ -751,6 +758,24 @@
         .catch(function () { prize.disabled = false; });
       return;
     }
+    var stamp = e.target.closest('[data-stamp]');
+    if (stamp) {
+      var stampId = stamp.getAttribute('data-stamp');
+      if (!window.confirm('Add one walk-in stamp to this member?')) return;
+      stamp.disabled = true;
+      fetch('/api/admin/visit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user_id: stampId })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          stamp.disabled = false;
+          if (!d || !d.ok) { alert((d && d.error) || 'Could not stamp.'); return; }
+          loadMembers();
+        })
+        .catch(function () { stamp.disabled = false; });
+      return;
+    }
     var num = e.target.closest('[data-num]');
     if (num) {
       window.open('https://wa.me/' + num.getAttribute('data-num'), '_blank', 'noopener');
@@ -894,11 +919,39 @@
           ' \u00b7 joined ' + (m.joined ? new Date(m.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '\u2014') +
           '</div>' + prizes + '</div>' +
         '<div class="acts">' +
+          '<button data-stamp="' + esc(m.id) + '" type="button">+ stamp</button>' +
           (m.phone ? '<button data-num="' + esc(m.phone) + '">Message</button>' : '') +
         '</div>' +
       '</div>';
     }).join('');
   }
+
+  $('v_add').addEventListener('click', function () {
+    var btn = $('v_add');
+    var phone = $('v_phone').value.trim();
+    var note = $('v_state');
+    if (!phone) { $('v_phone').focus(); note.textContent = 'Enter a WhatsApp number first.'; return; }
+    btn.disabled = true;
+    note.textContent = 'Looking up\u2026';
+    fetch('/api/admin/visit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not stamp.'; return; }
+        var m = d.membership || {};
+        note.textContent = (d.user && d.user.name ? d.user.name + ' \u00b7 ' : '') +
+          (m.visits || 0) + ' visit' + ((m.visits === 1) ? '' : 's') +
+          (m.spins_left ? ' \u00b7 ' + m.spins_left + ' spin ready' : '') +
+          (d.added === false ? ' (already stamped this booking)' : '');
+        $('v_phone').value = '';
+        loadMembers();
+      })
+      .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
+  });
 
   $('m_send').addEventListener('click', function () {
     var btn = $('m_send');

@@ -1600,6 +1600,36 @@ export async function adminMarketing(env, body) {
   });
 }
 
+// POST /api/admin/visit — the counter stamps a walk-in member's card by their
+// WhatsApp number, so regulars who never booked online still earn spins.
+export async function adminAddVisit(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "members are not configured" });
+  let user = null;
+  const userId = String((body && body.user_id) || "").trim();
+  if (userId) {
+    user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+  } else {
+    const raw = String((body && body.phone) || "").trim();
+    const normalized = normalizePhone(env, raw);
+    if (normalized) {
+      user = await db.prepare("SELECT * FROM users WHERE phone = ?").bind(normalized).first();
+    }
+    if (!user) {
+      const digits = raw.replace(/\D/g, "");
+      if (digits) {
+        user = await db.prepare("SELECT * FROM users WHERE phone = ?").bind(digits).first();
+      }
+    }
+  }
+  if (!user) {
+    return json(404, { error: "No member with that number. They need to sign up with WhatsApp first." });
+  }
+  const added = await recordVisit(env, user.id, null, "walk-in");
+  const state = await memberState(env, user.id);
+  return json(200, { ok: true, added: added, user: publicUser(user), membership: state });
+}
+
 // POST /api/admin/spin — the counter hands over a prize and closes it out.
 export async function adminSpinUsed(env, body) {
   const db = await database(env);
@@ -2598,6 +2628,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/spin" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminSpinUsed(env, await readJson(request));
+    }
+    if (path === "/api/admin/visit" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminAddVisit(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {

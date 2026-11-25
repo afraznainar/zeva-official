@@ -404,7 +404,12 @@ asked for, and there is no Google button anywhere on this page.
 - **Every signed-up member is data the shop owns.** `GET /api/admin/members`
   lists the last 500 with name, WhatsApp number, visits, spins, open prizes,
   Gold state and joined date, plus counts (total, on WhatsApp, Gold, visits).
-  `POST /api/admin/marketing {message, audience, limit}` sends the message on
+  A walk-in who never booked online can still be stamped: `/admin` has an
+  **Add a stamp** box that looks the member up by WhatsApp number
+  (`POST /api/admin/visit {phone}` or `{user_id}`), records one walk-in visit
+  and shows the new count, and each member row has a **+ stamp** button for the
+  same thing. `visits.booking_id` is null for these, so the unique index does
+  not block them and repeated taps each add a stamp. `POST /api/admin/marketing {message, audience, limit}` sends the message on
   WhatsApp to `all` / `gold` / `visited`, then writes the same words into each
   member's `notices` for the app. It batches five at a time, appends “reply STOP
   to stop these messages”, and is capped at `MARKETING_MAX` = 30 per send because
