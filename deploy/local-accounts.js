@@ -108,6 +108,7 @@ const ACCOUNT_ROUTES = [
   "/api/me",
   "/api/profile",
   "/api/orders",
+  "/api/reservations",
   "/api/auth/",
   "/api/gold/",
   "/api/upi/",

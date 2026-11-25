@@ -193,6 +193,9 @@
     <h2 class="sect" id="goldhead" hidden>Zeva Gold requests</h2>
     <div id="goldlist"></div>
 
+    <h2 class="sect">Bookings · today &amp; tomorrow</h2>
+    <div id="bookings"></div>
+
     <h2 class="sect">Message a customer's phone</h2>
     <div class="compose">
       <input id="n_title" type="text" maxlength="80" placeholder="Title \u2014 e.g. Zeva is closing at 11pm tonight">
@@ -223,6 +226,8 @@
   var newest = 0;           // newest created_at we have alerted for
   var stats = null;
   var gold = [];
+  var seenBookings = {};   // booking ids we have already alerted for
+  var bookingsLoaded = false;
   var soundOn = false;
   var audio = null;
   var timer = null;
@@ -413,6 +418,7 @@
         if (d.stats && d.stats.newest) newest = Math.max(newest, d.stats.newest);
         render();
         loadGold();
+        loadBookings();
         loadTabTitle();
       })
       .catch(function () {});
@@ -660,6 +666,20 @@
       if (text && text.trim()) sendNotice({ order_id: orderId, title: 'Update on #' + orderId, body: text.trim() });
       return;
     }
+    var bc = e.target.closest('[data-bookcancel]');
+    if (bc) {
+      var bookingId = bc.getAttribute('data-bookcancel');
+      if (!window.confirm('Cancel table booking ' + bookingId + '?')) return;
+      bc.disabled = true;
+      fetch('/api/admin/reservation', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: bookingId })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadBookings(); })
+        .catch(function () { bc.disabled = false; });
+      return;
+    }
     var g = e.target.closest('[data-gold]');
     if (g) {
       var parts = g.getAttribute('data-gold').split('|');
@@ -673,6 +693,64 @@
         .catch(function () { g.disabled = false; });
     }
   });
+
+  /* ---------------- table bookings ---------------- */
+  function loadBookings() {
+    return fetch('/api/admin/reservations', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { showGate(); throw new Error('signed out'); }
+        return r.json();
+      })
+      .then(renderBookings)
+      .catch(function () {});
+  }
+
+  function bookingAlert(r) {
+    if (!window.Notification || Notification.permission !== 'granted') return;
+    var n = new Notification('Table booking \u00b7 ' + r.time + ' \u00b7 ' + r.seats + ' seats', {
+      body: (r.name || 'Guest') + ' \u00b7 ' + r.phone + ' \u00b7 ' + r.day,
+      icon: '/icon-192.png',
+      tag: 'zeva-book-' + r.id,
+      renotify: true
+    });
+    n.onclick = function () { window.focus(); n.close(); };
+  }
+
+  function renderBookings(d) {
+    var host = $('bookings');
+    if (!host) return;
+    var rows = (d && d.reservations) || [];
+    // A booking that arrived since the last poll rings like an order does.
+    var fresh = rows.filter(function (r) { return r.status === 'booked' && !seenBookings[r.id]; });
+    rows.forEach(function (r) { seenBookings[r.id] = true; });
+    if (bookingsLoaded && fresh.length) {
+      if (soundOn) chime();
+      fresh.forEach(bookingAlert);
+    }
+    bookingsLoaded = true;
+    if (!rows.length) {
+      host.innerHTML = '<div class="empty">No table bookings for today or tomorrow yet.</div>';
+      return;
+    }
+    var t = Date.now();
+    host.innerHTML = rows.map(function (r) {
+      var live = r.status === 'booked';
+      var holding = live && t >= r.arrive_at && t < r.hold_until;
+      var ended = live && t >= r.hold_until;
+      var badge = !live ? 'cancelled' : holding ? 'out' : ended ? 'done' : 'pending';
+      var word = !live ? 'Cancelled' : holding ? 'Holding' : ended ? 'Hold ended' : 'Booked';
+      var party = r.adults + 'A' + (r.children ? ' + ' + r.children + 'C' : '');
+      return '<div class="order" data-booking="' + esc(r.id) + '">' +
+        '<div class="head"><span class="ref">' + esc(r.time) + ' \u00b7 ' + esc(r.id) + '</span>' +
+          '<span class="badge ' + badge + '">' + word + '</span>' +
+          '<span class="time">' + esc(r.day) + '</span></div>' +
+        '<div class="who"><b>' + esc(r.name || 'Guest') + '</b> \u00b7 ' + r.seats + ' seats (' + party + ') \u00b7 ' +
+          '<a href="tel:' + esc(r.phone) + '">' + esc(r.phone) + '</a></div>' +
+        (r.note ? '<div class="note">' + esc(r.note) + '</div>' : '') +
+        (live ? '<div class="acts" style="margin-top:8px"><button class="danger" data-bookcancel="' + esc(r.id) + '">Cancel booking</button></div>' : '') +
+        '</div>';
+    }).join('');
+  }
 
   /* ---------------- boot ---------------- */
   try { setSound(localStorage.getItem('zeva_admin_sound') === '1'); } catch (e) { setSound(false); }

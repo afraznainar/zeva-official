@@ -37,6 +37,20 @@ export const GOLD = {
   freeMetres: 5000
 };
 
+/* Table reservations. A booking takes covers out of one 30-minute slot, and
+   the table is only kept for HOLD_MINUTES after the booked time — after that
+   the booking is over and the covers go back to the floor. Change the numbers
+   here and the page, the API and the staff list all follow. */
+export const RESERVE = {
+  seats: 40,          // bookable covers per slot
+  holdMinutes: 10,    // table kept this long after the booked time
+  firstHour: 12,      // first seating, 12:00 PM
+  lastHour: 22,       // last seating, 10:00 PM (kitchen closes at 11 PM)
+  stepMinutes: 30,
+  maxDays: 60,        // how far ahead a guest can book
+  maxUpcoming: 3      // one guest cannot hold the room
+};
+
 /* Achievement cards. Zeva Gold members collect a physical-style card each
    time their delivered-order count passes a milestone — Silver at 100, Gold
    at 500, Diamond at 1000. Change the numbers here and the app, the progress
@@ -147,6 +161,29 @@ const DB_SCHEMA = [
      created_at INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS notices_created ON notices (created_at DESC)`,
+  // Table reservations. Seats are counted, not tables: a party of nine takes
+  // nine of that slot's covers. arrive_at / hold_until are epoch milliseconds
+  // so the page's countdown never has to guess at a timezone.
+  `CREATE TABLE IF NOT EXISTS reservations (
+     id TEXT PRIMARY KEY,
+     user_id TEXT,
+     name TEXT,
+     email TEXT,
+     phone TEXT,
+     day TEXT NOT NULL,
+     time TEXT NOT NULL,
+     arrive_at INTEGER NOT NULL,
+     hold_until INTEGER NOT NULL,
+     adults INTEGER NOT NULL DEFAULT 1,
+     children INTEGER NOT NULL DEFAULT 0,
+     seats INTEGER NOT NULL DEFAULT 1,
+     note TEXT,
+     status TEXT NOT NULL DEFAULT 'booked',
+     created_at INTEGER NOT NULL,
+     cancelled_at INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS reservations_slot ON reservations (day, time)`,
+  `CREATE INDEX IF NOT EXISTS reservations_user ON reservations (user_id, created_at DESC)`,
   // Status rename: an order now waits for the counter ('pending') and leaves
   // the kitchen for 'out' — no more 'new' / 'ready'.
   `UPDATE orders SET status = 'pending' WHERE status = 'new'`,
@@ -612,6 +649,80 @@ async function whatsappCall(env, route, payload) {
   return { ok: response.ok, status: response.status, data: data || {} };
 }
 
+/* A plain WhatsApp message, as opposed to an OTP — the provider's
+   /v1/messages/send call with the same API key. Bookings use it twice: the
+   guest gets their code, and the counter gets the table. A failed message
+   never fails the booking; the code is already on the guest's screen. */
+async function whatsappText(env, phone, message) {
+  if (!whatsappReady(env)) return false;
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return false;
+  try {
+    const response = await fetch(whatsappApi(env) + "/v1/messages/send", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer " + env.WHATSAPP_OTP_KEY,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ phone: digits, message: String(message).slice(0, 900) }),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(function () { return {}; });
+      console.warn("[whatsapp] message failed " + response.status + ": " + String(data.error || data.message || "").slice(0, 120));
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[whatsapp] message failed: " + error.message);
+    return false;
+  }
+}
+
+// The counter's own WhatsApp, unless BOOKING_NOTIFY_PHONE says otherwise
+// ("off" turns the staff copy off).
+const BOOKING_NOTIFY_DEFAULT = "917022771888";
+
+function bookingDay(booking) {
+  try {
+    return new Date(booking.arrive_at).toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      day: "numeric",
+      month: "short"
+    });
+  } catch (error) {
+    return booking.day;
+  }
+}
+
+async function notifyBooking(env, booking) {
+  const day = bookingDay(booking);
+  const party =
+    booking.adults + (booking.adults === 1 ? " adult" : " adults") +
+    (booking.children ? " + " + booking.children + (booking.children === 1 ? " child" : " children") : "");
+  const guestMessage =
+    "Zeva Mandi & Grills \u2014 table " + booking.id + " is booked for " + day + " at " + booking.time + ". " +
+    "Party: " + party + " (" + booking.seats + " seats). " +
+    "We hold the table for " + RESERVE.holdMinutes + " minutes from " + booking.time +
+    " and release it automatically after that, so please be at the restaurant by " + booking.time + ". " +
+    "Show code " + booking.id + " at the counter. Free to cancel: " + SITE + "/reserve";
+
+  const jobs = [whatsappText(env, booking.phone, guestMessage)];
+  const counterSetting = String(env.BOOKING_NOTIFY_PHONE || BOOKING_NOTIFY_DEFAULT);
+  const counterNumber = counterSetting === "off" ? "" : counterSetting.replace(/\D/g, "");
+  if (counterNumber && counterNumber !== String(booking.phone)) {
+    const counterMessage =
+      "NEW TABLE " + booking.id + " \u2014 " + (booking.name || "Guest") + ", " + booking.phone + ". " +
+      party + " (" + booking.seats + " seats) on " + day + " at " + booking.time + "." +
+      (booking.note ? " Note: " + booking.note : "") +
+      " Hold " + RESERVE.holdMinutes + " min from " + booking.time + ".";
+    jobs.push(whatsappText(env, counterNumber, counterMessage));
+  }
+  const sent = await Promise.all(jobs);
+  return Boolean(sent[0]);
+}
+
 function whatsappError(result) {
   const data = result.data || {};
   return String(data.error || data.message || data.detail || "").slice(0, 160);
@@ -736,6 +847,267 @@ export async function whatsappVerify(request, env, body) {
     { ok: true, user: publicUser(user) },
     { "set-cookie": cookieHeader("zeva_sid", sessionToken, SESSION_DAYS * 86400) }
   );
+}
+
+/* ------------------------------------------------------------
+   Table reservations
+   ------------------------------------------------------------
+   A booking is a number of covers in one 30-minute slot, not a table:
+   a party of nine takes nine of that slot's seats. The hold is the
+   rule the guest agrees to on the page — the table is theirs for
+   RESERVE.holdMinutes after the booked time, then it is released and
+   the covers are bookable again. Nothing has to run for that to
+   happen: the times are stored on the row and every reader compares
+   them with the clock, so an abandoned booking expires by itself. */
+
+const IST_OFFSET_MS = 330 * 60000; // India has no daylight saving
+
+// "2026-11-29" + "19:30" -> the epoch of that moment in India.
+function istEpoch(day, time) {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ""));
+  const t = /^(\d{1,2}):(\d{2})$/.exec(String(time || ""));
+  if (!d || !t) return 0;
+  return Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(t[1]), Number(t[2])) - IST_OFFSET_MS;
+}
+
+// The calendar day and clock a guest in Mangaluru would read right now.
+function istDay(epoch) {
+  return new Date(Number(epoch) + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function slotTimes() {
+  const out = [];
+  for (let minutes = RESERVE.firstHour * 60; minutes <= RESERVE.lastHour * 60; minutes += RESERVE.stepMinutes) {
+    out.push(String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0"));
+  }
+  return out;
+}
+
+// Booking codes are read aloud at the counter, so they avoid 0/O and 1/I.
+const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+function bookingCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  return out;
+}
+
+function shapeReservation(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name || "",
+    phone: row.phone || "",
+    day: row.day,
+    time: row.time,
+    arrive_at: Number(row.arrive_at || 0),
+    hold_until: Number(row.hold_until || 0),
+    adults: Number(row.adults || 0),
+    children: Number(row.children || 0),
+    seats: Number(row.seats || 0),
+    note: row.note || "",
+    status: row.status,
+    created_at: Number(row.created_at || 0)
+  };
+}
+
+// GET /api/reservations/slots?day=YYYY-MM-DD — what is still bookable that day.
+// `today` comes from the server so the page never has to guess the timezone.
+export async function dayAvailability(env, day) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "reservations are not configured" });
+  const clean = String(day || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(clean)) return json(400, { error: "Pick a date for your table." });
+  const now = Date.now();
+  const today = istDay(now);
+  if (clean < today) return json(400, { error: "That date has passed. Pick today or later." });
+  if (istEpoch(clean, "12:00") > now + RESERVE.maxDays * 86400000) {
+    return json(400, { error: "We take bookings up to " + RESERVE.maxDays + " days ahead." });
+  }
+  const rows = await db
+    .prepare("SELECT time, COALESCE(SUM(seats), 0) AS seats FROM reservations WHERE day = ? AND status = 'booked' GROUP BY time")
+    .bind(clean)
+    .all();
+  const taken = {};
+  (rows.results || []).forEach(function (row) {
+    taken[row.time] = Number(row.seats || 0);
+  });
+  const slots = slotTimes().map(function (time) {
+    const arrive = istEpoch(clean, time);
+    const left = Math.max(0, RESERVE.seats - (taken[time] || 0));
+    // A slot closes five minutes before it starts: nobody can book a table
+    // they are already late for.
+    return { time: time, arrive_at: arrive, left: left, open: left > 0 && arrive > now + 5 * 60000 };
+  });
+  return json(200, {
+    day: clean,
+    today: today,
+    latest: istDay(now + RESERVE.maxDays * 86400000),
+    seats: RESERVE.seats,
+    hold_minutes: RESERVE.holdMinutes,
+    slots: slots
+  });
+}
+
+// POST /api/reservations — a signed-in guest books a table.
+export async function createReservation(request, env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "reservations are not configured" });
+  const user = await currentUser(request, env);
+  if (!user) return json(401, { error: "Sign in with WhatsApp to book a table.", sign_in: true });
+
+  const day = String((body && body.day) || "").trim();
+  const time = String((body && body.time) || "").trim();
+  const adults = Math.round(Number(body && body.adults));
+  const children = Math.round(Number((body && body.children) || 0));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json(400, { error: "Pick a date for your table." });
+  if (slotTimes().indexOf(time) < 0) return json(400, { error: "Pick a time between 12 PM and 10 PM." });
+  if (!Number.isFinite(adults) || adults < 1 || adults > 20) return json(400, { error: "How many adults are coming? 1 to 20." });
+  if (!Number.isFinite(children) || children < 0 || children > 12) return json(400, { error: "Children must be between 0 and 12." });
+
+  const arriveAt = istEpoch(day, time);
+  const now = Date.now();
+  if (arriveAt < now + 5 * 60000) return json(400, { error: "That time has passed. Pick a later one." });
+  if (arriveAt > now + RESERVE.maxDays * 86400000) return json(400, { error: "We take bookings up to " + RESERVE.maxDays + " days ahead." });
+
+  const seats = adults + children;
+  if (seats > RESERVE.seats) return json(400, { error: "That is more than we can seat in one booking. Call 070227 71888." });
+
+  const phone = normalizePhone(env, (body && body.phone) || user.phone);
+  if (!phone) return json(400, { error: "Enter the mobile number we should call if anything changes." });
+
+  const upcoming = await db
+    .prepare("SELECT COUNT(*) AS n FROM reservations WHERE user_id = ? AND status = 'booked' AND hold_until > ?")
+    .bind(user.id, now)
+    .first();
+  if (Number((upcoming && upcoming.n) || 0) >= RESERVE.maxUpcoming) {
+    return json(429, { error: "You already hold " + RESERVE.maxUpcoming + " tables. Cancel one first, or call 070227 71888." });
+  }
+
+  const slot = await db
+    .prepare("SELECT COALESCE(SUM(seats), 0) AS seats FROM reservations WHERE day = ? AND time = ? AND status = 'booked'")
+    .bind(day, time)
+    .first();
+  if (Number((slot && slot.seats) || 0) + seats > RESERVE.seats) {
+    return json(409, { error: "That time is fully booked. Please pick another time." });
+  }
+
+  const id = bookingCode();
+  const holdUntil = arriveAt + RESERVE.holdMinutes * 60000;
+  try {
+    await db
+      .prepare(
+        "INSERT INTO reservations (id, user_id, name, email, phone, day, time, arrive_at, hold_until, adults, children, seats, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'booked', ?)"
+      )
+      .bind(
+        id,
+        user.id,
+        String((body && body.name) || user.name || "").slice(0, 80),
+        String(user.email || "").slice(0, 120),
+        phone,
+        day,
+        time,
+        arriveAt,
+        holdUntil,
+        adults,
+        children,
+        seats,
+        String((body && body.note) || "").slice(0, 240),
+        now
+      )
+      .run();
+  } catch (error) {
+    console.error("[reserve] insert failed: " + error.message);
+    return json(500, { error: "That booking did not save. Please try again." });
+  }
+
+  // Keep the number on the profile, and tell the customer's phone once.
+  if (!user.phone) await db.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, user.id).run();
+  const row = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
+  const booking = shapeReservation(row);
+  await pushNotice(env, {
+    user_id: user.id,
+    title: "Table booked \u00b7 " + time + ", " + day,
+    body:
+      seats + (seats === 1 ? " seat" : " seats") + " held for " + RESERVE.holdMinutes +
+      " minutes from " + time + ". Show code " + id + " at the counter \u2014 arrive on time, the table is released after that."
+  });
+  // The guest's code and the counter's copy go out on WhatsApp straight away.
+  const notified = await notifyBooking(env, booking).catch(function (error) {
+    console.warn("[reserve] notify failed: " + error.message);
+    return false;
+  });
+  return json(200, { ok: true, now: Date.now(), notified: notified, reservation: booking });
+}
+
+// GET /api/reservations — the signed-in guest's own bookings.
+export async function myReservations(request, env) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "reservations are not configured" });
+  const user = await currentUser(request, env);
+  if (!user) return json(200, { signed_in: false, now: Date.now(), reservations: [] });
+  const rows = await db
+    .prepare("SELECT * FROM reservations WHERE user_id = ? ORDER BY arrive_at DESC LIMIT 20")
+    .bind(user.id)
+    .all();
+  return json(200, {
+    signed_in: true,
+    now: Date.now(),
+    hold_minutes: RESERVE.holdMinutes,
+    reservations: (rows.results || []).map(shapeReservation)
+  });
+}
+
+// A guest (or the counter) calls a booking off. Only the owner can do it from
+// the page; the staff route passes admin = true.
+async function cancelReservationRow(env, id, userId, admin) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "reservations are not configured" });
+  const row = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(String(id || "").trim().toUpperCase()).first();
+  if (!row) return json(404, { error: "We could not find that booking." });
+  if (!admin && row.user_id !== userId) return json(403, { error: "That booking is not on your account." });
+  if (row.status !== "booked") return json(200, { ok: true, reservation: shapeReservation(row) });
+  await db.prepare("UPDATE reservations SET status = 'cancelled', cancelled_at = ? WHERE id = ?").bind(Date.now(), row.id).run();
+  if (row.user_id && !admin) {
+    await pushNotice(env, {
+      user_id: row.user_id,
+      title: "Table cancelled \u00b7 " + row.time + ", " + row.day,
+      body: "Your booking " + row.id + " is cancelled. Nothing was charged. Book again any time."
+    });
+  }
+  const fresh = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(row.id).first();
+  return json(200, { ok: true, reservation: shapeReservation(fresh) });
+}
+
+export async function cancelReservation(request, env, body) {
+  const user = await currentUser(request, env);
+  if (!user) return json(401, { error: "Sign in first.", sign_in: true });
+  return cancelReservationRow(env, body && body.id, user.id, false);
+}
+
+// The counter's list: today and tomorrow, plus anything a guest cancelled.
+export async function adminReservations(env) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "reservations are not configured" });
+  const now = Date.now();
+  const today = istDay(now);
+  const tomorrow = istDay(now + 86400000);
+  const rows = await db
+    .prepare("SELECT * FROM reservations WHERE day >= ? AND day <= ? ORDER BY arrive_at ASC LIMIT 200")
+    .bind(today, tomorrow)
+    .all();
+  return json(200, {
+    now: now,
+    today: today,
+    tomorrow: tomorrow,
+    hold_minutes: RESERVE.holdMinutes,
+    reservations: (rows.results || []).map(shapeReservation)
+  });
+}
+
+export async function adminCancelReservation(env, body) {
+  return cancelReservationRow(env, body && body.id, null, true);
 }
 
 /* ------------------------------------------------------------
@@ -1541,6 +1913,8 @@ export async function handleAccounts(request, env, url) {
     return json(200, {
       google: googleReady(env),
       whatsapp: whatsappReady(env),
+      reservations: true,
+      hold_minutes: RESERVE.holdMinutes,
       upi: onlineUpi(env),
       upi_mode: upiMode(env),
       gold: GOLD,
@@ -1599,6 +1973,24 @@ export async function handleAccounts(request, env, url) {
     const user = await upsertUser(env, { sub: "dev-" + (url.searchParams.get("as") || "customer"), email: "dev@example.com", name: "Dev Customer", picture: "" });
     const session = await startSession(env, user.id);
     return json(200, { ok: true, user: publicUser(user) }, { "set-cookie": cookieHeader("zeva_sid", session, SESSION_DAYS * 86400) });
+  }
+
+  if (path === "/api/reservations/slots" && request.method === "GET") {
+    return dayAvailability(env, url.searchParams.get("day"));
+  }
+
+  if (path === "/api/reservations" && request.method === "GET") {
+    return myReservations(request, env);
+  }
+
+  if (path === "/api/reservations" && request.method === "POST") {
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+    return createReservation(request, env, await readJson(request));
+  }
+
+  if (path === "/api/reservations/cancel" && request.method === "POST") {
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+    return cancelReservation(request, env, await readJson(request));
   }
 
   if (path === "/api/profile" && request.method === "POST") {
@@ -1664,6 +2056,11 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/notify" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminNotify(env, await readJson(request));
+    }
+    if (path === "/api/admin/reservations" && request.method === "GET") return adminReservations(env);
+    if (path === "/api/admin/reservation" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminCancelReservation(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {

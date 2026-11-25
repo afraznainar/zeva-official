@@ -299,6 +299,56 @@ Local testing uses the gitignored stub: `node .tools/upi-stub.mjs` on 4198, and
 `UPI_WEBHOOK_SECRET=whsec_test_zeva`). Its `/_pay/<ref>`, `/_expire/<ref>`,
 `/_review/<ref>` and `/_replay` routes fire the gateway's side by hand.
 
+## Table reservations
+
+`deploy/dist/reserve.html` is `/reserve` — the booking page. The guest signs in
+with **WhatsApp** (the existing one-time-code flow: `POST
+/api/auth/whatsapp/start` then `/verify`), chooses a date, an arrival time,
+adults and children, and gets a booking code on screen and on WhatsApp.
+
+- Bookings live in the `reservations` table against the `DB` binding. Covers are
+  counted per 30-minute slot, not per table: a party of nine takes nine of that
+  slot's seats. `RESERVE` at the top of `worker/accounts.js` holds the numbers —
+  `seats` (40 per slot), `holdMinutes` (10), `firstHour` 12 / `lastHour` 22 (last
+  seating 10 PM), `stepMinutes` 30, `maxDays` 60 and `maxUpcoming` 3 per guest.
+- **The 10-minute hold is data, not a job.** Each row stores `arrive_at` and
+  `hold_until` (arrival + 10 min) as epoch milliseconds, so an abandoned booking
+  needs no cron to expire: the page's countdown and the staff list compare those
+  times with the clock, and once `hold_until` passes the seats are bookable
+  again. The page says so three times (marquee, the “how it works” card, and the
+  live timer) and asks the guest to be at Zeva at the booked time. `arrive_at`
+  is built from India time (`istEpoch`, no DST), so a guest in another timezone
+  still sees the right slot; `/api/reservations/slots` returns `today`/`latest`
+  too, so the date picker never guesses.
+- **Notifications are automatic.** On a successful booking the Worker sends two
+  WhatsApp messages through the provider already configured for OTP —
+  `POST {WHATSAPP_OTP_API}/v1/messages/send` with `WHATSAPP_OTP_KEY` — one to the
+  guest (code, date, time, party, the 10-minute rule, cancel link) and one to the
+  counter (`BOOKING_NOTIFY_PHONE`, default the restaurant's own number; set it to
+  `off` to silence the staff copy). A failed message never fails the booking —
+  the code is already on the guest's screen; the response says `notified: true`
+  only when the guest's message went out. The booking also lands in `notices`,
+  so the customer's app confirms it. `/admin` rings (chime + desktop
+  notification) when a new booking appears in its 8-second poll.
+- Routes: `GET /api/reservations/slots?day=`, `POST /api/reservations`
+  (signed-in only; validates date, slot, party size, phone, capacity and the
+  three-upcoming limit), `GET /api/reservations` (own bookings), `POST
+  /api/reservations/cancel` (own booking), plus the staff pair
+  `GET /api/admin/reservations` (today and tomorrow) and `POST
+  /api/admin/reservation` (cancel). `/admin` shows **Bookings · today &
+  tomorrow** above the message composer.
+- Google sign-in is not involved on this page: it is still switched off in
+  Production (`/api/config` reports `google:false`) and WhatsApp is the number
+  the customer is already on. If the booking needs an account, it needs a
+  signed-in one — not specifically Google.
+- Discovery is footer-only (no nav change): a **Reserve a table** item in the
+  Explore list of every page that shares that footer, a *Book a table* button in
+  the home hero, a *Reserve a table* button on `/visit`, and `/reserve` in
+  `sitemap.xml` + `llms.txt`. The home page's Restaurant JSON-LD carries
+  `potentialAction`: a `ReserveAction` to `/reserve` and an `OrderAction` naming
+  both pickup and own-fleet delivery, which is what Google reads to offer
+  booking or ordering.
+
 ## Staff dashboard
 
 `deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),

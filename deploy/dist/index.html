@@ -483,6 +483,31 @@
   ],
   "hasMenu": "https://www.zevamandiandgrills.in/menu",
   "acceptsReservations": "True",
+  "potentialAction": [
+    {
+      "@type": "ReserveAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.zevamandiandgrills.in/reserve",
+        "inLanguage": "en-IN",
+        "actionPlatform": ["http://schema.org/DesktopWebPlatform", "http://schema.org/MobileWebPlatform", "http://schema.org/AndroidPlatform", "http://schema.org/IOSPlatform"]
+      },
+      "result": { "@type": "FoodEstablishmentReservation", "name": "Table reservation" }
+    },
+    {
+      "@type": "OrderAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.zevamandiandgrills.in/menu",
+        "inLanguage": "en-IN",
+        "actionPlatform": ["http://schema.org/DesktopWebPlatform", "http://schema.org/MobileWebPlatform", "http://schema.org/AndroidPlatform", "http://schema.org/IOSPlatform"]
+      },
+      "deliveryMethod": [
+        "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet",
+        "http://purl.org/goodrelations/v1#DeliveryModePickUp"
+      ]
+    }
+  ],
   "keywords": "unlimited mandi, unlimited mandi Mangalore, unlimited mandi rice, mandi with unlimited rice, best mandi restaurant in Mangalore, mandi restaurant in Mangalore, chicken mandi, mutton mandi, alfaham mandi, mandi delivery Mangalore, Arabic restaurant Mangalore, Turkish restaurant Mangalore, charcoal grills, halal restaurant, family restaurant Bolar Mangaluru, seafood mandi",
   "areaServed": [
     { "@type": "City", "name": "Mangaluru" },
@@ -637,6 +662,7 @@
       <p class="lead">Slow-cooked mandi rice, charcoal grills and Gulf flavours — served the traditional way in the heart of Mangalore. Every grain infused with smoke, every plate made to share.</p>
       <div class="cta-row">
         <a class="btn btn-gold" href="tel:+917022771888">Call 070227 71888</a>
+        <a class="btn btn-maroon" href="reserve.html">Book a table</a>
         <a class="btn btn-ghost-light" href="https://www.google.com/maps?cid=16420937955802426277" rel="noopener">Get Directions</a>
       </div>
       <div class="mini-facts">

@@ -61,6 +61,7 @@ PAGES ON THIS SITE
 - /visit.html - address, map, hours, directions
 - /faq.html - common questions
 - /review-us.html - how to leave a Google review
+- /reserve.html - book a table: sign in with Google, pick a date, time, adults and children
 `;
 
 function systemPrompt() {
@@ -86,6 +87,7 @@ function pickSources(question, answer) {
   if (/menu|dish|price|mandi|kebab|starter|dessert|juice|mojito|order|deliver|pickup|cart|what.*eat/.test(text)) out.push("/menu");
   if (/hour|open|close|timing|where|address|direction|park|location|map/.test(text)) out.push("/visit");
   if (/review|google|rating|feedback/.test(text)) out.push("/review-us");
+  if (/book|reserv|table|seat/.test(text)) out.push("/reserve");
   if (!out.length || /question|faq|halal|gst|tax/.test(text)) out.push("/faq");
   return out.slice(0, 2);
 }

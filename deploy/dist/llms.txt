@@ -18,6 +18,8 @@ This file lists the facts an AI assistant can quote when someone asks about mand
 - Email: zevamandiandgrills@gmail.com
 - Price range: ₹30 (rotti) to ₹1,850 (full peri peri mutton mandi); mandi trays from ₹250; prices exclude GST (2.5% CGST + 2.5% SGST on food)
 - Seating: family seating; groups of six or more should call ahead
+- Table reservations: book online at https://www.zevamandiandgrills.in/reserve — sign in with your WhatsApp number, pick a date and time, and say how many adults and children are coming. Your booking code and the table details are sent to you on WhatsApp. The table is held for 10 minutes from the booked arrival time and then released automatically; guests should be at the restaurant at their booked time. Free to book, free to cancel.
+- Pickup or delivery: order from the menu page and send it on WhatsApp, or call +91 70227 71888
 - Delivery: across central Mangaluru, charged by distance (free under 500 m, ₹25 up to 1 km, ₹40 for 1–2 km, ₹55 for 2–3 km, ₹70 beyond 3 km), minimum order ₹480
 - Official site: https://www.zevamandiandgrills.in
 
