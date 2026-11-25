@@ -31,10 +31,10 @@ function upiMode(env) {
 }
 
 export const GOLD = {
-  price: 499,
-  months: 6,
+  price: 249,
+  months: 12,
   cashback: 5,
-  freeMetres: 5000
+  freeMetres: 3500
 };
 
 /* Table reservations. A booking takes covers out of one 30-minute slot, and
@@ -70,8 +70,10 @@ export const MEMBERS = {
     { key: "orange", name: "Orange Juice", weight: 2 },
     { key: "pineapple", name: "Pineapple Juice", weight: 2 },
     { key: "musambi", name: "Musambi Juice", weight: 2 }
-  ]
+  ],
+  memberCodeChars: 5
 };
+
 
 /* Achievement cards. Zeva Gold members collect a physical-style card each
    time their delivered-order count passes a milestone — Silver at 100, Gold
@@ -234,6 +236,14 @@ const DB_SCHEMA = [
    )`,
   `CREATE INDEX IF NOT EXISTS spins_user ON spins (user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS spins_code ON spins (code)`,
+  // A print-at-counter membership code, one per signed-up member. The member
+  // types it at the counter instead of finding their own phone.
+  `CREATE TABLE IF NOT EXISTS member_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL UNIQUE, code TEXT NOT NULL, used_at INTEGER, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS member_codes_user ON member_codes (user_id)`,
+  // Codes are typed on the register: avoid the same confusing pairs as
+  // booking codes, and make 'used' rows easy to skip if anyone ever goes back
+  // through them.
+  `CREATE INDEX IF NOT EXISTS member_codes_code ON member_codes (code) WHERE code IS NOT NULL AND used_at IS NULL`,
   // Status rename: an order now waits for the counter ('pending') and leaves
   // the kitchen for 'out' — no more 'new' / 'ready'.
   `UPDATE orders SET status = 'pending' WHERE status = 'new'`,
@@ -844,7 +854,28 @@ function whatsappError(result) {
 
 // One account per verified number. If that number is already saved on a Google
 // account, sign into that same account instead of creating a second one.
-async function upsertPhoneUser(env, phone) {
+async function assignMemberCode(env, userId) {
+  const db = await database(env);
+  if (!userId) return null;
+  const existing = await db
+    .prepare("SELECT code FROM member_codes WHERE user_id = ?")
+    .bind(userId)
+    .first();
+  if (existing && existing.code) return String(existing.code);
+  let code;
+  let tries = 0;
+  do {
+    code = memberCode();
+    tries++;
+    if (tries > 20) throw new Error("could not make a unique member code");
+  } while (
+    await db.prepare("SELECT 1 FROM member_codes WHERE code = ?").bind(code).first()
+  );
+  await db.prepare("INSERT INTO member_codes (user_id, code, created_at) VALUES (?, ?, ?)").bind(userId, code, Date.now()).run();
+  return code;
+}
+
+async function upsertPhoneUser(env, phone, assignCode = true) {
   const db = await database(env);
   const now = Date.now();
   const sub = "wa:" + phone;
@@ -858,12 +889,15 @@ async function upsertPhoneUser(env, phone) {
     await db.prepare("UPDATE users SET phone = ?, sub = ?, last_seen_at = ? WHERE id = ?")
       .bind(phone, keepSub, now, existing.id)
       .run();
-    return { ...existing, phone: phone, sub: keepSub };
+    const user = { ...existing, phone: phone, sub: keepSub };
+    if (assignCode) await assignMemberCode(env, user.id);
+    return user;
   }
   const id = crypto.randomUUID();
   await db.prepare("INSERT INTO users (id, sub, email, name, picture, phone, created_at, last_seen_at) VALUES (?, ?, '', '', '', ?, ?, ?)")
     .bind(id, sub, phone, now, now)
     .run();
+  await assignMemberCode(env, id);
   return { id: id, sub: sub, email: "", name: "", picture: "", phone: phone, created_at: now };
 }
 
@@ -955,6 +989,7 @@ export async function whatsappVerify(request, env, body) {
 
   await db.prepare("UPDATE otp_sessions SET verified_at = ? WHERE session = ?").bind(Date.now(), session).run();
   const user = await upsertPhoneUser(env, phone);
+  await assignMemberCode(env, user.id);
   const sessionToken = await startSession(env, user.id);
   return json(
     200,
@@ -1000,11 +1035,11 @@ function slotTimes() {
 // Booking codes are read aloud at the counter, so they avoid 0/O and 1/I.
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
-function bookingCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
+function memberCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(MEMBERS.memberCodeChars));
   let out = "";
   for (let i = 0; i < bytes.length; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
-  return out;
+  return "Z" + out;
 }
 
 function shapeReservation(row) {
@@ -1483,6 +1518,7 @@ export async function adminMembers(env) {
   const rows = await db
     .prepare(
       "SELECT u.id, u.name, u.phone, u.email, u.created_at, u.last_seen_at, " +
+        "(SELECT code FROM member_codes mc WHERE mc.user_id = u.id AND mc.used_at IS NULL LIMIT 1) AS member_code, " +
         "(SELECT COUNT(*) FROM visits v WHERE v.user_id = u.id) AS visits, " +
         "(SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id) AS spins, " +
         "(SELECT COUNT(*) FROM spins s2 WHERE s2.user_id = u.id AND s2.used_at IS NULL) AS open_prizes, " +
@@ -1498,6 +1534,7 @@ export async function adminMembers(env) {
       name: row.name || "",
       phone: row.phone || "",
       email: row.email || "",
+      code: String(row.member_code || "").toUpperCase(),
       visits: Number(row.visits || 0),
       spins: Number(row.spins || 0),
       open_prizes: Number(row.open_prizes || 0),
@@ -1627,7 +1664,26 @@ export async function adminAddVisit(env, body) {
   }
   const added = await recordVisit(env, user.id, null, "walk-in");
   const state = await memberState(env, user.id);
-  return json(200, { ok: true, added: added, user: publicUser(user), membership: state });
+  const mc = await db.prepare("SELECT code FROM member_codes WHERE user_id = ? AND used_at IS NULL LIMIT 1").bind(user.id).first();
+  return json(200, { ok: true, added: added, user: publicUser(user), membership: state, code: String(mc && mc.code || "").toUpperCase() });
+}
+
+// POST /api/admin/consume-code — the member types their code at the counter.
+// That one typed entry is one stamped visit, the same as a Mark-visit tap.
+export async function adminConsumeCode(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "members are not configured" });
+  const raw = String((body && body.code) || "").trim().toUpperCase();
+  if (!raw) return json(400, { error: "which member code?" });
+  const row = await db.prepare("SELECT * FROM member_codes WHERE code = ?").bind(raw).first();
+  if (!row) return json(404, { error: "no member with that code" });
+  if (row.used_at) return json(409, { error: "that code was already used" });
+  await db.prepare("UPDATE member_codes SET used_at = ? WHERE id = ?").bind(Date.now(), row.id).run();
+  const user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(row.user_id).first();
+  if (!user) return json(500, { error: "member vanished" });
+  const added = await recordVisit(env, user.id, null, "code");
+  const state = await memberState(env, user.id);
+  return json(200, { ok: true, added: added, user: publicUser(user), membership: state, code: raw });
 }
 
 // POST /api/admin/spin — the counter hands over a prize and closes it out.
@@ -2632,6 +2688,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/visit" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminAddVisit(env, await readJson(request));
+    }
+    if (path === "/api/admin/consume-code" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminConsumeCode(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {

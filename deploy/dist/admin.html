@@ -228,6 +228,13 @@
         <span class="hint" id="v_state">Stamps a walk-in visit onto their card (10 stamps = one spin).</span>
       </div>
     </div>
+    <div class="compose" style="margin-bottom:12px">
+      <input id="v_code" type="text" inputmode="text" placeholder="Member code shown on their card" />
+      <div class="acts" style="margin-top:7px">
+        <button class="primary" type="button" id="v_code_add">Use member code</button>
+        <span class="hint" id="v_code_state">Marks one visit when a member brings their 5-digit code.</span>
+      </div>
+    </div>
     <div class="compose">
       <select id="m_audience">
         <option value="all">Every member with WhatsApp</option>
@@ -644,7 +651,7 @@
         return '<div class="goldrow"><div class="info"><div class="nm">' + esc(m.name || 'Customer') + ' <span class="badge new">pending</span></div>' +
           '<div class="sub">' + esc(m.email || '') + (m.phone ? ' \u00b7 ' + esc(m.phone) : '') + ' \u00b7 asked ' + ago(m.requested_at) + '</div></div>' +
           '<div class="acts">' +
-            '<button class="primary" data-gold="' + esc(m.user_id) + '|activate">Activate \u20b9499</button>' +
+            '<button class="primary" data-gold="' + esc(m.user_id) + '|activate">Activate \u20b9249</button>' +
             '<button class="danger" data-gold="' + esc(m.user_id) + '|reject">Reject</button>' +
           '</div></div>';
       }).join('') +
@@ -901,7 +908,7 @@
         stat(memberCounts.visits, 'visits');
     }
     if (!members.length) {
-      host.innerHTML = '<div class="empty">No one has signed in yet. Every WhatsApp sign-in on the site and the app lands here.</div>';
+      host.innerHTML = '<div class="empty">No one has signed in yet. Every WhatsApp sign-up on the site or app lands here, and each member gets a 5-digit code they show at the counter.</div>';
       return;
     }
     host.innerHTML = members.map(function (m) {
@@ -914,8 +921,9 @@
           (m.gold ? ' <span class="badge gold">Gold</span>' : '') +
           (m.visits >= 10 ? ' <span class="badge new">' + Math.floor(m.visits / 10) + ' spin</span>' : '') + '</div>' +
           '<div class="sub">' + (m.phone ? '<a href="tel:' + esc(m.phone) + '">+' + esc(m.phone) + '</a>' : 'no phone \u2014 app only') +
-          ' \u00b7 ' + m.visits + ' visit' + (m.visits === 1 ? '' : 's') +
-          ' \u00b7 ' + m.spins + ' spin' + (m.spins === 1 ? '' : 's') +
+          ' \u00b7 ' + m.visits + (m.visits === 1 ? ' visit' : ' visits') +
+          ' \u00b7 ' + m.spins + (m.spins === 1 ? ' spin' : ' spins') +
+          (m.code ? ' \u00b7 code <b style="color:var(--brass-2)">' + esc(m.code) + '</b>' : '') +
           ' \u00b7 joined ' + (m.joined ? new Date(m.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '\u2014') +
           '</div>' + prizes + '</div>' +
         '<div class="acts">' +
@@ -948,6 +956,32 @@
           (m.spins_left ? ' \u00b7 ' + m.spins_left + ' spin ready' : '') +
           (d.added === false ? ' (already stamped this booking)' : '');
         $('v_phone').value = '';
+        loadMembers();
+      })
+      .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
+  });
+
+  $('v_code_add').addEventListener('click', function () {
+    var btn = $('v_code_add');
+    var code = $('v_code').value.trim();
+    var note = $('v_code_state');
+    if (!code) { $('v_code').focus(); note.textContent = 'Enter the member code first.'; return; }
+    btn.disabled = true;
+    note.textContent = 'Checking code\u2026';
+    fetch('/api/admin/consume-code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not use that code.'; return; }
+        var m = d.membership || {};
+        note.textContent = (d.user && d.user.name ? d.user.name + ' \u00b7 ' : '') +
+          'visit ' + (m.visits || 0) + (m.visits === 1 ? '' : 's') +
+          (m.spins_left ? ' \u00b7 ' + m.spins_left + ' spin ready' : '');
+        $('v_code').value = '';
         loadMembers();
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
