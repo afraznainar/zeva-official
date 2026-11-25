@@ -69,4 +69,7 @@ Allow: /
 User-agent: YouBot
 Allow: /
 
+# Machine-readable facts for AI answer engines:
+# https://www.zevamandiandgrills.in/llms.txt
+
 Sitemap: https://www.zevamandiandgrills.in/sitemap.xml
