@@ -733,34 +733,65 @@ function bookingDay(booking) {
   }
 }
 
+function clockLabel(epoch) {
+  try {
+    return new Date(Number(epoch)).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    }).toUpperCase();
+  } catch (error) {
+    return "";
+  }
+}
+
 async function notifyBooking(env, booking) {
   const day = bookingDay(booking);
+  const clock = clockLabel(booking.arrive_at) || booking.time;
   const party =
     booking.adults + (booking.adults === 1 ? " adult" : " adults") +
     (booking.children ? " + " + booking.children + (booking.children === 1 ? " child" : " children") : "");
   const guestMessage =
-    "Zeva Mandi & Grills \u2014 table " + booking.id + " is booked for " + day + " at " + booking.time + ". " +
+    "Zeva Mandi & Grills \u2014 table " + booking.id + " is booked for " + day + " at " + clock + ". " +
     "Party: " + party + " (" + booking.seats + " seats). " +
-    "We hold the table for " + RESERVE.holdMinutes + " minutes from " + booking.time +
-    " and release it automatically after that, so please be at the restaurant by " + booking.time + ". " +
+    "We hold the table for " + RESERVE.holdMinutes + " minutes from " + clock +
+    " and release it automatically after that, so please be at the restaurant by " + clock + ". " +
     "Show code " + booking.id + " at the counter. " +
-    "Advance \u20b9" + RESERVE.advance + ": pay by UPI at " + SITE + "/reserve or at the counter. " +
+    "Advance \u20b9" + RESERVE.advance + " \u2014 the UPI ID is in the next message. " +
     "Menu: " + SITE + "/menu \u2014 Free to cancel: " + SITE + "/reserve";
 
-  const jobs = [whatsappText(env, booking.phone, guestMessage)];
+  // The advance gets its own message so the UPI ID is not buried inside a
+  // paragraph: one line to copy the address, one line for the amount.
+  const upi = directReady(env) ? upiId(env) : "";
+  const payMessage = upi
+    ? "Advance for table " + booking.id + ": \u20b9" + RESERVE.advance + " to " + upi + " (UPI ID). " +
+      "Pay \u20b9" + RESERVE.advance + " in your UPI app with the note \u201ctable " + booking.id + "\u201d, " +
+      "or tap “Pay \u20b9" + RESERVE.advance + " by UPI” on " + SITE + "/reserve. " +
+      "The advance is adjusted in your bill."
+    : "Advance for table " + booking.id + ": \u20b9" + RESERVE.advance + ", payable at the counter. " +
+      "The advance is adjusted in your bill.";
+
   const counterSetting = String(env.BOOKING_NOTIFY_PHONE || BOOKING_NOTIFY_DEFAULT);
   const counterNumber = counterSetting === "off" ? "" : counterSetting.replace(/\D/g, "");
-  if (counterNumber && counterNumber !== String(booking.phone)) {
-    const counterMessage =
-      "NEW TABLE " + booking.id + " \u2014 " + (booking.name || "Guest") + ", " + booking.phone + ". " +
-      party + " (" + booking.seats + " seats) on " + day + " at " + booking.time + "." +
-      (booking.note ? " Note: " + booking.note : "") +
-      " Hold " + RESERVE.holdMinutes + " min from " + booking.time + ". " +
-      "Advance \u20b9" + RESERVE.advance + " due \u2014 confirm it in /admin when the UPI shows.";
-    jobs.push(whatsappText(env, counterNumber, counterMessage));
-  }
-  const sent = await Promise.all(jobs);
-  return Boolean(sent[0]);
+  const counterJob = counterNumber && counterNumber !== String(booking.phone)
+    ? whatsappText(
+        env,
+        counterNumber,
+        "NEW TABLE " + booking.id + " \u2014 " + (booking.name || "Guest") + ", " + booking.phone + ". " +
+          party + " (" + booking.seats + " seats) on " + day + " at " + clock + "." +
+          (booking.note ? " Note: " + booking.note + "." : "") +
+          " Hold " + RESERVE.holdMinutes + " min from " + clock + ". " +
+          "Advance \u20b9" + RESERVE.advance + " due \u2014 confirm it in /admin when the UPI shows."
+      )
+    : Promise.resolve(false);
+
+  // Sent in order: details first, then the advance with the UPI ID, while the
+  // counter's copy goes out alongside them.
+  const sent = await whatsappText(env, booking.phone, guestMessage);
+  if (sent) await whatsappText(env, booking.phone, payMessage);
+  await counterJob;
+  return Boolean(sent);
 }
 
 function whatsappError(result) {

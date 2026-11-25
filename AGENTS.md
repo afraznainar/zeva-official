@@ -335,11 +335,14 @@ adults and children, and gets a booking code on screen and on WhatsApp.
   is built from India time (`istEpoch`, no DST), so a guest in another timezone
   still sees the right slot; `/api/reservations/slots` returns `today`/`latest`
   too, so the date picker never guesses.
-- **Notifications are automatic.** On a successful booking the Worker sends two
-  WhatsApp messages through the provider already configured for OTP —
-  `POST {WHATSAPP_OTP_API}/v1/messages/send` with `WHATSAPP_OTP_KEY` — one to the
-  guest (code, date, time, party, the 10-minute rule, cancel link) and one to the
-  counter (`BOOKING_NOTIFY_PHONE`, default the restaurant's own number; set it to
+- **Notifications are automatic.** On a successful booking the Worker sends
+  three WhatsApp messages through the provider already configured for OTP —
+  `POST {WHATSAPP_OTP_API}/v1/messages/send` with `WHATSAPP_OTP_KEY`. The guest
+  gets two, in this order: the booking details (code, date, time, party, the
+  10-minute rule, menu link, cancel link), then a separate advance message with
+  the shop's UPI ID, the ₹500, the note to write and the pay link — kept apart on
+  purpose so the address is easy to copy out of the chat. The counter gets the
+  table (`BOOKING_NOTIFY_PHONE`, default the restaurant's own number; set it to
   `off` to silence the staff copy). A failed message never fails the booking —
   the code is already on the guest's screen; the response says `notified: true`
   only when the guest's message went out. The booking also lands in `notices`,
