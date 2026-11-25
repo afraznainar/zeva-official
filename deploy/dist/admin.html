@@ -666,6 +666,20 @@
       if (text && text.trim()) sendNotice({ order_id: orderId, title: 'Update on #' + orderId, body: text.trim() });
       return;
     }
+    var advBtn = e.target.closest('[data-advance]');
+    if (advBtn) {
+      var advBits = advBtn.getAttribute('data-advance').split('|');
+      if (advBits[1] === 'paid' && !window.confirm('Is the \u20b9500 advance for table ' + advBits[0] + ' visible in the Zeva UPI account?')) return;
+      advBtn.disabled = true;
+      fetch('/api/admin/reservation', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: advBits[0], advance: advBits[1] })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadBookings(); })
+        .catch(function () { advBtn.disabled = false; });
+      return;
+    }
     var bc = e.target.closest('[data-bookcancel]');
     if (bc) {
       var bookingId = bc.getAttribute('data-bookcancel');
@@ -740,14 +754,29 @@
       var badge = !live ? 'cancelled' : holding ? 'out' : ended ? 'done' : 'pending';
       var word = !live ? 'Cancelled' : holding ? 'Holding' : ended ? 'Hold ended' : 'Booked';
       var party = r.adults + 'A' + (r.children ? ' + ' + r.children + 'C' : '');
+      var adv = r.advance || {};
+      var advAmount = Number(adv.amount || 500);
+      var advBadge = adv.status === 'paid'
+        ? '<span class="badge done">Advance ' + rupee(advAmount) + ' paid</span>'
+        : adv.status === 'claimed'
+          ? '<span class="badge pending">Advance claimed</span>'
+          : '<span class="badge cancelled">Advance ' + rupee(advAmount) + ' due</span>';
       return '<div class="order" data-booking="' + esc(r.id) + '">' +
         '<div class="head"><span class="ref">' + esc(r.time) + ' \u00b7 ' + esc(r.id) + '</span>' +
           '<span class="badge ' + badge + '">' + word + '</span>' +
+          advBadge +
           '<span class="time">' + esc(r.day) + '</span></div>' +
         '<div class="who"><b>' + esc(r.name || 'Guest') + '</b> \u00b7 ' + r.seats + ' seats (' + party + ') \u00b7 ' +
           '<a href="tel:' + esc(r.phone) + '">' + esc(r.phone) + '</a></div>' +
         (r.note ? '<div class="note">' + esc(r.note) + '</div>' : '') +
-        (live ? '<div class="acts" style="margin-top:8px"><button class="danger" data-bookcancel="' + esc(r.id) + '">Cancel booking</button></div>' : '') +
+        (live || adv.status === 'paid'
+          ? '<div class="acts" style="margin-top:8px">' +
+              (adv.status === 'paid'
+                ? '<button data-advance="' + esc(r.id) + '|due">Undo advance</button>'
+                : '<button class="primary" data-advance="' + esc(r.id) + '|paid">Advance received</button>') +
+              (live ? '<button class="danger" data-bookcancel="' + esc(r.id) + '">Cancel booking</button>' : '') +
+            '</div>'
+          : '') +
         '</div>';
     }).join('');
   }

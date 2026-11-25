@@ -309,8 +309,23 @@ adults and children, and gets a booking code on screen and on WhatsApp.
 - Bookings live in the `reservations` table against the `DB` binding. Covers are
   counted per 30-minute slot, not per table: a party of nine takes nine of that
   slot's seats. `RESERVE` at the top of `worker/accounts.js` holds the numbers —
-  `seats` (40 per slot), `holdMinutes` (10), `firstHour` 12 / `lastHour` 22 (last
-  seating 10 PM), `stepMinutes` 30, `maxDays` 60 and `maxUpcoming` 3 per guest.
+  `seats` (60 per slot), `holdMinutes` (10), `firstHour` 12 / `lastHour` 22 (last
+  seating 10 PM), `stepMinutes` 30, `maxDays` 60, `maxUpcoming` 3 per guest,
+  `maxAdults` 50 (one party can be up to fifty adults), `maxChildren` 12 and
+  `advance` 500. The page reads them from `/api/config`, so the two never drift.
+- **₹500 advance.** A booking is written with `advance_status = 'due'` and
+  `advance_amount = 500`. `POST /api/reservations/pay {id}` returns the shop's own
+  `upi://` intent (`am=500.00`, note “Zeva table CODE”) for the guest who owns the
+  booking — same direct-mode VPA as the order flow, built in `advanceIntent`.
+  `POST /api/reservations/paid {id}` is the guest saying they paid and only moves
+  the row to `claimed`; the money is `paid` only when the counter confirms it on
+  `/admin` (`POST /api/admin/reservation {id, advance:'paid'|'due'}`). The advance
+  is adjusted in the bill, and a cancelled booking is refunded at the counter.
+- The page is deliberately not the site's usual card grid: a lacquer-dark room
+  with one brass lamp, the reservation as a cream perforated slip, and the hold as
+  a brass ring that empties as the ten minutes run out. Motion is one entrance
+  for the headline, the slot fill sweep and the ring — all of it off under
+  `prefers-reduced-motion`.
 - **The 10-minute hold is data, not a job.** Each row stores `arrive_at` and
   `hold_until` (arrival + 10 min) as epoch milliseconds, so an abandoned booking
   needs no cron to expire: the page's countdown and the staff list compare those
@@ -333,10 +348,12 @@ adults and children, and gets a booking code on screen and on WhatsApp.
 - Routes: `GET /api/reservations/slots?day=`, `POST /api/reservations`
   (signed-in only; validates date, slot, party size, phone, capacity and the
   three-upcoming limit), `GET /api/reservations` (own bookings), `POST
-  /api/reservations/cancel` (own booking), plus the staff pair
+  /api/reservations/cancel` (own booking), `POST /api/reservations/pay` and
+  `POST /api/reservations/paid` (the advance), plus the staff pair
   `GET /api/admin/reservations` (today and tomorrow) and `POST
-  /api/admin/reservation` (cancel). `/admin` shows **Bookings · today &
-  tomorrow** above the message composer.
+  /api/admin/reservation` (cancel a booking, or confirm/undo its advance).
+  `/admin` shows **Bookings · today & tomorrow** above the message composer, with
+  the advance state on each card.
 - Google sign-in is not involved on this page: it is still switched off in
   Production (`/api/config` reports `google:false`) and WhatsApp is the number
   the customer is already on. If the booking needs an account, it needs a

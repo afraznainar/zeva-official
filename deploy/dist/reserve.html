@@ -7,17 +7,17 @@
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="googlebot" content="index, follow, max-image-preview:large">
 <title>Reserve a table — Zeva Mandi &amp; Grills, Bolar Mangaluru</title>
-<meta name="description" content="Book a table at Zeva Mandi &amp; Grills, Bolar, Mangaluru. Pick your date, time and how many adults and children are coming, sign in with WhatsApp, and get a booking code sent to your phone. Tables are held for 10 minutes from the booked time.">
-<meta name="keywords" content="book a table Mangalore, table reservation Mangalore, reserve table Bolar, mandi restaurant booking Mangalore, family restaurant reservation Mangalore, Zeva table booking, restaurant near Morgans Gate">
+<meta name="description" content="Book a table at Zeva Mandi &amp; Grills, Bolar, Mangaluru. Up to 50 adults, a ₹500 advance by UPI, and a 10-minute hold from your booked time. Sign in with WhatsApp and your code arrives on your phone.">
+<meta name="keywords" content="book a table Mangalore, table reservation Mangalore, reserve table Bolar, mandi restaurant booking Mangalore, family restaurant reservation Mangalore, party booking Mangalore, Zeva table booking">
 <link rel="canonical" href="https://www.zevamandiandgrills.in/reserve">
-<meta name="theme-color" content="#813d20">
+<meta name="theme-color" content="#0b0604">
 <meta name="geo.region" content="IN-KA">
 <meta name="geo.placename" content="Mangaluru">
 <meta name="geo.position" content="12.8480914;74.852712">
 <meta name="ICBM" content="12.8480914, 74.852712">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Reserve a table — Zeva Mandi &amp; Grills">
-<meta property="og:description" content="Pick a date, time, adults and children, and hold your table at Zeva Mandi &amp; Grills, Bolar, Mangaluru. Held 10 minutes from the booked time.">
+<meta property="og:description" content="A table kept for the evening: pick your date, time and party, pay the ₹500 advance by UPI. Held 10 minutes from the booked time.">
 <meta property="og:url" content="https://www.zevamandiandgrills.in/reserve">
 <meta property="og:locale" content="en_IN">
 <meta property="og:image" content="https://www.zevamandiandgrills.in/assets/img/og-cover.png">
@@ -28,7 +28,7 @@
 <meta property="og:site_name" content="Zeva Mandi &amp; Grills">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Reserve a table — Zeva Mandi &amp; Grills">
-<meta name="twitter:description" content="Book a table in Bolar, Mangaluru: date, time, adults and children. Held 10 minutes from the booked time.">
+<meta name="twitter:description" content="Book a table in Bolar, Mangaluru. Up to 50 adults, ₹500 advance by UPI, held 10 minutes from your booked time.">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
@@ -36,208 +36,327 @@
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&display=swap"></noscript>
 <style>
-  html { -webkit-text-size-adjust: 100%; }
-
+  /* ------------------------------------------------------------------
+     A table at night. The room is lacquer; the lamp is brass; the
+     reservation itself is a paper slip laid on the table, and the
+     ten-minute hold is the brass ring in the corner.
+     ------------------------------------------------------------------ */
   :root {
-    --maroon: #813d20;
-    --maroon-dark: #34160c;
-    --maroon-deep: #2a1309;
-    --gold: #bc7835;
-    --gold-bright: #f2d5a8;
-    --cream: #fdf6e9;
-    --paper: #fffdf8;
-    --ink: #2b1a12;
-    --bronze-deep: #8a5318;
-    --muted: #6d5a4f;
-    --panel: #160b07;
-    --line: rgba(188, 120, 53, .24);
-    --display: 'Figtree', 'Arial Black', sans-serif;
-    --body: 'Figtree', Georgia, Helvetica, Arial, sans-serif;
-    --ease: cubic-bezier(.22, .9, .3, 1);
+    --lacquer: #0b0604;
+    --lacquer-2: #150c07;
+    --ember: #813d20;
+    --ember-deep: #3a1a0e;
+    --brass: #bc7835;
+    --brass-lit: #f0ce95;
+    --paper: #fdf8ee;
+    --paper-2: #f6ecd9;
+    --ink: #2a1710;
+    --ink-soft: #6b5346;
+    --rule: rgba(188, 120, 53, .26);
+    --serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+    --sans: 'Figtree', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --ease: cubic-bezier(.16, .84, .3, 1);
+    --lamp: radial-gradient(760px 520px at 82% -8%, rgba(240, 206, 149, .26), rgba(188, 120, 53, .1) 42%, transparent 72%);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body { font-family: var(--body); color: var(--cream); background: #0c0505; line-height: 1.6; overflow-x: clip; }
-  body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      repeating-linear-gradient(45deg, rgba(188,120,53,.95) 0 1px, transparent 1px 42px),
-      repeating-linear-gradient(-45deg, rgba(188,120,53,.8) 0 1px, transparent 1px 42px),
-      radial-gradient(circle at 30% 20%, rgba(188,120,53,.9), transparent 55%),
-      radial-gradient(circle at 75% 80%, rgba(188,120,53,.75), transparent 50%); opacity: .08; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    color: #efe2d2;
+    background: var(--lacquer);
+    line-height: 1.62;
+    overflow-x: clip;
+    font-size: 16px;
+  }
+  /* the room: one lamp, one faint weave of brass threads */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(115deg, rgba(188, 120, 53, .05) 0 1px, transparent 1px 46px),
+      var(--lamp);
+    opacity: .9;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(5, 2, 1, .75) 100%);
+  }
+  main, header.site, footer.site { position: relative; z-index: 1; }
   img { max-width: 100%; display: block; }
-  a { color: var(--gold-bright); }
-  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 22px; }
+  a { color: var(--brass-lit); }
+  .wrap { width: min(1180px, calc(100% - 44px)); margin: 0 auto; }
 
-  .marquee { overflow: hidden; white-space: nowrap; }
-  .mq-track { display: inline-flex; will-change: transform; animation: mq 26s linear infinite; }
-  .mq-track > span { display: inline-block; padding-right: 2.2rem; }
-  @keyframes mq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .topbar { background: #0c0505; color: var(--gold-bright); font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; padding: 9px 0; font-weight: 600; border-bottom: 1px solid rgba(188, 120, 53, .14); }
-
-  header.site { position: sticky; top: 0; z-index: 50; background: rgba(12, 5, 5, .88);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(188, 120, 53, .16);
-    transition: box-shadow .3s var(--ease), padding .3s var(--ease);
-    padding: 13px 0;
+  header.site {
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(188, 120, 53, .14);
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(11, 6, 4, .82);
+    backdrop-filter: blur(14px);
   }
-  header.site.scrolled { box-shadow: 0 10px 34px rgba(0, 0, 0, .5); padding: 7px 0; }
-  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-  .logo { font-family: var(--display); font-weight: 900; color: var(--gold-bright); text-decoration: none; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; display: flex; align-items: center; gap: 12px; }
-  .logo b { color: var(--gold); display: block; font-size: 11px; letter-spacing: .3em; font-family: var(--body); font-weight: 700; }
-  .logo-mark { height: 50px; width: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .5)); }
-  @media (max-width: 700px) { .logo-mark { height: 44px; } }
-  nav.main { display: flex; gap: 26px; align-items: center; }
-  nav.main a { color: var(--cream); text-decoration: none; font-weight: 600; font-size: 14.5px; letter-spacing: .04em; text-transform: uppercase; position: relative; }
-  nav.main a::after { content: ""; position: absolute; left: 0; bottom: -5px; height: 2px; width: 0; background: var(--gold); transition: width .3s var(--ease); }
-  nav.main a:hover::after, nav.main a[aria-current="page"]::after { width: 100%; }
-  .burger { display: none; background: none; border: 0; cursor: pointer; padding: 8px; }
-  .burger span { display: block; width: 24px; height: 2.5px; background: var(--gold-bright); margin: 5px 0; border-radius: 2px; transition: transform .3s var(--ease), opacity .3s; }
-  .burger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--brass-lit); }
+  .logo-mark { height: 44px; width: auto; filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .6)); }
+  .logo span { font-family: var(--serif); font-size: 19px; letter-spacing: .01em; line-height: 1.1; }
+  .logo small { display: block; font-family: var(--sans); font-size: 10.5px; letter-spacing: .22em; color: rgba(240, 206, 149, .55); margin-top: 3px; }
+  nav.main { display: flex; gap: 24px; align-items: center; }
+  nav.main a { color: rgba(253, 246, 233, .8); text-decoration: none; font-size: 14.5px; font-weight: 500; }
+  nav.main a:hover, nav.main a[aria-current="page"] { color: var(--brass-lit); }
+  nav.main a.call { border: 1px solid var(--rule); border-radius: 999px; padding: 8px 18px; }
+  nav.main a.call:hover { border-color: var(--brass); background: rgba(188, 120, 53, .12); }
+  .burger { display: none; background: none; border: 0; cursor: pointer; padding: 10px; }
+  .burger span { display: block; width: 24px; height: 2px; background: var(--brass-lit); margin: 5px 0; transition: transform .3s var(--ease), opacity .3s; }
+  .burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   .burger.open span:nth-child(2) { opacity: 0; }
-  .burger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+  .burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-  .btn { display: inline-block; padding: 13px 30px; border-radius: 999px; font-weight: 700; font-size: 15px; letter-spacing: .03em; text-decoration: none; transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s, color .25s; border: 2px solid transparent; cursor: pointer; font-family: var(--body); }
-  .btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 12px 26px rgba(42, 19, 9, .22); }
-  .btn-gold { background: var(--gold); color: var(--maroon-dark); }
-  .btn-maroon { background: var(--maroon); color: var(--cream); }
-  .btn-outline { border-color: var(--gold); color: var(--gold-bright); background: transparent; }
-  .btn-outline:hover { background: var(--gold); color: var(--maroon-dark); }
-  .btn-wa { background: #25d366; color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-  .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
-  .btn-google { background: var(--cream); color: #1f1f1f; display: inline-flex; align-items: center; gap: 10px; border-color: var(--cream); }
-
-  html.js .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
-  html.js .reveal.in { opacity: 1; transform: none; }
-
-  .page-hero { background: radial-gradient(1000px 500px at 75% -20%, #93491f 0%, var(--maroon) 45%, var(--maroon-dark) 100%); color: var(--cream); padding: clamp(40px, 6vw, 68px) 0; text-align: center; position: relative; overflow: hidden; }
-  .page-hero::before { content: ""; position: absolute; width: 129px; height: 280px; background: url(assets/img/zeva-mark.webp) center / contain no-repeat; opacity: .1; top: -70px; right: -30px; }
-  .kicker { display: inline-block; color: var(--gold-bright); font-weight: 800; letter-spacing: .22em; text-transform: uppercase; font-size: 13px; margin-bottom: 12px; position: relative; }
-  h1 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(30px, 5vw, 54px); line-height: 1.07; position: relative; }
-  h1 .accent { color: var(--gold-bright); }
-  .page-hero p { max-width: 680px; margin: 16px auto 0; opacity: .92; font-size: 16.5px; position: relative; }
-
-  /* ---------- layout ---------- */
-  .reserve-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 24px; padding: clamp(32px, 5vw, 56px) 0 0; align-items: start; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 26px; }
-  .panel h2 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: 17px; letter-spacing: .04em; color: var(--gold-bright); margin-bottom: 6px; }
-  .panel .sub { color: rgba(253, 246, 233, .66); font-size: 14.5px; margin-bottom: 18px; }
-  .panel + .panel { margin-top: 20px; }
-
-  /* ---------- sign in ---------- */
-  #auth-card h2 { margin-bottom: 4px; }
-  .who { display: flex; align-items: center; gap: 12px; }
-  .who img, .who .ini { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; background: var(--maroon); display: grid; place-items: center; font-weight: 800; color: var(--gold-bright); }
-  .who .name { font-weight: 700; }
-  .who .mail { font-size: 13px; color: rgba(253, 246, 233, .6); word-break: break-all; }
-  .tiny { font-size: 12.5px; color: rgba(253, 246, 233, .55); }
-  .linkbtn { background: none; border: 0; color: var(--gold-bright); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 0; }
-  .signin-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .gmark { width: 18px; height: 18px; flex: none; }
-  .alt { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
-  .alt h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: rgba(253, 246, 233, .6); margin-bottom: 10px; font-weight: 700; }
-  .inline-form { display: flex; gap: 10px; flex-wrap: wrap; }
-  .inline-form input { flex: 1 1 160px; }
-
-  /* ---------- form ---------- */
-  label.f { display: block; font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(253, 246, 233, .7); margin-bottom: 7px; }
-  input[type="text"], input[type="tel"], input[type="date"], select, textarea {
-    width: 100%; background: #0f0705; color: var(--cream); border: 1px solid var(--line);
-    border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 15px; color-scheme: dark;
+  /* ---------------- hero ---------------- */
+  .hero { padding: clamp(46px, 8vw, 96px) 0 clamp(26px, 4vw, 44px); }
+  .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: clamp(24px, 5vw, 64px); align-items: end; }
+  .hero h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(44px, 7.2vw, 88px);
+    line-height: .98;
+    letter-spacing: -.015em;
+    color: var(--paper);
   }
-  input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
-  textarea { resize: vertical; min-height: 66px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .field + .field, .row2 + .field, .field + .row2 { margin-top: 16px; }
+  .hero .lines { overflow: hidden; }
+  .hero .lines > span { display: block; }
+  .hero .lines > span:nth-child(2) { padding-left: .11em; }
+  html.js .hero .lines > span { transform: translateY(105%); animation: rise .95s var(--ease) forwards; }
+  html.js .hero .lines > span:nth-child(2) { animation-delay: .11s; }
+  @keyframes rise { to { transform: translateY(0); } }
+  .hero-rule { height: 1px; background: linear-gradient(90deg, var(--brass), rgba(188, 120, 53, .08)); margin: 26px 0 18px; width: min(340px, 70%); }
+  .hero p.lede { font-size: 17.5px; max-width: 46ch; color: rgba(239, 226, 210, .78); }
+  .hero-aside { align-self: end; padding-bottom: 6px; }
+  .tonight { border-left: 1px solid var(--rule); padding-left: 20px; }
+  .tonight .k { font-family: var(--serif); font-style: italic; font-size: 16px; color: rgba(240, 206, 149, .68); }
+  .tonight .v { font-family: var(--serif); font-size: 26px; color: var(--paper); margin-top: 6px; }
+  .tonight .s { font-size: 13.5px; color: rgba(239, 226, 210, .62); margin-top: 4px; }
+  .tonight .s b { color: var(--brass-lit); font-weight: 600; }
 
-  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 9px; margin-top: 4px; }
-  .slot { position: relative; border: 1px solid var(--line); background: #0f0705; color: var(--cream); border-radius: 12px; padding: 10px 8px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: center; transition: background .2s, border-color .2s, transform .2s var(--ease); }
-  .slot small { display: block; font-weight: 600; font-size: 11px; letter-spacing: .02em; color: rgba(253, 246, 233, .5); }
-  .slot:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-2px); }
-  .slot[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--maroon-dark); }
-  .slot[aria-pressed="true"] small { color: rgba(42, 19, 9, .7); }
-  .slot:disabled { opacity: .38; cursor: not-allowed; text-decoration: line-through; }
-  .slot:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
-  .slots-note { font-size: 12.5px; color: rgba(253, 246, 233, .55); margin-top: 10px; }
+  /* ---------------- the layout ---------------- */
+  .desk { display: grid; grid-template-columns: 1.18fr .82fr; gap: clamp(20px, 3vw, 34px); padding-bottom: clamp(40px, 6vw, 72px); align-items: start; }
+  .stack > * + * { margin-top: 26px; }
 
-  .submit-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 22px; }
-  .submit-row .tiny { flex: 1 1 220px; }
+  /* the paper slip */
+  .slip {
+    position: relative;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 3px;
+    padding: 34px clamp(22px, 3.4vw, 40px) 30px;
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .85), 0 2px 0 rgba(255, 255, 255, .06) inset;
+  }
+  /* perforated top edge: a row of half-circles punched out of the paper */
+  .slip::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: -7px; height: 14px;
+    background-image: radial-gradient(circle at 8px 7px, var(--lacquer) 6.5px, transparent 7px);
+    background-size: 22px 14px;
+    background-repeat: repeat-x;
+  }
+  .slip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .slip h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3.2vw, 31px); line-height: 1.1; color: var(--ink); letter-spacing: -.01em; }
+  .slip .note { font-size: 13.5px; color: var(--ink-soft); }
+  .slip .rule { height: 1px; background: repeating-linear-gradient(90deg, rgba(42, 23, 16, .3) 0 6px, transparent 6px 11px); margin: 18px 0 20px; }
 
-  .msg { border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-top: 16px; display: none; }
+  /* ---------------- sign in ---------------- */
+  .signin { display: flex; gap: 10px; flex-wrap: wrap; }
+  .field-label { display: block; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); margin-bottom: 6px; }
+  input[type="text"], input[type="tel"], input[type="date"], select, textarea {
+    width: 100%; font: inherit; font-size: 15.5px; color: var(--ink);
+    background: var(--paper-2); border: 1px solid rgba(42, 23, 16, .22);
+    border-radius: 2px; padding: 11px 13px;
+  }
+  input::placeholder, textarea::placeholder { color: rgba(42, 23, 16, .42); }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; background: #fffdf8; }
+  textarea { resize: vertical; min-height: 64px; }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    font: inherit; font-weight: 600; font-size: 15px; line-height: 1;
+    padding: 14px 26px; border-radius: 2px; border: 1px solid transparent;
+    text-decoration: none; cursor: pointer;
+    transition: transform .25s var(--ease), background .25s, color .25s, border-color .25s, box-shadow .25s;
+  }
+  .btn-solid { background: var(--ember); color: var(--paper); box-shadow: 0 10px 26px -14px rgba(129, 61, 32, .9); }
+  .btn-solid:hover { background: var(--ember-deep); transform: translateY(-2px); }
+  .btn-line { border-color: rgba(42, 23, 16, .3); color: var(--ink); background: transparent; }
+  .btn-line:hover { border-color: var(--ember); color: var(--ember); }
+  .btn-brass { background: var(--brass); color: #23140a; }
+  .btn-brass:hover { background: var(--brass-lit); transform: translateY(-2px); }
+  .btn-ghost { border-color: var(--rule); color: var(--brass-lit); background: transparent; }
+  .btn-ghost:hover { border-color: var(--brass); background: rgba(188, 120, 53, .12); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn:focus-visible { outline: 2px solid var(--brass-lit); outline-offset: 3px; }
+  .btn svg { flex: none; }
+
+  .who { display: flex; align-items: center; gap: 12px; }
+  .who .ini, .who img { width: 44px; height: 44px; border-radius: 50%; background: var(--ember); color: var(--paper); display: grid; place-items: center; font-weight: 600; object-fit: cover; }
+  .who .name { font-weight: 600; color: var(--ink); }
+  .who .mail { font-size: 13px; color: var(--ink-soft); word-break: break-all; }
+  .muted { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .linkish { background: none; border: 0; padding: 0; font: inherit; font-size: 13px; color: var(--ember); text-decoration: underline; cursor: pointer; }
+
+  /* ---------------- form ---------------- */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field + .field, .field + .form-row, .form-row + .field, .form-row + .form-row { margin-top: 16px; }
+
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 8px; }
+  .slot {
+    position: relative; overflow: hidden;
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--ink);
+    background: var(--paper-2); border: 1px solid rgba(42, 23, 16, .18);
+    border-radius: 2px; padding: 9px 6px; cursor: pointer; text-align: center;
+    transition: color .22s, border-color .22s, transform .22s var(--ease);
+  }
+  .slot::before {
+    content: ""; position: absolute; inset: 0; background: var(--ember);
+    transform: translateY(101%); transition: transform .3s var(--ease); z-index: 0;
+  }
+  .slot > * { position: relative; z-index: 1; }
+  .slot small { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft); margin-top: 2px; transition: color .22s; }
+  .slot:hover:not(:disabled) { border-color: var(--ember); transform: translateY(-2px); }
+  .slot[aria-pressed="true"] { color: var(--paper); border-color: var(--ember); }
+  .slot[aria-pressed="true"]::before { transform: translateY(0); }
+  .slot[aria-pressed="true"] small { color: rgba(253, 248, 238, .72); }
+  .slot:disabled { opacity: .45; cursor: not-allowed; text-decoration: line-through; text-decoration-thickness: 1px; }
+  .slot:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+  .slots-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; }
+
+  .submit-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+  .submit-row .muted { flex: 1 1 200px; }
+
+  .msg { display: none; margin-top: 16px; font-size: 14.5px; padding: 11px 13px; border-radius: 2px; }
   .msg.show { display: block; }
-  .msg.err { background: rgba(190, 60, 45, .16); border: 1px solid rgba(220, 90, 70, .5); color: #ffd9d2; }
-  .msg.ok { background: rgba(60, 160, 100, .14); border: 1px solid rgba(90, 200, 140, .45); color: #d6ffe9; }
+  .msg.err { background: rgba(129, 61, 32, .1); border-left: 3px solid var(--ember); color: #6d2a15; }
+  .msg.ok { background: rgba(60, 130, 90, .1); border-left: 3px solid #3d7a55; color: #245640; }
 
-  /* ---------- confirmation + hold timer ---------- */
-  #confirm-card { display: none; }
-  #confirm-card.show { display: block; }
-  .confirm-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-  .code { font-family: var(--display); font-weight: 900; letter-spacing: .16em; font-size: 22px; color: var(--maroon-dark); background: var(--gold-bright); border-radius: 10px; padding: 6px 14px; }
-  .when { font-family: var(--display); font-weight: 900; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.15; margin-top: 14px; }
-  .when span { color: var(--gold-bright); }
-  .facts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; font-size: 14.5px; color: rgba(253, 246, 233, .75); }
-  .facts b { color: var(--cream); }
-  .timer-box { margin-top: 18px; border-radius: 16px; padding: 16px 18px; background: linear-gradient(120deg, rgba(188, 120, 53, .22), rgba(129, 61, 32, .3)); border: 1px solid rgba(188, 120, 53, .45); }
-  .timer-box .label { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: var(--gold-bright); }
-  .timer-box .clock { font-family: var(--display); font-weight: 900; font-size: clamp(30px, 6vw, 44px); line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: .02em; margin: 2px 0 4px; }
-  .timer-box .hint { font-size: 14px; color: rgba(253, 246, 233, .78); }
-  .timer-box.held { border-color: var(--gold); }
-  .timer-box.past { background: rgba(190, 60, 45, .16); border-color: rgba(220, 90, 70, .5); }
-  .timer-box.past .clock { color: #ffb4a6; }
+  /* ---------------- the pass (confirmation) ---------------- */
+  #confirmation { display: none; }
+  #confirmation.show { display: grid; grid-template-columns: 1.18fr .82fr; gap: clamp(20px, 3vw, 34px); align-items: stretch; margin-bottom: 26px; }
+  .pass {
+    background: var(--paper); color: var(--ink); border-radius: 3px; padding: 30px clamp(20px, 3vw, 34px);
+    position: relative; box-shadow: 0 30px 70px -34px rgba(0, 0, 0, .9);
+    transform: translateY(14px); opacity: 0; transition: transform .6s var(--ease), opacity .6s var(--ease);
+  }
+  #confirmation.show .pass { transform: none; opacity: 1; }
+  .pass-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .pass .label-small { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-soft); }
+  .code {
+    font-family: var(--serif); font-size: 30px; letter-spacing: .08em; color: var(--ember);
+    border: 1px dashed rgba(129, 61, 32, .5); border-radius: 2px; padding: 2px 12px; white-space: nowrap;
+  }
+  .pass .when { font-family: var(--serif); font-size: clamp(24px, 3vw, 32px); line-height: 1.14; margin-top: 14px; }
+  .pass .when b { font-weight: 500; }
+  .pass .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; font-size: 14px; color: var(--ink-soft); }
+  .pass .facts b { color: var(--ink); font-weight: 600; }
+  .pass hr { border: 0; border-top: 1px dashed rgba(42, 23, 16, .28); margin: 20px 0; }
 
-  .rule { display: flex; gap: 14px; align-items: flex-start; }
-  .rule .num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--gold); color: var(--maroon-dark); font-weight: 900; display: grid; place-items: center; font-size: 15px; }
-  .rule h3 { font-size: 15.5px; font-weight: 800; color: var(--cream); margin-bottom: 2px; }
-  .rule p { font-size: 14px; color: rgba(253, 246, 233, .7); }
-  .rule + .rule { margin-top: 16px; }
+  .advance { background: var(--paper-2); border: 1px solid rgba(129, 61, 32, .22); border-left: 3px solid var(--brass); border-radius: 2px; padding: 16px 18px; }
+  .advance h3 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); }
+  .advance .amt { font-family: var(--serif); font-size: 26px; color: var(--ember); }
+  .advance p { font-size: 13.5px; color: var(--ink-soft); margin-top: 4px; }
+  .advance .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .vpa { font-size: 12.5px; color: var(--ink-soft); word-break: break-all; margin-top: 8px; }
+  .vpa code { font-family: var(--sans); background: rgba(42, 23, 16, .07); padding: 2px 6px; border-radius: 2px; }
+  .adv-state { font-size: 13.5px; font-weight: 600; margin-top: 10px; display: none; }
+  .adv-state.show { display: block; }
+  .adv-state.paid { color: #245640; }
+  .adv-state.claimed { color: var(--ember); }
 
-  .policy { margin-top: 20px; border-left: 3px solid var(--gold); background: rgba(188, 120, 53, .1); border-radius: 0 14px 14px 0; padding: 16px 18px; font-size: 14.5px; }
-  .policy strong { color: var(--gold-bright); }
+  .pass-foot { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
 
-  /* ---------- my bookings ---------- */
-  .bk { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: #0f0705; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
-  .bk + .bk { margin-top: 10px; }
-  .bk .t { font-weight: 800; font-size: 15.5px; }
-  .bk .s { font-size: 13px; color: rgba(253, 246, 233, .62); }
-  .bk .state { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--gold-bright); }
-  .bk .state.off { color: #ffb4a6; border-color: rgba(220, 90, 70, .5); }
+  /* ---------------- the hold (ring) ---------------- */
+  .hold {
+    position: relative; border: 1px solid var(--rule); border-radius: 3px;
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(240, 206, 149, .12), transparent 60%),
+      var(--lacquer-2);
+    padding: 28px 24px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    min-height: 100%;
+  }
+  .ring { position: relative; width: 168px; height: 168px; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 3; }
+  .ring .track { stroke: rgba(188, 120, 53, .18); }
+  .ring .fill { stroke: var(--brass-lit); stroke-linecap: round; transition: stroke-dashoffset .95s linear, stroke .4s; }
+  .ring .pulse { stroke: rgba(240, 206, 149, .5); stroke-width: 1; stroke-dasharray: 2 7; animation: spin 26s linear infinite; transform-origin: 50% 50%; }
+  .ring-in { position: absolute; inset: 0; display: grid; place-content: center; gap: 2px; }
+  .ring-in b { font-family: var(--serif); font-weight: 400; font-size: 34px; letter-spacing: .01em; color: var(--paper); font-variant-numeric: tabular-nums; }
+  .ring-in span { font-size: 12.5px; color: rgba(240, 206, 149, .66); }
+  .hold h3 { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--paper); margin-top: 20px; }
+  .hold p { font-size: 13.5px; color: rgba(239, 226, 210, .72); margin-top: 8px; max-width: 34ch; }
+  .hold.past .ring .fill { stroke: #d0735c; }
+  .hold.past h3 { color: #f3b7a8; }
+  .hold.past .ring-in b { color: #f3b7a8; }
+  .hold.held { border-color: rgba(240, 206, 149, .5); }
 
-  .order-strip { margin: clamp(30px, 5vw, 48px) 0 0; border-radius: 20px; padding: 24px 26px; background: linear-gradient(120deg, var(--maroon) 0%, var(--maroon-dark) 100%); border: 1px solid rgba(188, 120, 53, .3); display: flex; justify-content: space-between; gap: 20px; align-items: center; flex-wrap: wrap; }
-  .order-strip h2 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(18px, 2.6vw, 24px); color: var(--cream); }
-  .order-strip p { color: rgba(253, 246, 233, .8); font-size: 14.5px; margin-top: 4px; }
-  .order-strip .acts { display: flex; gap: 12px; flex-wrap: wrap; }
+  /* ---------------- bookings list + side notes ---------------- */
+  .panel-dark { border: 1px solid var(--rule); border-radius: 3px; padding: 24px; background: rgba(21, 12, 7, .6); }
+  .panel-dark h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--paper); }
+  .panel-dark p, .panel-dark li { font-size: 14px; color: rgba(239, 226, 210, .72); }
+  .steps { list-style: none; display: grid; gap: 18px; margin-top: 18px; }
+  .steps li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; }
+  .steps .bullet { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--brass); color: var(--brass-lit); display: grid; place-items: center; font-size: 12.5px; font-weight: 600; }
+  .steps h4 { font-family: var(--serif); font-weight: 500; font-size: 17px; color: var(--paper); }
+  .steps p { margin-top: 2px; }
+  .bk { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; padding: 12px 0; border-top: 1px solid rgba(42, 23, 16, .12); }
+  .bk:first-of-type { border-top: 0; }
+  .bk .t { font-weight: 600; color: var(--ink); font-size: 15px; }
+  .bk .s { font-size: 12.5px; color: var(--ink-soft); }
+  .bk .state { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(129, 61, 32, .38); color: var(--ember); }
+  .bk .state.off { color: #a2452f; border-color: rgba(162, 69, 47, .5); }
 
-  footer.site { background: var(--maroon-deep); color: rgba(253, 246, 233, .82); padding: clamp(44px, 7vw, 72px) 0 30px; margin-top: clamp(40px, 6vw, 64px); }
-  .foot-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 36px; }
-  footer .brand-f { font-family: var(--display); font-weight: 900; color: var(--gold); text-transform: uppercase; font-size: 21px; letter-spacing: .05em; margin-bottom: 12px; }
-  footer .brand-mark { height: 46px; width: auto; display: block; margin-bottom: 10px; }
-  footer h3 { color: var(--cream); text-transform: uppercase; letter-spacing: .14em; font-size: 13px; margin-bottom: 14px; }
-  footer ul { list-style: none; }
-  footer li { margin-bottom: 9px; font-size: 15px; }
-  footer a { color: rgba(253, 246, 233, .82); text-decoration: none; transition: color .25s; }
-  footer a:hover { color: var(--gold-bright); }
-  footer .fine-line { border-top: 1px solid rgba(253, 246, 233, .14); margin-top: 40px; padding-top: 22px; font-size: 13px; opacity: .7; text-align: center; }
+  .order-band { border: 1px solid var(--rule); border-radius: 3px; background: linear-gradient(100deg, rgba(129, 61, 32, .5), rgba(21, 12, 7, .2)); padding: 26px clamp(20px, 3vw, 32px); display: flex; gap: 22px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .order-band h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(21px, 2.6vw, 27px); color: var(--paper); }
+  .order-band p { font-size: 14px; color: rgba(239, 226, 210, .74); margin-top: 4px; }
+  .order-band .acts { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  @media (max-width: 900px) {
-    .reserve-grid { grid-template-columns: 1fr; }
-    .foot-grid { grid-template-columns: 1fr 1fr; }
+  footer.site { border-top: 1px solid rgba(188, 120, 53, .14); padding: clamp(38px, 6vw, 60px) 0 26px; margin-top: clamp(40px, 6vw, 72px); }
+  .foot { display: grid; grid-template-columns: 1.4fr 1fr; gap: 34px; }
+  .foot .brand { font-family: var(--serif); font-size: 22px; color: var(--brass-lit); margin: 10px 0 8px; }
+  .foot p, .foot a, .foot li { font-size: 14px; color: rgba(239, 226, 210, .66); }
+  .foot a { text-decoration: none; }
+  .foot a:hover { color: var(--brass-lit); }
+  .foot h4 { font-family: var(--serif); font-style: italic; font-size: 16px; font-weight: 400; color: rgba(240, 206, 149, .6); margin-bottom: 10px; }
+  .foot ul { list-style: none; display: grid; gap: 7px; }
+  .fine { margin-top: 34px; padding-top: 18px; border-top: 1px solid rgba(188, 120, 53, .12); font-size: 12.5px; color: rgba(239, 226, 210, .4); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 980px) {
+    .hero-grid, .desk, #confirmation.show { grid-template-columns: 1fr; }
+    .hero-aside { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 16px; }
+    .hold { min-height: 0; }
   }
   @media (max-width: 700px) {
-    nav.main { position: fixed; inset: 0 0 auto 0; padding: calc(92px + env(safe-area-inset-top, 0px)) 26px calc(30px + env(safe-area-inset-bottom, 0px)); max-height: 100vh; max-height: 100dvh; overflow-y: auto; background: var(--maroon-deep); flex-direction: column; align-items: flex-start; gap: 20px; transform: translateY(-110%); transition: transform .45s var(--ease); box-shadow: 0 20px 50px rgba(0, 0, 0, .5); z-index: -1; }
+    nav.main {
+      position: fixed; inset: 0 0 auto 0; z-index: 30;
+      padding: calc(84px + env(safe-area-inset-top, 0px)) 26px calc(30px + env(safe-area-inset-bottom, 0px));
+      background: var(--lacquer-2); flex-direction: column; align-items: flex-start; gap: 18px;
+      transform: translateY(-108%); transition: transform .45s var(--ease);
+      border-bottom: 1px solid var(--rule);
+    }
     nav.main.open { transform: translateY(0); }
-    nav.main a { font-size: 19px; }
+    nav.main a { font-size: 18px; }
     .burger { display: block; }
-    .row2 { grid-template-columns: 1fr; }
-    .panel { padding: 20px; }
-    .order-strip { flex-direction: column; align-items: flex-start; }
+    .form-row { grid-template-columns: 1fr; }
+    .slip { padding: 30px 20px 24px; }
+    .foot { grid-template-columns: 1fr; }
+    #confirmation.show { gap: 18px; }
   }
   @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-    html.js .reveal { opacity: 1; transform: none; }
-  }
-  @media (pointer: coarse) {
-    .burger { padding: 12px; margin: -4px; }
+    html.js .hero .lines > span { transform: none; }
+    .pass { transform: none; opacity: 1; }
   }
 </style>
 <script type="application/ld+json">
@@ -274,228 +393,227 @@
 </head>
 <body>
 
-<div class="marquee topbar" aria-hidden="true">
-  <div class="mq-track">
-    <span>★ Open daily 12 PM – 11 PM</span><span>★ Tables held 10 minutes from your booking time</span><span>★ Call 070227 71888</span><span>★ Pickup or delivery across Mangaluru</span>
-    <span>★ Open daily 12 PM – 11 PM</span><span>★ Tables held 10 minutes from your booking time</span><span>★ Call 070227 71888</span><span>★ Pickup or delivery across Mangaluru</span>
-  </div>
-</div>
-
-<header class="site" id="site-header">
+<header class="site">
   <div class="wrap nav-inner">
-    <a class="logo" href="index.html"><img class="logo-mark" src="assets/img/zeva-mark.webp" alt="" width="324" height="706" decoding="async"><span>Zeva Mandi &amp; Grills<b>Mandi • Grills • Mangaluru</b></span></a>
+    <a class="logo" href="index.html"><img class="logo-mark" src="assets/img/zeva-mark.webp" alt="" width="324" height="706" decoding="async"><span>Zeva Mandi &amp; Grills<small>Bolar, Mangaluru</small></span></a>
     <nav class="main" id="main-nav">
-      <a href="about.html">About</a>
-      <a href="history.html">History</a>
       <a href="menu.html">Menu</a>
       <a href="visit.html">Visit</a>
+      <a href="reserve.html" aria-current="page">Reserve</a>
       <a href="faq.html">FAQ</a>
       <a href="review-us.html">Review us</a>
-      <a href="download.html">App</a>
-      <a href="tel:+917022771888">Call now</a>
+      <a class="call" href="tel:+917022771888">070227 71888</a>
     </nav>
-    <button class="burger" id="burger" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
   </div>
 </header>
 
 <main>
-<section class="page-hero">
-  <div class="wrap">
-    <span class="kicker">Reserve a table</span>
-    <h1>Hold a table at <span class="accent">Zeva</span></h1>
-    <p>Pick your date, time and how many adults and children are coming. Sign in with your WhatsApp number, and your booking code arrives on the same phone — show it at the counter.</p>
-    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:26px;position:relative">
-      <a class="btn btn-gold" href="#book">Book a table</a>
-      <a class="btn" href="tel:+917022771888" style="border-color:rgba(253,246,233,.6);color:var(--cream)">Call 070227 71888</a>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <h1 class="lines"><span>A table, kept</span><span>for the evening.</span></h1>
+        <div class="hero-rule"></div>
+        <p class="lede">Mandi and charcoal grills in Bolar, with the table held under your name. Tell us the evening and the party — up to fifty — and pay the ₹500 advance by UPI to lock it in.</p>
+      </div>
+      <div class="hero-aside">
+        <div class="tonight">
+          <div class="k">Tonight at Zeva</div>
+          <div class="v" id="tonight-time">Open till 11 PM</div>
+          <div class="s" id="tonight-seats">Seatings from 12 PM to 10 PM, every day.</div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<div class="wrap">
-  <div class="reserve-grid">
-
-    <div>
-      <!-- Signed-out / signed-in identity -->
-      <section class="panel" id="auth-card">
-        <h2>1. Sign in</h2>
-        <p class="sub" id="auth-sub">Enter your WhatsApp number and we send a one-time code. Your table stays on that number.</p>
-        <div id="auth-body"></div>
-      </section>
-
-      <!-- Confirmation + live hold timer -->
-      <section class="panel" id="confirm-card" aria-live="polite">
-        <div class="confirm-head">
+  <div class="wrap">
+    <div class="stack" id="confirmation" aria-live="polite">
+      <article class="pass">
+        <div class="pass-top">
           <div>
-            <h2>Your table is booked</h2>
-            <p class="sub" style="margin-bottom:0">Show this code at the counter when you arrive.</p>
+            <div class="label-small">Your booking</div>
+            <div class="when" id="c-when">—</div>
           </div>
           <div class="code" id="c-code">—</div>
         </div>
-        <div class="when" id="c-when"></div>
         <div class="facts" id="c-facts"></div>
-        <p class="tiny" id="c-sent" style="margin-top:10px"></p>
-        <div class="timer-box" id="c-timer">
-          <div class="label" id="c-timer-label">Time until your table</div>
-          <div class="clock" id="c-clock">--:--</div>
-          <div class="hint" id="c-hint"></div>
+        <hr>
+        <div class="advance">
+          <h3>Advance for the table</h3>
+          <div class="amt" id="adv-amount">₹500</div>
+          <p id="adv-copy">Pay ₹500 now by UPI and the table is confirmed. The advance comes off your bill.</p>
+          <div class="acts">
+            <a class="btn btn-solid" id="adv-pay" href="#" rel="noopener">Pay ₹500 by UPI</a>
+            <button class="btn btn-line" type="button" id="adv-claimed">I have paid</button>
+            <button class="btn btn-line" type="button" id="c-cancel">Cancel booking</button>
+          </div>
+          <div class="vpa" id="adv-vpa" hidden></div>
+          <div class="adv-state" id="adv-state"></div>
         </div>
-        <div class="submit-row">
-          <button class="btn btn-outline" type="button" id="c-cancel">Cancel this booking</button>
-          <span class="tiny">Free to cancel any time before you arrive. Nothing is charged for a table.</span>
+        <div class="pass-foot">
+          <span class="muted">Show this code at the counter. Free to cancel any time before you arrive.</span>
         </div>
         <div class="msg" id="c-msg"></div>
-      </section>
+      </article>
 
-      <!-- Booking form -->
-      <section class="panel" id="book-card" hidden>
-        <h2>2. Your table</h2>
-        <p class="sub">Open daily, 12 PM – 11 PM. Last seating 10 PM.</p>
-        <form id="book-form" novalidate>
-          <div class="field">
-            <label class="f" for="f-day">Date</label>
-            <input type="date" id="f-day" name="day" required>
-          </div>
-          <div class="field">
-            <label class="f" id="slots-label">Arrival time</label>
-            <div class="slots" id="slots" role="group" aria-labelledby="slots-label"></div>
-            <p class="slots-note" id="slots-note">Pick a time to see what is open.</p>
-          </div>
-          <div class="row2">
-            <div class="field">
-              <label class="f" for="f-adults">Adults</label>
-              <select id="f-adults" name="adults"></select>
-            </div>
-            <div class="field">
-              <label class="f" for="f-children">Children</label>
-              <select id="f-children" name="children"></select>
-            </div>
-          </div>
-          <div class="field">
-            <label class="f" for="f-name">Name for the table</label>
-            <input type="text" id="f-name" name="name" maxlength="80" autocomplete="name" placeholder="Name we should call">
-          </div>
-          <div class="field">
-            <label class="f" for="f-phone">Mobile number</label>
-            <input type="tel" id="f-phone" name="phone" maxlength="16" autocomplete="tel" placeholder="10-digit mobile">
-          </div>
-          <div class="field">
-            <label class="f" for="f-note">Anything we should know? <span style="text-transform:none;letter-spacing:0;font-weight:500;color:rgba(253,246,233,.45)">(optional)</span></label>
-            <textarea id="f-note" name="note" maxlength="240" placeholder="Birthday, high chair, step-free seating…"></textarea>
-          </div>
-          <div class="submit-row">
-            <button class="btn btn-gold" type="submit" id="f-submit">Confirm table</button>
-            <span class="tiny">We hold the table for 10 minutes from your booking time. Please be at Zeva at that time.</span>
-          </div>
-          <div class="msg" id="f-msg"></div>
-        </form>
-      </section>
-
-      <!-- Existing bookings -->
-      <section class="panel" id="mine-card" hidden>
-        <h2>Your bookings</h2>
-        <p class="sub">Upcoming tables on your account.</p>
-        <div id="mine"></div>
-      </section>
+      <aside class="hold" id="c-hold">
+        <div class="ring">
+          <svg viewBox="0 0 168 168" aria-hidden="true">
+            <circle class="pulse" cx="84" cy="84" r="78"></circle>
+            <circle class="track" cx="84" cy="84" r="70"></circle>
+            <circle class="fill" id="ring-fill" cx="84" cy="84" r="70"></circle>
+          </svg>
+          <div class="ring-in"><b id="c-clock">--:--</b><span id="c-ring-label">until your table</span></div>
+        </div>
+        <h3 id="c-hold-title">Your table is reserved</h3>
+        <p id="c-hint"></p>
+      </aside>
     </div>
 
-    <aside>
-      <section class="panel">
-        <h2>How it works</h2>
-        <div class="rule" style="margin-top:14px">
-          <div class="num">1</div>
-          <div><h3>Sign in with WhatsApp</h3><p>Your mobile number and a one-time code. The booking sits on that number, so you can cancel it later.</p></div>
-        </div>
-        <div class="rule">
-          <div class="num">2</div>
-          <div><h3>Choose date, time, adults and children</h3><p>We seat the party together. Groups larger than 20 should call <a href="tel:+917022771888">070227 71888</a>.</p></div>
-        </div>
-        <div class="rule">
-          <div class="num">3</div>
-          <div><h3>Arrive at your time</h3><p>Show your code at the counter and we take you to the table.</p></div>
-        </div>
-        <div class="policy">
-          <strong>Tables are held for 10 minutes only.</strong> The hold starts at your booked arrival time, and the table is released automatically after that — no call needed, it just goes back to the floor. Please be at Zeva at your booked time. Running late? Call <a href="tel:+917022771888">070227 71888</a> before the 10 minutes are up and we will do our best.
-        </div>
-      </section>
+    <div class="desk">
+      <div class="stack">
+        <section class="slip" id="auth-card">
+          <div class="slip-head">
+            <h2 id="auth-title">Sign in to hold a table</h2>
+            <div class="note" id="auth-note">WhatsApp code, no password</div>
+          </div>
+          <div class="rule"></div>
+          <div id="auth-body"></div>
+        </section>
 
-      <section class="panel">
-        <h2>Good to know</h2>
-        <ul style="list-style:none;font-size:14.5px;color:rgba(253,246,233,.75);display:grid;gap:10px;margin-top:12px">
-          <li>Free to book and free to cancel.</li>
-          <li>Mandi takes about 20 minutes from order to table.</li>
-          <li>Every dish is 100% halal.</li>
-          <li>Shop no G03 Jeppu, Arfa Mirage tower, Morgans Gate Rd, Bolar, Mangaluru 575001 — near Zudio.</li>
-          <li>Open every day, 12 PM – 11 PM.</li>
-        </ul>
-      </section>
-    </aside>
+        <section class="slip" id="book-card" hidden>
+          <div class="slip-head">
+            <h2>Your table</h2>
+            <div class="note">Open daily, 12 PM – 11 PM · last seating 10 PM</div>
+          </div>
+          <div class="rule"></div>
+          <form id="book-form" novalidate>
+            <div class="field">
+              <label class="field-label" for="f-day">Date</label>
+              <input type="date" id="f-day" name="day" required>
+            </div>
+            <div class="field">
+              <span class="field-label" id="slots-label">Arrival</span>
+              <div class="slots" id="slots" role="group" aria-labelledby="slots-label"></div>
+              <p class="slots-note" id="slots-note">Pick a date to see the open seatings.</p>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label class="field-label" for="f-adults">Adults</label>
+                <select id="f-adults" name="adults"></select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="f-children">Children</label>
+                <select id="f-children" name="children"></select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="f-name">Name for the table</label>
+              <input type="text" id="f-name" name="name" maxlength="80" autocomplete="name" placeholder="Who is the table for?">
+            </div>
+            <div class="field">
+              <label class="field-label" for="f-phone">Mobile number</label>
+              <input type="tel" id="f-phone" name="phone" maxlength="16" autocomplete="tel" placeholder="10-digit mobile">
+            </div>
+            <div class="field">
+              <label class="field-label" for="f-note">Anything we should know <span style="text-transform:none;letter-spacing:0;color:rgba(42,23,16,.5)">— optional</span></label>
+              <textarea id="f-note" name="note" maxlength="240" placeholder="Birthday, high chair, step-free seating…"></textarea>
+            </div>
+            <div class="submit-row">
+              <button class="btn btn-solid" type="submit" id="f-submit"><span>Reserve and pay ₹<span id="f-advance">500</span></span></button>
+              <span class="muted">The ₹500 advance comes off your bill. We hold the table for 10 minutes from your booking time, then release it.</span>
+            </div>
+            <div class="msg" id="f-msg"></div>
+          </form>
+        </section>
+
+        <section class="slip" id="mine-card" hidden>
+          <div class="slip-head">
+            <h2>Your bookings</h2>
+            <div class="note">On this number</div>
+          </div>
+          <div class="rule"></div>
+          <div id="mine"></div>
+        </section>
+      </div>
+
+      <aside class="stack">
+        <section class="panel-dark">
+          <h3>The evening, in three steps</h3>
+          <ol class="steps">
+            <li><span class="bullet">1</span><div><h4>Sign in with WhatsApp</h4><p>A one-time code to your number. The table stays on it, so you can cancel from any phone.</p></div></li>
+            <li><span class="bullet">2</span><div><h4>Choose the table</h4><p>Date, arrival, adults and children. Up to fifty adults; children are counted as seats too.</p></div></li>
+            <li><span class="bullet">3</span><div><h4>Pay ₹500 and arrive on time</h4><p>The advance comes off the bill. The table is held for 10 minutes from your booking time, then released automatically.</p></div></li>
+          </ol>
+        </section>
+
+        <section class="panel-dark">
+          <h3>The hold, exactly</h3>
+          <p style="margin-top:10px">Tables are kept for <strong style="color:var(--brass-lit)">ten minutes</strong> from the booked arrival time. At the eleventh minute the seats go back to the floor and the booking closes — no call needed. If you are running late, ring <a href="tel:+917022771888">070227 71888</a> before the ten minutes are up and we will do what we can.</p>
+          <p style="margin-top:12px">The ₹500 advance is not a fee. It is deducted from your final bill, and a cancelled booking is refunded at the counter.</p>
+        </section>
+
+        <section class="panel-dark">
+          <h3>Good to know</h3>
+          <ul style="list-style:none;display:grid;gap:9px;margin-top:12px">
+            <li>Mandi takes about 20 minutes from order to table.</li>
+            <li>Every dish is 100% halal.</li>
+            <li>Shop no G03 Jeppu, Arfa Mirage tower, Morgans Gate Rd, Bolar — near Zudio.</li>
+            <li>Open every day, 12 PM to 11 PM.</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+
+    <section class="order-band">
+      <div>
+        <h2>Eating at home instead?</h2>
+        <p>Order from Zeva for pickup or delivery across Mangaluru. Minimum order ₹480, delivery charged by distance.</p>
+      </div>
+      <div class="acts">
+        <a class="btn btn-brass" href="menu.html">See the menu</a>
+        <a class="btn btn-line" href="tel:+917022771888" style="color:var(--paper);border-color:rgba(253,248,238,.35)">Call to order</a>
+      </div>
+    </section>
   </div>
-
-  <section class="order-strip reveal">
-    <div>
-      <h2>Eating at home instead?</h2>
-      <p>Order from Zeva for <strong>pickup</strong> or <strong>delivery</strong> across Mangaluru. Delivery is charged by distance and the minimum order is ₹480.</p>
-    </div>
-    <div class="acts">
-      <a class="btn btn-gold" href="menu.html">Order pickup or delivery</a>
-      <a class="btn" href="tel:+917022771888" style="border-color:rgba(253,246,233,.6);color:var(--cream)">Call to order</a>
-    </div>
-  </section>
-</div>
 </main>
 
 <footer class="site">
-  <div class="wrap foot-grid">
-    <div>
-      <img class="brand-mark" src="assets/img/zeva-mark.webp" alt="" width="324" height="706" loading="lazy" decoding="async">
-      <div class="brand-f">Zeva Mandi &amp; Grills</div>
-      <p>Turkish &amp; Arabic themed multi-cuisine mandi restaurant in Mangalore. Shop no G03 Jeppu, Arfa Mirage tower, Morgans Gate Rd, Bolar, Mangaluru 575001.</p>
-      <p style="margin-top:10px"><a href="tel:+917022771888">070227 71888</a> · Open daily 12 PM – 11 PM</p>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="brand">Zeva Mandi &amp; Grills</div>
+        <p>Turkish and Arabic themed mandi and grills in Bolar, Mangaluru. Shop no G03 Jeppu, Arfa Mirage tower, Morgans Gate Rd, Bolar, Mangaluru 575001.</p>
+        <p style="margin-top:8px"><a href="tel:+917022771888">070227 71888</a> · open daily 12 PM – 11 PM</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="menu.html">Menu &amp; prices</a></li>
+          <li><a href="visit.html">Visit</a></li>
+          <li><a href="reserve.html">Reserve a table</a></li>
+          <li><a href="review-us.html">Review us</a></li>
+        </ul>
+      </div>
     </div>
-    <div>
-      <h3>Explore</h3>
-      <ul>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="menu.html">Menu &amp; prices</a></li>
-        <li><a href="visit.html">Visit</a></li>
-        <li><a href="reserve.html">Reserve a table</a></li>
-        <li><a href="faq.html">FAQ</a></li>
-        <li><a href="best-mandi-mangalore.html">Best mandi in Mangalore</a></li>
-        <li><a href="unlimited-mandi-mangalore.html">Unlimited mandi rice</a></li>
-        <li><a href="https://www.justdial.com/Free-Listing" target="_blank">Justdial Listing →</a></li>
-        <li><a href="review-us.html">Review Us</a></li>
-        <li><a href="https://www.trustpilot.com/review/zevamandiandgrills.in" target="_blank" rel="noopener">Trustpilot reviews →</a></li>
-      </ul>
-    </div>
+    <div class="fine"><span>© 2026 Zeva Mandi &amp; Grills</span><span>Advance ₹500, adjusted in the bill</span></div>
   </div>
-  <div class="wrap fine-line">© 2026 Zeva Mandi &amp; Grills, Mangaluru · Open daily 12 PM – 11 PM</div>
 </footer>
 
 <script>
 (function () {
   'use strict';
-
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var header = document.getElementById('site-header');
-  window.addEventListener('scroll', function () { header.classList.toggle('scrolled', window.scrollY > 30); }, { passive: true });
-
-  var burger = document.getElementById('burger');
+  var header = document.getElementById('burger');
   var nav = document.getElementById('main-nav');
-  burger.addEventListener('click', function () {
+  header.addEventListener('click', function () {
     var open = nav.classList.toggle('open');
-    burger.classList.toggle('open', open);
-    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    header.classList.toggle('open', open);
+    header.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
-
-  if ('IntersectionObserver' in window && !reduce) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
-    }, { threshold: 0, rootMargin: '0px 0px -40px 0px' });
-    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
-  } else {
-    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
-  }
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') { nav.classList.remove('open'); header.classList.remove('open'); }
+  });
 })();
 </script>
 
@@ -505,20 +623,24 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   var state = {
     config: null,
     user: null,
-    skew: 0,          // server clock minus this device's clock
+    skew: 0,            // server clock minus this device's clock
     day: '',
     latest: '',
     slots: [],
     choice: '',
-    booking: null,    // the booking shown in the confirmation card
+    booking: null,      // the booking in the pass
     mine: [],
     timer: null,
-    busy: false
+    busy: false,
+    advance: null
   };
   var HOLD_MINUTES = 10;
+  var ADVANCE = 500;
+  var RING = 2 * Math.PI * 70;   // r=70 in the svg
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -550,10 +672,10 @@
     return new Date(epoch).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
   }
   function istDateLong(epoch) {
-    return new Date(epoch).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return new Date(epoch).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' });
   }
 
-  // dd:mm:ss (or hh:mm for distant times) — the hold itself is always under an hour.
+  // The ring reads mm:ss inside the hold and h/m before it.
   function span(ms) {
     if (ms <= 0) return '00:00';
     var total = Math.floor(ms / 1000);
@@ -566,29 +688,29 @@
     return pad(mins) + ':' + pad(secs);
   }
 
-  function message(host, text, kind) {
-    host.textContent = text || '';
-    host.className = 'msg' + (text ? ' show ' + (kind || 'err') : '');
+  function message(el, text, kind) {
+    el.textContent = text || '';
+    el.className = 'msg' + (text ? ' show ' + (kind || 'err') : '');
   }
 
-  /* ---------------- sign-in ---------------- */
+  /* ---------------- sign in ---------------- */
   function renderAuth() {
     var body = $('auth-body');
-    var sub = $('auth-sub');
     var config = state.config || {};
 
     if (state.user) {
-      var initial = (state.user.name || state.user.email || 'Z').trim().charAt(0).toUpperCase();
+      var initial = (state.user.name || state.user.phone || 'Z').trim().charAt(0).toUpperCase();
       var photo = state.user.picture
         ? '<img src="' + esc(state.user.picture) + '" alt="" referrerpolicy="no-referrer">'
         : '<span class="ini">' + esc(initial) + '</span>';
       body.innerHTML =
         '<div class="who">' + photo +
           '<div><div class="name">' + esc(state.user.name || 'Signed in') + '</div>' +
-          '<div class="mail">' + esc(state.user.email || state.user.phone || '') + '</div></div>' +
+          '<div class="mail">' + esc(state.user.phone || state.user.email || '') + '</div></div>' +
         '</div>' +
-        '<p class="tiny" style="margin-top:12px">Not you? <button class="linkbtn" type="button" id="signout">Sign out</button></p>';
-      sub.textContent = 'You are signed in. Pick your date and time below.';
+        '<p class="muted" style="margin-top:12px">The table is on this number. <button class="linkish" type="button" id="signout">Sign out</button></p>';
+      $('auth-title').textContent = 'Signed in';
+      $('auth-note').textContent = 'WhatsApp verified';
       var out = $('signout');
       if (out) out.addEventListener('click', function () {
         api('/api/auth/logout', { method: 'POST' }).then(function () { location.reload(); });
@@ -598,28 +720,23 @@
     }
 
     if (!config.whatsapp) {
-      body.innerHTML = '<p class="tiny">WhatsApp sign-in is not switched on yet. Call <a href="tel:+917022771888">070227 71888</a> and we will book your table for you.</p>';
+      body.innerHTML = '<p class="muted">WhatsApp sign-in is not switched on just now. Call <a href="tel:+917022771888">070227 71888</a> and we will hold your table.</p>';
       return;
     }
 
-    var html = '';
-    if (config.whatsapp) {
-      html += '<div class="alt" style="border-top:0;padding-top:0;margin-top:0">' +
-        '<h3>Continue with WhatsApp</h3>' +
-        '<div class="inline-form" id="wa-phone-row">' +
-          '<input type="tel" id="wa-phone" placeholder="10-digit mobile number" autocomplete="tel" maxlength="16">' +
-          '<button class="btn btn-wa" type="button" id="wa-send">Send code</button>' +
-        '</div>' +
-        '<div class="inline-form" id="wa-code-row" style="margin-top:10px;display:none">' +
-          '<input type="tel" id="wa-code" placeholder="6-digit code from WhatsApp" inputmode="numeric" maxlength="8">' +
-          '<button class="btn btn-gold" type="button" id="wa-verify">Verify</button>' +
-        '</div>' +
-        '<p class="tiny" style="margin-top:8px" id="wa-state">We send a one-time code to your WhatsApp. No password.</p>' +
-        '</div>';
-    }
-    body.innerHTML = html;
+    body.innerHTML =
+      '<div class="signin">' +
+        '<div style="flex:1 1 190px"><label class="field-label" for="wa-phone">Your WhatsApp number</label>' +
+        '<input type="tel" id="wa-phone" placeholder="10-digit mobile" autocomplete="tel" maxlength="16"></div>' +
+        '<button class="btn btn-solid" type="button" id="wa-send" style="align-self:flex-end">Send code</button>' +
+      '</div>' +
+      '<div class="signin" id="wa-code-row" style="margin-top:12px;display:none">' +
+        '<div style="flex:1 1 190px"><label class="field-label" for="wa-code">Code from WhatsApp</label>' +
+        '<input type="tel" id="wa-code" placeholder="6 digits" inputmode="numeric" maxlength="8"></div>' +
+        '<button class="btn btn-line" type="button" id="wa-verify" style="align-self:flex-end">Verify</button>' +
+      '</div>' +
+      '<p class="muted" style="margin-top:10px" id="wa-state">We send a one-time code to your WhatsApp. Nothing is charged for signing in.</p>';
     wireWhatsApp();
-    $('book-card').hidden = true;
   }
 
   var waSession = '';
@@ -641,27 +758,26 @@
         $('wa-code').focus();
       }).catch(function () { send.disabled = false; $('wa-state').textContent = 'Network error. Try again.'; });
     });
-    var verify = $('wa-verify');
-    verify.addEventListener('click', function () {
+    $('wa-verify').addEventListener('click', function () {
       var code = ($('wa-code').value || '').replace(/\D/g, '');
       if (!waSession) { $('wa-state').textContent = 'Ask for a code first.'; return; }
       if (!code) { $('wa-state').textContent = 'Enter the 6-digit code.'; return; }
-      verify.disabled = true;
+      $('wa-verify').disabled = true;
       api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: waSession, code: code } }).then(function (data) {
-        verify.disabled = false;
+        $('wa-verify').disabled = false;
         if (!data.ok) { $('wa-state').textContent = data.error || 'That code is not right.'; return; }
         location.reload();
-      }).catch(function () { verify.disabled = false; $('wa-state').textContent = 'Network error. Try again.'; });
+      }).catch(function () { $('wa-verify').disabled = false; $('wa-state').textContent = 'Network error. Try again.'; });
     });
   }
 
-  /* ---------------- slots ---------------- */
+  /* ---------------- seats ---------------- */
   function renderSlots() {
     var host = $('slots');
     var note = $('slots-note');
     if (!state.slots.length) {
       host.innerHTML = '';
-      note.textContent = state.day ? 'This day is closed for bookings. Pick another date.' : 'Pick a date to see the open times.';
+      note.textContent = state.day ? 'No seatings left on this date. Try another day.' : 'Pick a date to see the open seatings.';
       return;
     }
     var open = 0;
@@ -669,10 +785,12 @@
       if (slot.open) open++;
       return '<button class="slot" type="button" data-time="' + esc(slot.time) + '" aria-pressed="' +
         (state.choice === slot.time ? 'true' : 'false') + '"' + (slot.open ? '' : ' disabled') + '>' +
-        esc(istTime(slot.arrive_at)) +
-        '<small>' + (slot.open ? slot.left + ' seats left' : 'Fully booked') + '</small></button>';
+        '<span>' + esc(istTime(slot.arrive_at)) + '</span>' +
+        '<small>' + (slot.open ? slot.left + ' seats' : 'taken') + '</small></button>';
     }).join('');
-    note.textContent = open ? open + ' times open · last seating 10 PM · open daily 12 PM – 11 PM' : 'Every seating is taken on this date. Try another day or call 070227 71888.';
+    note.textContent = open
+      ? open + ' seatings open · last seating 10 PM · 60 seats a sitting'
+      : 'Every seating is taken on this date. Try another day or call 070227 71888.';
   }
 
   function loadSlots() {
@@ -681,20 +799,16 @@
     renderSlots();
     if (!state.day) return;
     api('/api/reservations/slots?day=' + encodeURIComponent(state.day)).then(function (data) {
-      if (!data.slots) {
-        $('slots-note').textContent = data.error || 'Could not load the times. Try again.';
-        return;
-      }
-      state.today = data.today;
+      if (!data.slots) { $('slots-note').textContent = data.error || 'Could not load the seatings. Try again.'; return; }
       state.latest = data.latest || data.today;
       HOLD_MINUTES = data.hold_minutes || HOLD_MINUTES;
       $('f-day').min = data.today;
       $('f-day').max = state.latest;
       state.slots = data.slots;
       renderSlots();
+      updateTonight();
       var firstOpen = state.slots.filter(function (s) { return s.open; })[0];
       if (!firstOpen && state.day === data.today) {
-        // Nothing left today — move straight to tomorrow.
         var tomorrow = new Date(state.day + 'T12:00:00+05:30');
         tomorrow.setDate(tomorrow.getDate() + 1);
         state.day = tomorrow.toISOString().slice(0, 10);
@@ -704,23 +818,43 @@
     });
   }
 
+  // The hero's "tonight" line comes from the same availability the form uses.
+  function updateTonight() {
+    var open = state.slots.filter(function (s) { return s.open; });
+    if (!open.length) {
+      $('tonight-time').textContent = 'Fully booked tonight';
+      $('tonight-seats').textContent = 'Tomorrow and beyond are open — pick a date below.';
+      return;
+    }
+    var next = open[0];
+    $('tonight-time').textContent = istTime(next.arrive_at) + ' tonight';
+    $('tonight-seats').innerHTML = '<b>' + next.left + ' seats</b> at that seating · ' + open.length + ' seatings still open';
+  }
+
   function pickTime(time) {
     state.choice = state.choice === time ? '' : time;
     renderSlots();
   }
 
-  /* ---------------- booking ---------------- */
+  /* ---------------- form ---------------- */
   function fillParty() {
-    var adults = $('f-adults');
-    var children = $('f-children');
+    var maxAdults = (state.config && state.config.reserve && state.config.reserve.maxAdults) || 50;
+    var maxChildren = (state.config && state.config.reserve && state.config.reserve.maxChildren) || 12;
     var a = '';
-    for (var i = 1; i <= 12; i++) a += '<option value="' + i + '">' + i + (i === 1 ? ' adult' : ' adults') + '</option>';
-    adults.innerHTML = a;
-    adults.value = '2';
+    for (var i = 1; i <= maxAdults; i++) a += '<option value="' + i + '">' + i + (i === 1 ? ' adult' : ' adults') + '</option>';
+    $('f-adults').innerHTML = a;
+    $('f-adults').value = '2';
     var c = '<option value="0">No children</option>';
-    for (var j = 1; j <= 8; j++) c += '<option value="' + j + '">' + j + (j === 1 ? ' child' : ' children') + '</option>';
-    children.innerHTML = c;
-    children.value = '0';
+    for (var j = 1; j <= maxChildren; j++) c += '<option value="' + j + '">' + j + (j === 1 ? ' child' : ' children') + '</option>';
+    $('f-children').innerHTML = c;
+    $('f-children').value = '0';
+  }
+
+  // A party of 50 plus children cannot fit one sitting: say so before sending.
+  function partyTooBig() {
+    var seats = Number($('f-adults').value) + Number($('f-children').value);
+    var max = (state.config && state.config.reserve && state.config.reserve.seats) || 60;
+    return { seats: seats, max: max, over: seats > max };
   }
 
   function submit(event) {
@@ -729,12 +863,14 @@
     var msg = $('f-msg');
     if (!state.choice) { message(msg, 'Pick an arrival time for your table.'); return; }
     if (!state.day) { message(msg, 'Pick a date for your table.'); return; }
+    var size = partyTooBig();
+    if (size.over) { message(msg, 'That is ' + size.seats + ' seats and one sitting holds ' + size.max + '. Call 070227 71888 for a larger party.'); return; }
     var phone = ($('f-phone').value || '').trim();
     if (phone.replace(/\D/g, '').length < 10) { message(msg, 'Enter the mobile number we should call if anything changes.'); return; }
 
     state.busy = true;
     $('f-submit').disabled = true;
-    message(msg, 'Booking your table…', 'ok');
+    message(msg, 'Holding your table…', 'ok');
     api('/api/reservations', {
       method: 'POST',
       body: {
@@ -752,22 +888,16 @@
       if (!data.ok) {
         if (data.sign_in) { location.reload(); return; }
         message(msg, data.error || 'That booking did not save. Please try again.');
-        // A taken slot means the page is stale: reload it.
         if (data.http === 409) loadSlots();
         return;
       }
       message(msg, '', 'ok');
       $('f-note').value = '';
-      state.booking = data.reservation;
       state.skew = Number(data.now || Date.now()) - Date.now();
       showBooking(data.reservation);
-      $('c-sent').textContent = data.notified
-        ? 'Booking code sent to your WhatsApp as well. Bring it, or just give your name at the counter.'
-        : 'Keep this code on your screen — we could not reach WhatsApp just now, but the table is booked.';
+      loadAdvance(data.reservation);
       loadMine();
-      var card = $('confirm-card');
-      card.classList.add('show');
-      card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      $('confirmation').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     }).catch(function () {
       state.busy = false;
       $('f-submit').disabled = false;
@@ -775,18 +905,87 @@
     });
   }
 
-  /* ---------------- confirmation + timer ---------------- */
+  /* ---------------- advance ---------------- */
+  function loadAdvance(booking) {
+    if (!booking) return;
+    var adv = booking.advance || { amount: ADVANCE, status: 'due' };
+    var amount = Number(adv.amount || ADVANCE) || ADVANCE;
+    $('adv-amount').textContent = '₹' + amount;
+    $('adv-vpa').hidden = true;
+    $('adv-state').className = 'adv-state';
+    $('adv-state').textContent = '';
+
+    if (adv.status === 'paid') {
+      $('adv-pay').hidden = true;
+      $('adv-claimed').hidden = true;
+      $('adv-copy').textContent = 'The advance is in. It comes off your bill.';
+      $('adv-state').className = 'adv-state show paid';
+      $('adv-state').textContent = 'Advance ₹' + amount + ' received — thank you.';
+      return;
+    }
+    if (adv.status === 'claimed') {
+      $('adv-pay').hidden = true;
+      $('adv-claimed').hidden = true;
+      $('adv-copy').textContent = 'You told us the advance is paid. The counter will confirm it.';
+      $('adv-state').className = 'adv-state show claimed';
+      $('adv-state').textContent = 'Waiting for the counter to confirm ₹' + amount + '.';
+      return;
+    }
+
+    $('adv-pay').hidden = false;
+    $('adv-claimed').hidden = false;
+    $('adv-copy').textContent = 'Pay ₹' + amount + ' now by UPI and the table is confirmed. The advance comes off your bill.';
+    api('/api/reservations/pay', { method: 'POST', body: { id: booking.id } }).then(function (data) {
+      if (!data.ok) { $('adv-pay').hidden = true; $('adv-copy').textContent = 'Pay the ₹' + amount + ' advance at the counter when you arrive.'; return; }
+      if (data.paid) {
+        $('adv-pay').hidden = true;
+        $('adv-claimed').hidden = true;
+        $('adv-state').className = 'adv-state show paid';
+        $('adv-state').textContent = 'Advance ₹' + amount + ' received — thank you.';
+        return;
+      }
+      if (!data.configured) {
+        $('adv-pay').hidden = true;
+        $('adv-copy').textContent = 'Pay the ₹' + amount + ' advance at the counter when you arrive.';
+        return;
+      }
+      state.advance = data;
+      $('adv-pay').href = data.intent;
+      $('adv-vpa').hidden = false;
+      $('adv-vpa').innerHTML = 'Or pay to <code>' + esc(data.vpa) + '</code> · ₹' + amount + ' · note “table ' + esc(booking.id) + '”';
+    }).catch(function () {
+      $('adv-pay').href = '#';
+      $('adv-copy').textContent = 'Pay the ₹' + amount + ' advance at the counter when you arrive.';
+    });
+  }
+
+  function claimAdvance() {
+    if (!state.booking) return;
+    var btn = $('adv-claimed');
+    btn.disabled = true;
+    api('/api/reservations/paid', { method: 'POST', body: { id: state.booking.id } }).then(function (data) {
+      btn.disabled = false;
+      if (!data.ok) { message($('c-msg'), data.error || 'Could not record that. Try again.', 'err'); return; }
+      state.booking = data.reservation || state.booking;
+      loadAdvance(state.booking);
+      message($('c-msg'), 'Noted — the counter will confirm the ₹' + (data.reservation && data.reservation.advance ? data.reservation.advance.amount : ADVANCE) + ' when it lands.', 'ok');
+    }).catch(function () {
+      btn.disabled = false;
+      message($('c-msg'), 'Network error. Try again.', 'err');
+    });
+  }
+
+  /* ---------------- the pass + ring ---------------- */
   function showBooking(booking) {
-    if (!booking) { $('confirm-card').classList.remove('show'); state.booking = null; return; }
+    if (!booking) { $('confirmation').classList.remove('show'); state.booking = null; return; }
     state.booking = booking;
-    $('confirm-card').classList.add('show');
+    $('confirmation').classList.add('show');
     $('c-code').textContent = booking.id;
-    $('c-when').innerHTML = istDateLong(booking.arrive_at) + ' · <span>' + istTime(booking.arrive_at) + '</span>';
+    $('c-when').innerHTML = istDateLong(booking.arrive_at) + ' at <b>' + istTime(booking.arrive_at) + '</b>';
     var party = booking.adults + (booking.adults === 1 ? ' adult' : ' adults');
-    if (booking.children) party += ' + ' + booking.children + (booking.children === 1 ? ' child' : ' children');
+    if (booking.children) party += ' and ' + booking.children + (booking.children === 1 ? ' child' : ' children');
     $('c-facts').innerHTML =
-      '<div><b>' + esc(party) + '</b></div>' +
-      '<div>' + booking.seats + ' seats</div>' +
+      '<div><b>' + esc(party) + '</b> · ' + booking.seats + ' seats</div>' +
       '<div>Held until <b>' + esc(istTime(booking.hold_until)) + '</b></div>' +
       (booking.phone ? '<div>' + esc(booking.phone) + '</div>' : '') +
       (booking.note ? '<div>' + esc(booking.note) + '</div>' : '');
@@ -796,49 +995,59 @@
     state.timer = setInterval(tick, 1000);
   }
 
+  function ring(progress) {
+    var p = Math.max(0, Math.min(1, progress));
+    $('ring-fill').style.strokeDasharray = RING;
+    $('ring-fill').style.strokeDashoffset = RING * (1 - p);
+  }
+
   function tick() {
     var booking = state.booking;
     if (!booking) return;
-    var box = $('c-timer');
-    var label = $('c-timer-label');
-    var clockText = $('c-clock');
-    var hint = $('c-hint');
+    var hold = $('c-hold');
     var t = now();
-
-    box.classList.remove('held', 'past');
+    hold.classList.remove('past', 'held');
 
     if (booking.status === 'cancelled') {
-      box.classList.add('past');
-      label.textContent = 'Booking cancelled';
-      clockText.textContent = '—';
-      hint.textContent = 'This table is cancelled. Book again any time.';
+      hold.classList.add('past');
+      $('c-hold-title').textContent = 'Booking cancelled';
+      $('c-clock').textContent = '—';
+      $('c-ring-label').textContent = 'cancelled';
+      $('c-hint').textContent = 'This table is cancelled. Book again whenever you like.';
+      ring(0);
       return;
     }
 
     if (t < booking.arrive_at) {
-      label.textContent = 'Your table is reserved — please be there on time';
-      clockText.textContent = span(booking.arrive_at - t);
-      hint.innerHTML = 'Arrival <strong>' + esc(istTime(booking.arrive_at)) + '</strong>. We hold the table for ' +
-        HOLD_MINUTES + ' minutes from then — until <strong>' + esc(istTime(booking.hold_until)) + '</strong>. ' +
-        'After that it is released automatically.';
+      var wait = booking.arrive_at - t;
+      $('c-hold-title').textContent = 'Your table is reserved';
+      $('c-clock').textContent = span(wait);
+      $('c-ring-label').textContent = 'until you arrive';
+      // the ring fills as the arrival gets closer, but never implies the hold has begun
+      ring(0.12 + 0.88 * (1 - Math.min(1, wait / (12 * 3600 * 1000))));
+      $('c-hint').innerHTML = 'Arrival <strong>' + esc(istTime(booking.arrive_at)) + '</strong>. The ten-minute hold starts then — until <strong>' +
+        esc(istTime(booking.hold_until)) + '</strong>. Please be at the restaurant at your booking time.';
       return;
     }
 
     if (t < booking.hold_until) {
-      box.classList.add('held');
-      label.textContent = 'Your table is being held — time left';
-      clockText.textContent = span(booking.hold_until - t);
-      hint.innerHTML = 'Show code <strong>' + esc(booking.id) + '</strong> at the counter now. ' +
-        'At ' + esc(istTime(booking.hold_until)) + ' the table is released automatically.';
+      hold.classList.add('held');
+      $('c-hold-title').textContent = 'The table is being held';
+      $('c-clock').textContent = span(booking.hold_until - t);
+      $('c-ring-label').textContent = 'left on the hold';
+      ring((booking.hold_until - t) / (HOLD_MINUTES * 60000));
+      $('c-hint').innerHTML = 'Show code <strong>' + esc(booking.id) + '</strong> at the counter now. At ' +
+        esc(istTime(booking.hold_until)) + ' the table is released automatically.';
       return;
     }
 
-    box.classList.add('past');
-    label.textContent = 'Table released';
-    clockText.textContent = '00:00';
-    hint.innerHTML = 'The ' + HOLD_MINUTES + '-minute hold from your ' + esc(istTime(booking.arrive_at)) +
-      ' booking has ended, so this table is back on the floor. Still on your way? Call ' +
-      '<a href="tel:+917022771888">070227 71888</a> and we will seat you if we can.';
+    hold.classList.add('past');
+    $('c-hold-title').textContent = 'The table was released';
+    $('c-clock').textContent = '00:00';
+    $('c-ring-label').textContent = 'hold ended';
+    ring(0);
+    $('c-hint').innerHTML = 'The ten minutes from your ' + esc(istTime(booking.arrive_at)) +
+      ' booking have passed, so the seats are back on the floor. Still on your way? Call <a href="tel:+917022771888">070227 71888</a>.';
   }
 
   /* ---------------- my bookings ---------------- */
@@ -847,10 +1056,9 @@
       if (data.now) state.skew = Number(data.now) - Date.now();
       state.mine = data.reservations || [];
       renderMine();
-      // On a reload the newest still-live booking becomes the confirmation card.
       if (!state.booking) {
         var live = state.mine.filter(function (r) { return r.status === 'booked' && r.hold_until > now() - 3600000; })[0];
-        if (live) showBooking(live);
+        if (live) { showBooking(live); loadAdvance(live); }
       }
     }).catch(function () {});
   }
@@ -858,44 +1066,40 @@
   function renderMine() {
     var host = $('mine');
     var card = $('mine-card');
-    var upcoming = state.mine.filter(function (r) { return r.status === 'booked' && r.hold_until > now() - 3600000; });
     if (!state.user || !state.mine.length) { card.hidden = true; host.innerHTML = ''; return; }
     card.hidden = false;
     host.innerHTML = state.mine.slice(0, 8).map(function (r) {
       var live = r.status === 'booked' && r.hold_until > now();
       var label = r.status !== 'booked' ? 'Cancelled' : (live ? 'Booked' : 'Over');
+      var adv = r.advance || {};
+      var advWord = adv.status === 'paid' ? 'advance paid' : adv.status === 'claimed' ? 'advance claimed' : 'advance due';
       return '<div class="bk">' +
-        '<div><div class="t">' + esc(istDate(r.arrive_at)) + ' · ' + esc(istTime(r.arrive_at)) + '</div>' +
-        '<div class="s">' + r.seats + (r.seats === 1 ? ' seat' : ' seats') + ' · code ' + esc(r.id) + '</div></div>' +
+        '<div><div class="t">' + esc(istDate(r.arrive_at)) + ' at ' + esc(istTime(r.arrive_at)) + '</div>' +
+        '<div class="s">' + r.seats + (r.seats === 1 ? ' seat' : ' seats') + ' · ' + esc(r.id) + ' · ' + esc(advWord) + '</div></div>' +
         '<div style="display:flex;gap:10px;align-items:center">' +
           '<span class="state' + (r.status === 'booked' ? '' : ' off') + '">' + esc(label) + '</span>' +
           (r.status === 'booked' && r.arrive_at > now()
-            ? '<button class="linkbtn" type="button" data-cancel="' + esc(r.id) + '">Cancel</button>'
+            ? '<button class="linkish" type="button" data-cancel="' + esc(r.id) + '">Cancel</button>'
             : '') +
         '</div></div>';
-    }).join('') + (upcoming.length ? '' : '<p class="tiny" style="margin-top:10px">No upcoming tables. Book one above.</p>');
+    }).join('');
   }
 
   function cancelBooking(id) {
     if (!id) return;
     api('/api/reservations/cancel', { method: 'POST', body: { id: id } }).then(function (data) {
-      if (!data.ok) {
-        message($('c-msg'), data.error || 'Could not cancel that booking.', 'err');
-        return;
-      }
+      if (!data.ok) { message($('c-msg'), data.error || 'Could not cancel that booking.', 'err'); return; }
       if (state.booking && state.booking.id === id) {
         state.booking = data.reservation || state.booking;
         state.booking.status = 'cancelled';
         showBooking(state.booking);
       }
-      message($('c-msg'), 'Booking ' + id + ' is cancelled. Nothing was charged.', 'ok');
+      message($('c-msg'), 'Booking ' + id + ' is cancelled. Any advance is refunded at the counter.', 'ok');
       loadMine();
-    }).catch(function () {
-      message($('c-msg'), 'Network error. Try again.', 'err');
-    });
+    }).catch(function () { message($('c-msg'), 'Network error. Try again.', 'err'); });
   }
 
-  /* ---------------- wire up ---------------- */
+  /* ---------------- wire ---------------- */
   $('f-day').addEventListener('change', function () {
     state.day = $('f-day').value;
     loadSlots();
@@ -906,6 +1110,7 @@
     pickTime(btn.getAttribute('data-time'));
   });
   $('book-form').addEventListener('submit', submit);
+  $('adv-claimed').addEventListener('click', claimAdvance);
   $('c-cancel').addEventListener('click', function () {
     if (state.booking && window.confirm('Cancel this table?')) cancelBooking(state.booking.id);
   });
@@ -921,8 +1126,10 @@
     state.config = results[0] || {};
     var me = results[1] || {};
     state.user = me.user || null;
-    if (me.gold_plan === undefined) { /* nothing */ }
     if (state.config.hold_minutes) HOLD_MINUTES = state.config.hold_minutes;
+    if (state.config.reserve && state.config.reserve.advance) ADVANCE = Number(state.config.reserve.advance) || ADVANCE;
+    $('f-advance').textContent = ADVANCE;
+    fillParty();
     if (state.user) {
       $('f-name').value = state.user.name || '';
       $('f-phone').value = state.user.phone || '';
@@ -933,7 +1140,8 @@
     }
     renderAuth();
   }).catch(function () {
-    $('auth-sub').textContent = 'Could not reach Zeva just now. Check your connection and reload, or call 070227 71888.';
+    $('auth-note').textContent = 'Offline';
+    $('auth-body').innerHTML = '<p class="muted">Could not reach Zeva just now. Reload, or call <a href="tel:+917022771888">070227 71888</a> and we will hold the table.</p>';
   });
 })();
 </script>

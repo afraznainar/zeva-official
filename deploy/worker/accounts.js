@@ -13,7 +13,7 @@
    ZEVA_DEV_LOGIN=1 exists only for local development.
    ============================================================ */
 
-import { upiReady, directReady, directPayment, openPayment, pollPayment, verifyWebhook } from "./upi.js";
+import { upiReady, directReady, directPayment, upiId, openPayment, pollPayment, verifyWebhook } from "./upi.js";
 
 // Online UPI works in two modes and they share the same order fields:
 //   gateway — the self-hosted gateway creates the payment and confirms it;
@@ -42,13 +42,16 @@ export const GOLD = {
    the booking is over and the covers go back to the floor. Change the numbers
    here and the page, the API and the staff list all follow. */
 export const RESERVE = {
-  seats: 40,          // bookable covers per slot
+  seats: 60,          // bookable covers per slot
   holdMinutes: 10,    // table kept this long after the booked time
   firstHour: 12,      // first seating, 12:00 PM
   lastHour: 22,       // last seating, 10:00 PM (kitchen closes at 11 PM)
   stepMinutes: 30,
   maxDays: 60,        // how far ahead a guest can book
-  maxUpcoming: 3      // one guest cannot hold the room
+  maxUpcoming: 3,     // one guest cannot hold the room
+  maxAdults: 50,      // one party: up to 50 adults
+  maxChildren: 12,
+  advance: 500        // rupees of advance asked for a table
 };
 
 /* Achievement cards. Zeva Gold members collect a physical-style card each
@@ -179,6 +182,11 @@ const DB_SCHEMA = [
      seats INTEGER NOT NULL DEFAULT 1,
      note TEXT,
      status TEXT NOT NULL DEFAULT 'booked',
+     advance_status TEXT NOT NULL DEFAULT 'due',
+     advance_amount REAL NOT NULL DEFAULT 0,
+     advance_utr TEXT,
+     advance_claimed_at INTEGER,
+     advance_paid_at INTEGER,
      created_at INTEGER NOT NULL,
      cancelled_at INTEGER
    )`,
@@ -222,6 +230,34 @@ const ORDER_PAY_COLUMNS = [
   "ALTER TABLE orders ADD COLUMN upi_checked_at INTEGER",
   "ALTER TABLE orders ADD COLUMN upi_paid_at INTEGER"
 ];
+
+/* The ₹500 advance arrived after the first reservations were already booked,
+   so its columns are added on demand too and older rows read as "advance due"
+   with no amount. */
+let reservationColumnsPromise = null;
+
+const RESERVATION_ADVANCE_COLUMNS = [
+  "ALTER TABLE reservations ADD COLUMN advance_status TEXT NOT NULL DEFAULT 'due'",
+  "ALTER TABLE reservations ADD COLUMN advance_amount REAL NOT NULL DEFAULT 0",
+  "ALTER TABLE reservations ADD COLUMN advance_utr TEXT",
+  "ALTER TABLE reservations ADD COLUMN advance_claimed_at INTEGER",
+  "ALTER TABLE reservations ADD COLUMN advance_paid_at INTEGER"
+];
+
+async function ensureReservationColumns(env) {
+  if (!reservationColumnsPromise) {
+    reservationColumnsPromise = (async function () {
+      for (const sql of RESERVATION_ADVANCE_COLUMNS) {
+        await env.DB.prepare(sql)
+          .run()
+          .catch(function () {
+            /* already there */
+          });
+      }
+    })();
+  }
+  await reservationColumnsPromise;
+}
 
 async function ensureOrderColumns(env) {
   if (!orderColumnsPromise) {
@@ -392,6 +428,7 @@ export async function database(env) {
   await schemaPromise;
   await ensureUserColumns(env);
   await ensureOrderColumns(env);
+  await ensureReservationColumns(env);
   return env.DB;
 }
 
@@ -706,7 +743,9 @@ async function notifyBooking(env, booking) {
     "Party: " + party + " (" + booking.seats + " seats). " +
     "We hold the table for " + RESERVE.holdMinutes + " minutes from " + booking.time +
     " and release it automatically after that, so please be at the restaurant by " + booking.time + ". " +
-    "Show code " + booking.id + " at the counter. Free to cancel: " + SITE + "/reserve";
+    "Show code " + booking.id + " at the counter. " +
+    "Advance \u20b9" + RESERVE.advance + ": pay by UPI at " + SITE + "/reserve or at the counter. " +
+    "Menu: " + SITE + "/menu \u2014 Free to cancel: " + SITE + "/reserve";
 
   const jobs = [whatsappText(env, booking.phone, guestMessage)];
   const counterSetting = String(env.BOOKING_NOTIFY_PHONE || BOOKING_NOTIFY_DEFAULT);
@@ -716,7 +755,8 @@ async function notifyBooking(env, booking) {
       "NEW TABLE " + booking.id + " \u2014 " + (booking.name || "Guest") + ", " + booking.phone + ". " +
       party + " (" + booking.seats + " seats) on " + day + " at " + booking.time + "." +
       (booking.note ? " Note: " + booking.note : "") +
-      " Hold " + RESERVE.holdMinutes + " min from " + booking.time + ".";
+      " Hold " + RESERVE.holdMinutes + " min from " + booking.time + ". " +
+      "Advance \u20b9" + RESERVE.advance + " due \u2014 confirm it in /admin when the UPI shows.";
     jobs.push(whatsappText(env, counterNumber, counterMessage));
   }
   const sent = await Promise.all(jobs);
@@ -908,6 +948,15 @@ function shapeReservation(row) {
     seats: Number(row.seats || 0),
     note: row.note || "",
     status: row.status,
+    // The ₹500 advance: due until the guest says they paid, paid once the
+    // counter has seen the money in the UPI app or the bank SMS.
+    advance: {
+      amount: Number(row.advance_amount || 0),
+      status: row.advance_status || "due",
+      utr: row.advance_utr || "",
+      claimed_at: row.advance_claimed_at || null,
+      paid_at: row.advance_paid_at || null
+    },
     created_at: Number(row.created_at || 0)
   };
 }
@@ -963,8 +1012,12 @@ export async function createReservation(request, env, body) {
   const children = Math.round(Number((body && body.children) || 0));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json(400, { error: "Pick a date for your table." });
   if (slotTimes().indexOf(time) < 0) return json(400, { error: "Pick a time between 12 PM and 10 PM." });
-  if (!Number.isFinite(adults) || adults < 1 || adults > 20) return json(400, { error: "How many adults are coming? 1 to 20." });
-  if (!Number.isFinite(children) || children < 0 || children > 12) return json(400, { error: "Children must be between 0 and 12." });
+  if (!Number.isFinite(adults) || adults < 1 || adults > RESERVE.maxAdults) {
+    return json(400, { error: "How many adults are coming? 1 to " + RESERVE.maxAdults + "." });
+  }
+  if (!Number.isFinite(children) || children < 0 || children > RESERVE.maxChildren) {
+    return json(400, { error: "Children must be between 0 and " + RESERVE.maxChildren + "." });
+  }
 
   const arriveAt = istEpoch(day, time);
   const now = Date.now();
@@ -998,7 +1051,7 @@ export async function createReservation(request, env, body) {
   try {
     await db
       .prepare(
-        "INSERT INTO reservations (id, user_id, name, email, phone, day, time, arrive_at, hold_until, adults, children, seats, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'booked', ?)"
+        "INSERT INTO reservations (id, user_id, name, email, phone, day, time, arrive_at, hold_until, adults, children, seats, note, status, advance_status, advance_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'booked', 'due', ?, ?)"
       )
       .bind(
         id,
@@ -1014,6 +1067,7 @@ export async function createReservation(request, env, body) {
         children,
         seats,
         String((body && body.note) || "").slice(0, 240),
+        RESERVE.advance,
         now
       )
       .run();
@@ -1086,6 +1140,70 @@ export async function cancelReservation(request, env, body) {
   return cancelReservationRow(env, body && body.id, user.id, false);
 }
 
+/* The ₹500 advance. It is the shop's own VPA, exactly like a direct-mode
+   order payment: the app opens with the amount already filled in, and only
+   the counter can say the money arrived (the bank app is the authority). */
+function advanceIntent(env, code, amount) {
+  const params = new URLSearchParams();
+  params.set("pa", upiId(env));
+  params.set("pn", String(env.UPI_PAYEE_NAME || "Zeva Mandi & Grills").slice(0, 50));
+  params.set("am", (Math.round(Number(amount) * 100) / 100).toFixed(2));
+  params.set("cu", "INR");
+  params.set("tn", ("Zeva table " + code).slice(0, 50));
+  return "upi://pay?" + params.toString();
+}
+
+async function ownBooking(env, request, body) {
+  const db = await database(env);
+  if (!db) return { error: json(503, { error: "reservations are not configured" }) };
+  const user = await currentUser(request, env);
+  if (!user) return { error: json(401, { error: "Sign in first.", sign_in: true }) };
+  const row = await db
+    .prepare("SELECT * FROM reservations WHERE id = ?")
+    .bind(String((body && body.id) || "").trim().toUpperCase())
+    .first();
+  if (!row) return { error: json(404, { error: "We could not find that booking." }) };
+  if (row.user_id !== user.id) return { error: json(403, { error: "That booking is not on your account." }) };
+  return { db: db, user: user, row: row };
+}
+
+// POST /api/reservations/pay {id} — the advance as a UPI link for that table.
+export async function reservationAdvance(request, env, body) {
+  const found = await ownBooking(env, request, body);
+  if (found.error) return found.error;
+  const amount = Number(found.row.advance_amount || RESERVE.advance) || RESERVE.advance;
+  if (found.row.advance_status === "paid") {
+    return json(200, { ok: true, paid: true, amount: amount });
+  }
+  if (!directReady(env)) {
+    return json(200, { ok: true, paid: false, configured: false, amount: amount, error: "Pay the advance at the counter" });
+  }
+  return json(200, {
+    ok: true,
+    paid: false,
+    configured: true,
+    amount: amount,
+    intent: advanceIntent(env, found.row.id, amount),
+    vpa: upiId(env),
+    payee: String(env.UPI_PAYEE_NAME || "Zeva Mandi & Grills")
+  });
+}
+
+// POST /api/reservations/paid {id} — the guest says they have paid. This is a
+// claim, not proof, so it only moves the row to 'claimed' for the counter.
+export async function claimReservationAdvance(request, env, body) {
+  const found = await ownBooking(env, request, body);
+  if (found.error) return found.error;
+  if (found.row.advance_status !== "paid") {
+    await found.db
+      .prepare("UPDATE reservations SET advance_status = 'claimed', advance_claimed_at = ? WHERE id = ?")
+      .bind(Date.now(), found.row.id)
+      .run();
+  }
+  const fresh = await found.db.prepare("SELECT * FROM reservations WHERE id = ?").bind(found.row.id).first();
+  return json(200, { ok: true, reservation: shapeReservation(fresh) });
+}
+
 // The counter's list: today and tomorrow, plus anything a guest cancelled.
 export async function adminReservations(env) {
   const db = await database(env);
@@ -1106,7 +1224,23 @@ export async function adminReservations(env) {
   });
 }
 
-export async function adminCancelReservation(env, body) {
+// The counter's own actions on one booking: cancelling it, or confirming the
+// ₹500 advance once the money is visible in the UPI app or the bank SMS.
+export async function adminSetReservation(env, body) {
+  if (body && body.advance) {
+    const db = await database(env);
+    if (!db) return json(503, { error: "reservations are not configured" });
+    const id = String(body.id || "").trim().toUpperCase();
+    const row = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
+    if (!row) return json(404, { error: "unknown booking" });
+    const paid = body.advance === "paid";
+    await db
+      .prepare("UPDATE reservations SET advance_status = ?, advance_paid_at = ?, advance_amount = ? WHERE id = ?")
+      .bind(paid ? "paid" : "due", paid ? Date.now() : null, Number(row.advance_amount || RESERVE.advance), id)
+      .run();
+    const fresh = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
+    return json(200, { ok: true, reservation: shapeReservation(fresh) });
+  }
   return cancelReservationRow(env, body && body.id, null, true);
 }
 
@@ -1915,6 +2049,12 @@ export async function handleAccounts(request, env, url) {
       whatsapp: whatsappReady(env),
       reservations: true,
       hold_minutes: RESERVE.holdMinutes,
+      reserve: {
+        advance: RESERVE.advance,
+        seats: RESERVE.seats,
+        maxAdults: RESERVE.maxAdults,
+        maxChildren: RESERVE.maxChildren
+      },
       upi: onlineUpi(env),
       upi_mode: upiMode(env),
       gold: GOLD,
@@ -1993,6 +2133,16 @@ export async function handleAccounts(request, env, url) {
     return cancelReservation(request, env, await readJson(request));
   }
 
+  if (path === "/api/reservations/pay" && request.method === "POST") {
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+    return reservationAdvance(request, env, await readJson(request));
+  }
+
+  if (path === "/api/reservations/paid" && request.method === "POST") {
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+    return claimReservationAdvance(request, env, await readJson(request));
+  }
+
   if (path === "/api/profile" && request.method === "POST") {
     if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return updateProfile(request, env, await readJson(request));
@@ -2060,7 +2210,7 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/reservations" && request.method === "GET") return adminReservations(env);
     if (path === "/api/admin/reservation" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
-      return adminCancelReservation(env, await readJson(request));
+      return adminSetReservation(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {
