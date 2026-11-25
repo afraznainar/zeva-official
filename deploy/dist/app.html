@@ -34,7 +34,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.35">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.36">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -1787,19 +1787,22 @@
     var money = Number((ACCT.wallet && ACCT.wallet.balance) || 0);
     var live = (ACCT.orders || []).filter(function (o) { return o.status !== 'done' && o.status !== 'cancelled'; });
     var past = (ACCT.orders || []).filter(function (o) { return o.status === 'done' || o.status === 'cancelled'; });
+    // The membership card lives on its own page, where the visit stamps and
+    // the prize wheel are.
+    var memberLink = '<a class="btn" href="member.html" style="margin-top:10px">Membership card &amp; spins</a>';
     var goldCard;
     if (gold.active) {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">ACTIVE</span></h3>' +
         '<p>Free delivery on every order inside 5 km, and ' + rupee(GOLD.cashback) + ' cashback into your wallet each time.</p>' +
-        (gold.expires_at ? '<p class="muted">Valid until ' + dateText(gold.expires_at) + '</p>' : '') + '</div>';
+        (gold.expires_at ? '<p class="muted">Valid until ' + dateText(gold.expires_at) + '</p>' : '') + memberLink + '</div>';
     } else if (gold.status === 'pending') {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill" style="background:var(--ink-800);color:var(--brass-2)">PENDING</span></h3>' +
-        '<p>Request received. Pay ' + rupee(GOLD.price) + ' at the counter (or on the payment link once it is live) and we switch Gold on for ' + GOLD.months + ' months right here.</p></div>';
+        '<p>Request received. Pay ' + rupee(GOLD.price) + ' at the counter (or on the payment link once it is live) and we switch Gold on for ' + GOLD.months + ' months right here.</p>' + memberLink + '</div>';
     } else {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
         '<ul><li>Free delivery on every order inside 5 km</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
         '<button class="btn" type="button" data-act="goldjoin" style="margin-top:12px">Join Zeva Gold &middot; ' + rupee(GOLD.price) + '</button>' +
-        '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p></div>';
+        '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p>' + memberLink + '</div>';
     }
 
     var card =

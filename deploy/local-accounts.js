@@ -113,6 +113,7 @@ const ACCOUNT_ROUTES = [
   "/api/gold/",
   "/api/upi/",
   "/api/notices",
+  "/api/member",
   "/api/admin/"
 ];
 

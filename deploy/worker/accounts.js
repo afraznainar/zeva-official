@@ -54,6 +54,25 @@ export const RESERVE = {
   advance: 500        // rupees of advance asked for a table
 };
 
+/* Membership. A visit is a guest who actually sat down — the counter taps
+   Mark visit on their booking. Every MEMBERS.visitsPerSpin visits earns one
+   turn of the wheel, and the wheel gives a juice or a ras malai. The counts are
+   read from the visits and spins tables every time, so nothing has to run in
+   the background and a correction in either table shows up immediately. */
+export const MEMBERS = {
+  visitsPerSpin: 10,
+  prizes: [
+    { key: "rasmalai", name: "Ras Malai", weight: 1 },
+    { key: "anyjuice", name: "Any Fresh Juice", weight: 1 },
+    { key: "lime", name: "Lime Juice", weight: 2 },
+    { key: "mintlime", name: "Mint Lime", weight: 2 },
+    { key: "watermelon", name: "Watermelon Juice", weight: 2 },
+    { key: "orange", name: "Orange Juice", weight: 2 },
+    { key: "pineapple", name: "Pineapple Juice", weight: 2 },
+    { key: "musambi", name: "Musambi Juice", weight: 2 }
+  ]
+};
+
 /* Achievement cards. Zeva Gold members collect a physical-style card each
    time their delivered-order count passes a milestone — Silver at 100, Gold
    at 500, Diamond at 1000. Change the numbers here and the app, the progress
@@ -192,6 +211,29 @@ const DB_SCHEMA = [
    )`,
   `CREATE INDEX IF NOT EXISTS reservations_slot ON reservations (day, time)`,
   `CREATE INDEX IF NOT EXISTS reservations_user ON reservations (user_id, created_at DESC)`,
+  // One row per sit-down visit. booking_id is unique, so tapping Mark visit
+  // twice on the same table cannot count twice.
+  `CREATE TABLE IF NOT EXISTS visits (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id TEXT NOT NULL,
+     booking_id TEXT,
+     source TEXT NOT NULL DEFAULT 'dine-in',
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS visits_booking ON visits (booking_id) WHERE booking_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS visits_user ON visits (user_id, created_at DESC)`,
+  // Every turn of the wheel and what it gave. used_at is the counter handing
+  // the prize over, so a rarer prize cannot be shown twice.
+  `CREATE TABLE IF NOT EXISTS spins (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id TEXT NOT NULL,
+     prize TEXT NOT NULL,
+     code TEXT NOT NULL,
+     created_at INTEGER NOT NULL,
+     used_at INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS spins_user ON spins (user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS spins_code ON spins (code)`,
   // Status rename: an order now waits for the counter ('pending') and leaves
   // the kitchen for 'out' — no more 'new' / 'ready'.
   `UPDATE orders SET status = 'pending' WHERE status = 'new'`,
@@ -241,7 +283,8 @@ const RESERVATION_ADVANCE_COLUMNS = [
   "ALTER TABLE reservations ADD COLUMN advance_amount REAL NOT NULL DEFAULT 0",
   "ALTER TABLE reservations ADD COLUMN advance_utr TEXT",
   "ALTER TABLE reservations ADD COLUMN advance_claimed_at INTEGER",
-  "ALTER TABLE reservations ADD COLUMN advance_paid_at INTEGER"
+  "ALTER TABLE reservations ADD COLUMN advance_paid_at INTEGER",
+  "ALTER TABLE reservations ADD COLUMN arrived_at INTEGER"
 ];
 
 async function ensureReservationColumns(env) {
@@ -979,6 +1022,9 @@ function shapeReservation(row) {
     seats: Number(row.seats || 0),
     note: row.note || "",
     status: row.status,
+    // The counter has seen this party arrive — that is one visit on the
+    // member's card.
+    arrived_at: Number(row.arrived_at || 0),
     // The ₹500 advance: due until the guest says they paid, paid once the
     // counter has seen the money in the UPI app or the bank SMS.
     advance: {
@@ -1258,6 +1304,20 @@ export async function adminReservations(env) {
 // The counter's own actions on one booking: cancelling it, or confirming the
 // ₹500 advance once the money is visible in the UPI app or the bank SMS.
 export async function adminSetReservation(env, body) {
+  // Marking the party as arrived is what puts a stamp on their member card.
+  if (body && body.arrived) {
+    const db = await database(env);
+    if (!db) return json(503, { error: "reservations are not configured" });
+    const id = String(body.id || "").trim().toUpperCase();
+    const row = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
+    if (!row) return json(404, { error: "unknown booking" });
+    if (!row.arrived_at) {
+      await db.prepare("UPDATE reservations SET arrived_at = ? WHERE id = ?").bind(Date.now(), id).run();
+      if (row.user_id) await recordVisit(env, row.user_id, id, "dine-in");
+    }
+    const fresh = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
+    return json(200, { ok: true, reservation: shapeReservation(fresh) });
+  }
   if (body && body.advance) {
     const db = await database(env);
     if (!db) return json(503, { error: "reservations are not configured" });
@@ -1273,6 +1333,284 @@ export async function adminSetReservation(env, body) {
     return json(200, { ok: true, reservation: shapeReservation(fresh) });
   }
   return cancelReservationRow(env, body && body.id, null, true);
+}
+
+/* ------------------------------------------------------------
+   Membership · visits, the wheel, and the counter's member list
+   ------------------------------------------------------------
+   Nothing here needs a job: a card is just visits counted against spins
+   taken, so marking a visit on the tablet immediately opens the wheel. */
+
+function prizeNames() {
+  return MEMBERS.prizes.map(function (prize) {
+    return prize.name;
+  });
+}
+
+// Weighted pick over the wheel. Ras Malai and "any juice" are one segment
+// each; every named juice is two, so the rarer prize stays rare.
+function pickPrize() {
+  const total = MEMBERS.prizes.reduce(function (sum, prize) {
+    return sum + prize.weight;
+  }, 0);
+  const bytes = crypto.getRandomValues(new Uint32Array(1));
+  let ticket = (bytes[0] / 4294967296) * total;
+  for (let i = 0; i < MEMBERS.prizes.length; i++) {
+    ticket -= MEMBERS.prizes[i].weight;
+    if (ticket <= 0) return { prize: MEMBERS.prizes[i], index: i };
+  }
+  return { prize: MEMBERS.prizes[0], index: 0 };
+}
+
+function shapeSpin(row) {
+  return {
+    id: Number(row.id),
+    prize: row.prize,
+    code: row.code,
+    created_at: Number(row.created_at || 0),
+    used_at: row.used_at ? Number(row.used_at) : null
+  };
+}
+
+// One visit. The unique booking_id makes a repeated tap a no-op instead of a
+// second stamp.
+async function recordVisit(env, userId, bookingId, source) {
+  const db = await database(env);
+  if (!db || !userId) return false;
+  try {
+    await db
+      .prepare("INSERT INTO visits (user_id, booking_id, source, created_at) VALUES (?, ?, ?, ?)")
+      .bind(userId, bookingId || null, source || "dine-in", Date.now())
+      .run();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function memberState(env, userId) {
+  if (!userId) return null;
+  const db = await database(env);
+  if (!db) return null;
+  const visits = await db.prepare("SELECT COUNT(*) AS n FROM visits WHERE user_id = ?").bind(userId).first();
+  const spins = await db.prepare("SELECT COUNT(*) AS n FROM spins WHERE user_id = ?").bind(userId).first();
+  const open = await db
+    .prepare("SELECT * FROM spins WHERE user_id = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 10")
+    .bind(userId)
+    .all();
+  const count = Number((visits && visits.n) || 0);
+  const earned = Math.floor(count / MEMBERS.visitsPerSpin);
+  const taken = Number((spins && spins.n) || 0);
+  const into = count % MEMBERS.visitsPerSpin;
+  return {
+    visits: count,
+    visits_per_spin: MEMBERS.visitsPerSpin,
+    earned: earned,
+    spins_taken: taken,
+    spins_left: Math.max(0, earned - taken),
+    to_next: into === 0 ? MEMBERS.visitsPerSpin : MEMBERS.visitsPerSpin - into,
+    prizes: prizeNames(),
+    open_prizes: (open.results || []).map(shapeSpin)
+  };
+}
+
+// GET /api/member — the card, the stamps and whatever prizes are still open.
+export async function myMembership(request, env) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "members are not configured" });
+  const user = await currentUser(request, env);
+  if (!user) {
+    return json(200, {
+      signed_in: false,
+      visits_per_spin: MEMBERS.visitsPerSpin,
+      prizes: prizeNames(),
+      gold_plan: GOLD
+    });
+  }
+  const state = await memberState(env, user.id);
+  const gold = await goldStatus(env, user.id);
+  return json(200, {
+    signed_in: true,
+    user: publicUser(user),
+    gold: gold,
+    gold_plan: GOLD,
+    prizes: prizeNames(),
+    membership: state
+  });
+}
+
+// POST /api/member/spin — one turn, chosen on the server.
+export async function spinTheWheel(request, env) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "members are not configured" });
+  const user = await currentUser(request, env);
+  if (!user) return json(401, { error: "Sign in with WhatsApp to spin the wheel.", sign_in: true });
+
+  const before = await memberState(env, user.id);
+  if (!before || before.spins_left < 1) {
+    return json(409, {
+      error: "The wheel opens every " + MEMBERS.visitsPerSpin + " visits. You have " + ((before && before.visits) || 0) + "."
+    });
+  }
+
+  const pick = pickPrize();
+  const code = "Z" + bookingCode().slice(0, 4);
+  await db
+    .prepare("INSERT INTO spins (user_id, prize, code, created_at) VALUES (?, ?, ?, ?)")
+    .bind(user.id, pick.prize.name, code, Date.now())
+    .run();
+
+  // Two phones spinning at once must not both spend the same tenth visit.
+  const after = await memberState(env, user.id);
+  if (after.spins_taken > after.earned) {
+    await db.prepare("DELETE FROM spins WHERE user_id = ? AND code = ?").bind(user.id, code).run();
+    return json(409, { error: "That spin was already used. Ask the counter to check your visits." });
+  }
+
+  return json(200, {
+    ok: true,
+    index: pick.index,
+    prize: pick.prize.name,
+    code: code,
+    membership: after
+  });
+}
+
+// GET /api/admin/members — every signed-up customer, for the counter.
+export async function adminMembers(env) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+  const rows = await db
+    .prepare(
+      "SELECT u.id, u.name, u.phone, u.email, u.created_at, u.last_seen_at, " +
+        "(SELECT COUNT(*) FROM visits v WHERE v.user_id = u.id) AS visits, " +
+        "(SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id) AS spins, " +
+        "(SELECT COUNT(*) FROM spins s2 WHERE s2.user_id = u.id AND s2.used_at IS NULL) AS open_prizes, " +
+        "(SELECT GROUP_CONCAT(s3.prize || ':' || s3.code, '|') FROM spins s3 WHERE s3.user_id = u.id AND s3.used_at IS NULL) AS open_list, " +
+        "g.status AS gold_status, g.expires_at AS gold_until " +
+        "FROM users u LEFT JOIN gold g ON g.user_id = u.id " +
+        "ORDER BY u.created_at DESC LIMIT 500"
+    )
+    .all();
+  const members = (rows.results || []).map(function (row) {
+    return {
+      id: row.id,
+      name: row.name || "",
+      phone: row.phone || "",
+      email: row.email || "",
+      visits: Number(row.visits || 0),
+      spins: Number(row.spins || 0),
+      open_prizes: Number(row.open_prizes || 0),
+      // "Ras Malai:ZAB12|Lime Juice:ZCD34" — what the counter still owes them.
+      open_list: String(row.open_list || "")
+        .split("|")
+        .filter(Boolean)
+        .map(function (pair) {
+          const cut = pair.lastIndexOf(":");
+          return { prize: pair.slice(0, cut), code: pair.slice(cut + 1) };
+        }),
+      gold: row.gold_status === "active" && (!row.gold_until || Number(row.gold_until) > Date.now()),
+      joined: Number(row.created_at || 0),
+      seen: row.last_seen_at ? Number(row.last_seen_at) : 0
+    };
+  });
+  const withPhone = members.filter(function (m) {
+    return m.phone;
+  });
+  return json(200, {
+    members: members,
+    counts: {
+      total: members.length,
+      reachable: withPhone.length,
+      gold: members.filter(function (m) {
+        return m.gold;
+      }).length,
+      spins_open: members.reduce(function (sum, m) {
+        return sum + m.open_prizes;
+      }, 0),
+      visits: members.reduce(function (sum, m) {
+        return sum + m.visits;
+      }, 0)
+    },
+    cap: MARKETING_MAX
+  });
+}
+
+/* Marketing from the counter. One message to every member, or to the Gold
+   members, or to people who have actually come in. It is capped because the
+   provider's free plan is 100 messages a month and a booking already spends
+   two — the dashboard shows how many are left after this send. */
+const MARKETING_MAX = 30;
+const MARKETING_SHIELD = "Zeva Mandi & Grills \u00b7 zevamandiandgrills.in \u00b7 reply STOP to stop these messages";
+
+export async function adminMarketing(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+  if (!whatsappReady(env)) return json(503, { error: "WhatsApp is not configured on this site, so nothing can be sent." });
+  const message = String((body && body.message) || "").trim().slice(0, 600);
+  if (message.length < 3) return json(400, { error: "Write the message first." });
+  const wanted = String((body && body.audience) || "all");
+  const audience = ["all", "gold", "visited"].indexOf(wanted) >= 0 ? wanted : "all";
+  const cap = Math.max(1, Math.min(MARKETING_MAX, Number((body && body.limit) || MARKETING_MAX)));
+
+  const where = ["u.phone IS NOT NULL", "u.phone <> ''"];
+  if (audience === "gold") where.push("g.status = 'active'");
+  if (audience === "visited") where.push("EXISTS (SELECT 1 FROM visits v WHERE v.user_id = u.id)");
+  const rows = await db
+    .prepare(
+      "SELECT u.id, u.name, u.phone FROM users u LEFT JOIN gold g ON g.user_id = u.id WHERE " +
+        where.join(" AND ") +
+        " ORDER BY u.created_at DESC"
+    )
+    .all();
+  const all = rows.results || [];
+  const batch = all.slice(0, cap);
+  const text = message + "\n\n" + MARKETING_SHIELD;
+
+  let sent = 0;
+  let failed = 0;
+  for (let i = 0; i < batch.length; i += 5) {
+    const slice = batch.slice(i, i + 5);
+    const results = await Promise.all(
+      slice.map(function (member) {
+        return whatsappText(env, member.phone, text);
+      })
+    );
+    results.forEach(function (ok) {
+      if (ok) sent++;
+      else failed++;
+    });
+  }
+
+  // The same words land in the app, for members who read it there.
+  await Promise.all(
+    batch.map(function (member) {
+      return pushNotice(env, { user_id: member.id, title: "From Zeva", body: message.slice(0, 400) });
+    })
+  );
+
+  return json(200, {
+    ok: true,
+    audience: audience,
+    total: all.length,
+    sent: sent,
+    failed: failed,
+    skipped: Math.max(0, all.length - batch.length),
+    cap: cap
+  });
+}
+
+// POST /api/admin/spin — the counter hands over a prize and closes it out.
+export async function adminSpinUsed(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "members are not configured" });
+  const code = String((body && body.code) || "").trim().toUpperCase();
+  if (!code) return json(400, { error: "which prize?" });
+  const row = await db.prepare("SELECT * FROM spins WHERE code = ?").bind(code).first();
+  if (!row) return json(404, { error: "no prize with that code" });
+  if (!row.used_at) await db.prepare("UPDATE spins SET used_at = ? WHERE code = ?").bind(Date.now(), code).run();
+  const fresh = await db.prepare("SELECT * FROM spins WHERE code = ?").bind(code).first();
+  return json(200, { ok: true, spin: shapeSpin(fresh) });
 }
 
 /* ------------------------------------------------------------
@@ -2199,6 +2537,15 @@ export async function handleAccounts(request, env, url) {
     return upiWebhook(request, env);
   }
 
+  if (path === "/api/member" && request.method === "GET") {
+    return myMembership(request, env);
+  }
+
+  if (path === "/api/member/spin" && request.method === "POST") {
+    if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+    return spinTheWheel(request, env);
+  }
+
   if (path === "/api/gold/join" && request.method === "POST") {
     if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
     return joinGold(request, env);
@@ -2242,6 +2589,15 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/reservation" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminSetReservation(env, await readJson(request));
+    }
+    if (path === "/api/admin/members" && request.method === "GET") return adminMembers(env);
+    if (path === "/api/admin/marketing" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminMarketing(env, await readJson(request));
+    }
+    if (path === "/api/admin/spin" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminSpinUsed(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {

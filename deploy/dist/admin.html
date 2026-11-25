@@ -142,9 +142,22 @@
     border: 1px solid var(--line); border-radius: 14px; background: var(--ink-900);
     padding: 13px 14px;
   }
-  .compose input { width: 100%; margin-bottom: 7px; }
+  .compose input, .compose textarea, .compose select { width: 100%; margin-bottom: 7px; }
+  .compose textarea { resize: vertical; min-height: 62px; font: inherit; line-height: 1.5; }
   .compose .acts { align-items: center; }
   .hint { font-size: 11.5px; color: var(--text-3); }
+
+  /* -------- members -------- */
+  .mrow {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 11px 13px; margin-bottom: 8px; background: var(--ink-900);
+  }
+  .mrow .info { flex: 1; min-width: 200px; }
+  .mrow .nm { font-size: 13.5px; font-weight: 600; }
+  .mrow .sub { font-size: 11.5px; color: var(--text-3); }
+  .mrow .acts { margin: 0; }
+  .mrow .prize { font-size: 11.5px; color: var(--brass-2); margin-top: 4px; }
 
   /* -------- gold -------- */
   .goldrow {
@@ -205,6 +218,22 @@
         <span class="hint" id="notifystate">Goes to the app on their phone.</span>
       </div>
     </div>
+
+    <h2 class="sect">Members</h2>
+    <div class="stats" id="membercounts" style="margin-bottom:12px"></div>
+    <div class="compose">
+      <select id="m_audience">
+        <option value="all">Every member with WhatsApp</option>
+        <option value="visited">Members who have visited</option>
+        <option value="gold">Zeva Gold members</option>
+      </select>
+      <textarea id="m_text" maxlength="600" placeholder="Marketing message \u2014 e.g. Prawns mandi is back this weekend, Gold members get a free juice"></textarea>
+      <div class="acts" style="margin-top:9px">
+        <button class="primary" type="button" id="m_send">Send on WhatsApp</button>
+        <span class="hint" id="m_state">Up to 30 members per send.</span>
+      </div>
+    </div>
+    <div id="members"></div>
 
     <h2 class="sect">Orders</h2>
     <div class="filters" id="filters"></div>
@@ -419,6 +448,7 @@
         render();
         loadGold();
         loadBookings();
+        loadMembers();
         loadTabTitle();
       })
       .catch(function () {});
@@ -694,6 +724,38 @@
         .catch(function () { bc.disabled = false; });
       return;
     }
+    var visit = e.target.closest('[data-visit]');
+    if (visit) {
+      var visitId = visit.getAttribute('data-visit');
+      if (!window.confirm('Mark table ' + visitId + ' as arrived? That adds one stamp to the member card.')) return;
+      visit.disabled = true;
+      fetch('/api/admin/reservation', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: visitId, arrived: true })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadBookings(); loadMembers(); })
+        .catch(function () { visit.disabled = false; });
+      return;
+    }
+    var prize = e.target.closest('[data-spin]');
+    if (prize) {
+      var prizeCode = prize.getAttribute('data-spin');
+      prize.disabled = true;
+      fetch('/api/admin/spin', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: prizeCode })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function () { loadMembers(); })
+        .catch(function () { prize.disabled = false; });
+      return;
+    }
+    var num = e.target.closest('[data-num]');
+    if (num) {
+      window.open('https://wa.me/' + num.getAttribute('data-num'), '_blank', 'noopener');
+      return;
+    }
     var g = e.target.closest('[data-gold]');
     if (g) {
       var parts = g.getAttribute('data-gold').split('|');
@@ -765,12 +827,14 @@
         '<div class="head"><span class="ref">' + esc(r.time) + ' \u00b7 ' + esc(r.id) + '</span>' +
           '<span class="badge ' + badge + '">' + word + '</span>' +
           advBadge +
+          (r.arrived_at ? '<span class="badge done">Visited</span>' : '') +
           '<span class="time">' + esc(r.day) + '</span></div>' +
         '<div class="who"><b>' + esc(r.name || 'Guest') + '</b> \u00b7 ' + r.seats + ' seats (' + party + ') \u00b7 ' +
           '<a href="tel:' + esc(r.phone) + '">' + esc(r.phone) + '</a></div>' +
         (r.note ? '<div class="note">' + esc(r.note) + '</div>' : '') +
         (live || adv.status === 'paid'
           ? '<div class="acts" style="margin-top:8px">' +
+              (live && !r.arrived_at ? '<button class="primary" data-visit="' + esc(r.id) + '">Mark visit</button>' : '') +
               (adv.status === 'paid'
                 ? '<button data-advance="' + esc(r.id) + '|due">Undo advance</button>'
                 : '<button class="primary" data-advance="' + esc(r.id) + '|paid">Advance received</button>') +
@@ -780,6 +844,87 @@
         '</div>';
     }).join('');
   }
+
+  /* ---------------- members ---------------- */
+  var members = [];
+  var memberCounts = null;
+  var memberCap = 30;
+
+  function loadMembers() {
+    return fetch('/api/admin/members', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { showGate(); throw new Error('signed out'); }
+        return r.json();
+      })
+      .then(function (d) {
+        members = (d && d.members) || [];
+        memberCounts = (d && d.counts) || null;
+        memberCap = (d && d.cap) || memberCap;
+        renderMembers();
+      })
+      .catch(function () {});
+  }
+
+  function renderMembers() {
+    var host = $('members');
+    var counts = $('membercounts');
+    if (!host || !counts) return;
+    if (memberCounts) {
+      counts.innerHTML = stat(memberCounts.total, 'members') +
+        stat(memberCounts.reachable, 'on WhatsApp') +
+        stat(memberCounts.gold, 'Gold') +
+        stat(memberCounts.visits, 'visits');
+    }
+    if (!members.length) {
+      host.innerHTML = '<div class="empty">No one has signed in yet. Every WhatsApp sign-in on the site and the app lands here.</div>';
+      return;
+    }
+    host.innerHTML = members.map(function (m) {
+      var prizes = (m.open_list || []).map(function (p) {
+        return '<div class="prize">Prize due: ' + esc(p.prize) + ' \u00b7 <b>' + esc(p.code) + '</b> ' +
+          '<button data-spin="' + esc(p.code) + '" type="button">Handed over</button></div>';
+      }).join('');
+      return '<div class="mrow">' +
+        '<div class="info"><div class="nm">' + esc(m.name || 'Member') +
+          (m.gold ? ' <span class="badge gold">Gold</span>' : '') +
+          (m.visits >= 10 ? ' <span class="badge new">' + Math.floor(m.visits / 10) + ' spin</span>' : '') + '</div>' +
+          '<div class="sub">' + (m.phone ? '<a href="tel:' + esc(m.phone) + '">+' + esc(m.phone) + '</a>' : 'no phone \u2014 app only') +
+          ' \u00b7 ' + m.visits + ' visit' + (m.visits === 1 ? '' : 's') +
+          ' \u00b7 ' + m.spins + ' spin' + (m.spins === 1 ? '' : 's') +
+          ' \u00b7 joined ' + (m.joined ? new Date(m.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '\u2014') +
+          '</div>' + prizes + '</div>' +
+        '<div class="acts">' +
+          (m.phone ? '<button data-num="' + esc(m.phone) + '">Message</button>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  $('m_send').addEventListener('click', function () {
+    var btn = $('m_send');
+    var text = $('m_text').value.trim();
+    var note = $('m_state');
+    if (text.length < 3) { $('m_text').focus(); note.textContent = 'Write the message first.'; return; }
+    var audience = $('m_audience').value;
+    var label = audience === 'gold' ? 'Zeva Gold members' : audience === 'visited' ? 'members who have visited' : 'every member on WhatsApp';
+    if (!window.confirm('Send this to ' + label + '? Up to ' + memberCap + ' messages go out now.')) return;
+    btn.disabled = true;
+    note.textContent = 'Sending\u2026';
+    fetch('/api/admin/marketing', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: text, audience: audience, limit: memberCap })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not send.'; return; }
+        note.textContent = 'Sent to ' + d.sent + (d.failed ? ', ' + d.failed + ' failed' : '') +
+          (d.skipped ? ', ' + d.skipped + ' left for the next send' : '') + '.';
+        if (d.sent) $('m_text').value = '';
+      })
+      .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
+  });
 
   /* ---------------- boot ---------------- */
   try { setSound(localStorage.getItem('zeva_admin_sound') === '1'); } catch (e) { setSound(false); }

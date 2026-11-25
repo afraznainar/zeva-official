@@ -369,13 +369,61 @@ adults and children, and gets a booking code on screen and on WhatsApp.
   both pickup and own-fleet delivery, which is what Google reads to offer
   booking or ordering.
 
+## Membership card, visits and the wheel
+
+`deploy/dist/member.html` is `/member` — the Zeva Gold card. Same lacquer room
+and brass lamp as `/reserve`, because the card is the object: a brass plate with
+ten stamps pressed into it, and the prize wheel beside it.
+
+- Sign-in is WhatsApp only, through the same one-time-code flow as the rest of
+the site (`POST /api/auth/whatsapp/start` then `/verify`). Nothing else is
+asked for, and there is no Google button anywhere on this page.
+- **A visit is a sit-down visit the counter records.** The staff card on `/admin`
+  has **Mark visit** while a booking is live; it sets `reservations.arrived_at`
+  and inserts one row into `visits`. `visits.booking_id` is uniquely indexed, so
+  a double tap is a no-op, and only someone who signed in with WhatsApp when
+  they booked has a user id to credit.
+- **Spins are derived, never stored as a balance.** `earned = floor(visits /
+  MEMBERS.visitsPerSpin)` and `spins_left = earned − spins taken`, so nothing has
+  to run on a schedule and deleting a bad visit gives the arithmetic back.
+  `MEMBERS` at the top of `worker/accounts.js` holds `visitsPerSpin` (10) and the
+  prize table with weights.
+- **The prize is picked on the server**, weighted (ras malai and “any fresh
+  juice” once each, the named juices twice), and returned with a short claim code
+  (`Z` + four characters). The wheel in the page rotates to that segment — the
+  animation is the server's answer, not a local random. `spins.used_at` is set
+  when the counter hands the prize over, on `/admin` or with `POST
+  /api/admin/spin {code}`; the guest's open prizes stay listed on the card until
+  then. Two phones spinning at once cannot spend the same tenth visit: the row
+  is deleted if the count comes back over `earned`.
+- **Gold is the same account.** `/member` shows the plan and, when signed in,
+  the **Ask for Gold · ₹499** button, which is the existing `POST /api/gold/join`
+  request the counter approves — no second signup path. The perks are free
+  delivery inside 5 km, ₹5 cashback into Zeva Money per delivered order, and
+  six months for ₹499.
+- **Every signed-up member is data the shop owns.** `GET /api/admin/members`
+  lists the last 500 with name, WhatsApp number, visits, spins, open prizes,
+  Gold state and joined date, plus counts (total, on WhatsApp, Gold, visits).
+  `POST /api/admin/marketing {message, audience, limit}` sends the message on
+  WhatsApp to `all` / `gold` / `visited`, then writes the same words into each
+  member's `notices` for the app. It batches five at a time, appends “reply STOP
+  to stop these messages”, and is capped at `MARKETING_MAX` = 30 per send because
+  the provider's free plan is 100 messages a month and a booking already spends
+  two. The response reports sent, failed and how many were left for the next
+  send.
+- Discovery is footer-only, like `/reserve`: a **Zeva Gold card** item in the
+  Explore list of every page that shares that footer, a *Membership card & spins*
+  link on the gold card in `/app`, and `/member` in `sitemap.xml` + `llms.txt`.
+
 ## Staff dashboard
 
 `deploy/dist/admin.html` is `/admin` — passcode gate (`ADMIN_PASSCODE` secret),
 order feed polled every 8 seconds with a WebAudio chime, desktop notification
 and tab-title counter, the status filter tabs (Pending, Preparing, Out, Finished, Cancelled, All — the
 choice is remembered per device), the Accept → Out for delivery → Delivered buttons, the
-message composer that reaches customer phones, and Zeva Gold approvals.
+message composer that reaches customer phones, Zeva Gold approvals, the
+**Members** list with its marketing composer, **Mark visit** on live bookings,
+and **Handed over** on a prize code.
 
 Sound only plays after someone taps **Enable sound** once on the device (browser
 autoplay rules); the choice is remembered per device. Nothing here is in the
