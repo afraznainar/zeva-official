@@ -61,7 +61,7 @@ PAGES ON THIS SITE
 - /visit.html - address, map, hours, directions
 - /faq.html - common questions
 - /review-us.html - how to leave a Google review
-- /reserve.html - book a table: sign in with Google, pick a date, time, adults and children
+- /reserve.html - book a table: sign in with your WhatsApp number, pick a date, time, adults and children
 `;
 
 function systemPrompt() {
