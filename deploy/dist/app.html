@@ -34,7 +34,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.46">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.47">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -637,7 +637,7 @@
       <div class="over">
         <h1>Zeva Mandi &amp; Grills</h1>
         <p><span class="open">Open now</span><i class="dot"></i>12 PM &ndash; 11 PM<i class="dot"></i>&#8377;480 min order</p>
-        <p style="margin-top:4px">Delivery within 3.5 km &middot; Pickup &middot; Cash or UPI</p>
+        <p style="margin-top:4px">Delivery across Mangaluru &middot; Pickup &middot; Cash or UPI</p>
       </div>
     </section>
 
@@ -751,8 +751,8 @@
   var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
   var NOTICE_KEY = 'zeva_notice_after';
-  var GOLD = { price: 249, months: 12, cashback: 5, freeMetres: 3500 };
-  var GOLD_FREE_M = 3500;
+  var GOLD = { price: 249, months: 12, cashback: 5, freeMetres: 6000 };
+  var GOLD_FREE_M = 6000;
   var cashbackNote = '';
 
   function read(key, fallback) {
@@ -870,7 +870,7 @@
   }
   function deliveryFeeFor(m) {
     if (m === null) return null;
-    // Zeva Gold: delivery is free anywhere inside 3.5 km.
+    // Zeva Gold: delivery is free anywhere inside 6 km.
     if (goldActive() && m <= GOLD_FREE_M) return 0;
     if (m <= FREE_DELIVERY_M) return 0;
     if (m <= 3000) return 55;
@@ -1026,8 +1026,8 @@
     if (pos.state === 'locating') html += '<div class="status warn">Finding you&hellip;</div>';
     if (pos.state === 'denied') html += '<div class="status bad">Location is blocked. Type your address and we will confirm the delivery charge.</div>';
     if (pos.state === 'failed') html += '<div class="status bad">Could not read your location. We will confirm the delivery charge.</div>';
-    if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our ' + (goldActive() ? '3.5 km Gold' : '3.5 km') + ' delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
-    else if (pos.metres !== null) html += '<div class="status ok">Inside our ' + (goldActive() ? '3.5 km Zeva Gold' : '3.5 km') + ' radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
+    if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our ' + (goldActive() ? (GOLD_FREE_M / 1000) + ' km Gold' : '3.5 km') + ' delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
+    else if (pos.metres !== null) html += '<div class="status ok">Inside our ' + (goldActive() ? (GOLD_FREE_M / 1000) + ' km Zeva Gold' : '3.5 km') + ' radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
     return html;
   }
 
@@ -1110,9 +1110,9 @@
 
       '</div>' + bills() +
       (goldActive()
-        ? '<div class="status ok">Zeva Gold: free delivery inside 3.5 km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
+        ? '<div class="status ok">Zeva Gold: free delivery inside ' + (GOLD_FREE_M / 1000) + ' km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
         : signedIn()
-          ? '<div class="status warn">Zeva Gold gives free delivery inside 3.5 km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
+          ? '<div class="status warn">Zeva Gold gives free delivery inside ' + (GOLD_FREE_M / 1000) + ' km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
           : (ACCT && ACCT.whatsapp
             ? '<div class="status warn" style="cursor:pointer" data-act="gosignin">Sign in with your WhatsApp number &mdash; save this order and earn ' + rupee(GOLD.cashback) + ' cashback</div>'
             : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>')) +
@@ -1757,7 +1757,7 @@
       body.innerHTML =
         '<div class="card"><h3>Sign in to Zeva</h3>' +
           '<p>Your orders, your wallet and Zeva Gold &mdash; all in one place.</p>' +
-                     '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside 3.5 km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
+                     '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside ' + (GOLD_FREE_M / 1000) + ' km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
           (waStep
             ? waForm + (waNote ? '<div class="status warn" style="margin-top:10px">' + esc(waNote) + '</div>' : '')
             : (ACCT.whatsapp
@@ -1767,7 +1767,7 @@
           '<p class="muted">We only keep your mobile number, name and address. No password is stored.</p>' +
         '</div>' +
         '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
-                     '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside 3.5 km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
+                     '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
         '</div>';
       // The build label has to be here too: a freshly installed APK has not
       // signed in yet, and that is exactly when someone needs to prove which
@@ -1789,14 +1789,14 @@
     var goldCard;
     if (gold.active) {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">ACTIVE</span></h3>' +
-        '<p>Free delivery on every order inside 3.5 km, and ' + rupee(GOLD.cashback) + ' cashback into your wallet each time.</p>' +
+        '<p>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, and ' + rupee(GOLD.cashback) + ' cashback into your wallet each time.</p>' +
         (gold.expires_at ? '<p class="muted">Valid until ' + dateText(gold.expires_at) + '</p>' : '') + memberLink + '</div>';
     } else if (gold.status === 'pending') {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill" style="background:var(--ink-800);color:var(--brass-2)">PENDING</span></h3>' +
         '<p>Request received. Pay ' + rupee(GOLD.price) + ' at the counter (or on the payment link once it is live) and we switch Gold on for ' + GOLD.months + ' months right here.</p>' + memberLink + '</div>';
     } else {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
-        '<ul><li>Free delivery on every order inside 3.5 km</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
+        '<ul><li>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
         '<button class="btn" type="button" data-act="goldjoin" style="margin-top:12px">Join Zeva Gold &middot; ' + rupee(GOLD.price) + '</button>' +
         '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p>' + memberLink + '</div>';
     }

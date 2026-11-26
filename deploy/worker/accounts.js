@@ -34,7 +34,7 @@ export const GOLD = {
   price: 249,
   months: 12,
   cashback: 5,
-  freeMetres: 3500
+  freeMetres: 6000
 };
 
 /* Table reservations. A booking takes covers out of one 30-minute slot, and

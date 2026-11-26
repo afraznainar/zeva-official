@@ -292,7 +292,7 @@
     <button class="pop-x" type="button" id="pop-x" aria-label="Close sign-up">&times;</button>
     <p class="pop-kicker">Zeva Gold &middot; &#8377;249 a year</p>
     <h2 id="pop-h">One code on WhatsApp and the card is yours.</h2>
-    <p class="pop-copy" id="pop-copy">Stamps on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 3.5&nbsp;km of Bolar.</p>
+    <p class="pop-copy" id="pop-copy">Stamps on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 6&nbsp;km of Bolar.</p>
 
     <form id="pop-phone" novalidate>
       <label class="fl"><span>WhatsApp number</span>
@@ -429,11 +429,11 @@
         (gold.status === 'active'
           ? '<a class="row" href="member.html">' +
               '<div class="grow"><div class="row-t">Gold is on until ' + esc(when(gold.expires_at)) + '</div>' +
-              '<div class="row-s">Free delivery inside 3.5 km and \u20b95 back on every order.</div></div>' +
+              '<div class="row-s">Free delivery inside 6 km and \u20b95 back on every order.</div></div>' +
               '<span class="go">See the card</span></a>'
           : '<a class="row" href="join.html">' +
               '<div class="grow"><div class="row-t">Join Zeva Gold \u00b7 ' + esc(money((plan && plan.price) || 249)) + '/yr</div>' +
-              '<div class="row-s">' + (gold.status === 'pending' ? 'Your request is with the counter.' : 'Free delivery inside 3.5 km, and \u20b95 back on every order.') + '</div></div>' +
+              '<div class="row-s">' + (gold.status === 'pending' ? 'Your request is with the counter.' : 'Free delivery inside 6 km, and \u20b95 back on every order.') + '</div></div>' +
               '<span class="go">' + (gold.status === 'pending' ? 'Pending' : 'Join') + '</span></a>') +
         '<a class="row" href="reserve.html">' +
           '<div class="grow"><div class="row-t">Book a table</div>' +
