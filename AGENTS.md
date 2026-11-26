@@ -152,6 +152,17 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   keeps one account; the Google `sub` is never overwritten.
   LoginWA's free plan is 100 messages/month with no Meta approval; any provider
   exposing the same `auth/start` + `auth/verify` calls will do.
+- **Every public page asks for the account on its own.**
+  `deploy/dist/assets/signup-popup.js` is loaded by the ten content pages (home,
+  menu, about, visit, faq, history, `best-mandi-mangalore`,
+  `unlimited-mandi-mangalore`, review-us, download) and opens a sign-up sheet
+  about 2.5 s after the page arrives — sign in, or a new number becomes an
+  account with the same WhatsApp code. It asks `/api/me` first so a signed-in
+  customer never sees it, and it stays shut when sign-in is switched off
+  (`whatsapp:false`), when the visitor chose **Not now** on that tab
+  (`sessionStorage.zeva.signup.skipped`) or while the chat panel or the cart
+  drawer is open. `/app`, `/profile`, `/member`, `/join`, `/reserve` and
+  `/admin` do not load it: each already leads with its own sign-in form.
 - **WhatsApp is the only sign-in the site offers.** The Google button used to
   sit beside it in the You tab, the checkout prompt and the `/profile` sign-up
   sheet; all three are gone (26 Nov 2026) so no page draws a Google choice and
