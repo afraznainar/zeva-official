@@ -2524,9 +2524,13 @@ export async function adminOrders(env, after) {
     .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS sum FROM orders WHERE status IN ('pending','preparing','out')")
     .first();
   // Today's sales is food + GST only: the delivery fee we collect goes to the
-  // rider, so it is not revenue.
+  // rider, so it is not revenue. Cancelled orders never brought money in, so
+  // they are left out of the figure (today_orders still counts every order
+  // placed today, cancelled ones included).
   const today = await db
-    .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(items_total + cgst + sgst), 0) AS sum FROM orders WHERE created_at > ?")
+    .prepare(
+      "SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 0 ELSE items_total + cgst + sgst END), 0) AS sum FROM orders WHERE created_at > ?"
+    )
     .bind(startOfDay())
     .first();
   const goldPending = await db.prepare("SELECT COUNT(*) AS n FROM gold WHERE status = 'pending'").first();
