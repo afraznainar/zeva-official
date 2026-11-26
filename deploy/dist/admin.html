@@ -1241,9 +1241,20 @@
       .then(function (d) {
         btn.disabled = false;
         if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not send.'; return; }
-        note.textContent = 'Sent to ' + d.sent + (d.failed ? ', ' + d.failed + ' failed' : '') +
-          (d.skipped ? ', ' + d.skipped + ' left for the next send' : '') + '.';
-        if (d.failed && d.reason) note.textContent += ' The provider said: ' + d.reason;
+        /* "Sent" from the provider is not delivery: a message can be taken
+           and then sit queued forever. Say what really happened. */
+        var parts = ['Sent to ' + d.sent];
+        if (d.checked) parts.push(d.delivered + ' of ' + d.checked + ' confirmed delivered');
+        if (d.queued) parts.push(d.queued + ' still queued');
+        if (d.failed) parts.push(d.failed + ' failed');
+        if (d.self_skipped) parts.push(d.self_skipped + ' skipped');
+        if (d.skipped) parts.push(d.skipped + ' left for the next send');
+        note.textContent = parts.join(' \u00b7 ') + '.';
+        if (d.reason) note.textContent += ' ' + d.reason;
+        if (d.self_numbers && d.self_numbers.length) {
+          note.textContent += ' ' + d.self_numbers.join(', ') +
+            ' is this WhatsApp\u2019s own number \u2014 WhatsApp cannot deliver a message from a phone to itself, so test on another phone.';
+        }
         if (d.sent) $('m_text').value = '';
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });

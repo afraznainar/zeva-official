@@ -769,7 +769,17 @@ async function whatsappSend(env, phone, message) {
         signal: AbortSignal.timeout(25000)
       });
       const data = await response.json().catch(function () { return {}; });
-      if (response.ok) return { ok: true, status: response.status, error: "" };
+      // 200 only means the engine took the message, not that a phone got it.
+      // Keep the provider's id so the delivery can be asked about afterwards.
+      if (response.ok) {
+        return {
+          ok: true,
+          status: response.status,
+          error: "",
+          id: String(data.message_id || ""),
+          quota: Number(data.quota_remaining) || null
+        };
+      }
       const reason = String(data.error || data.message || "").slice(0, 160) || "HTTP " + response.status;
       console.warn("[whatsapp] message failed " + response.status + ": " + reason);
       if ((response.status === 502 || response.status === 503) && attempt === 0) continue;
@@ -829,6 +839,52 @@ export async function adminWhatsappStatus(env) {
     out.error = "Could not reach the WhatsApp provider from this site: " + String((error && error.message) || "network error").slice(0, 120);
   }
   return json(200, out);
+}
+
+/* Delivery, as opposed to acceptance. /v1/messages/send answers 200 with a
+   message id while the message is only queued; a phone that is asked to
+   message its own number leaves it queued forever and the customer sees
+   nothing. This asks the provider what became of one id: queued, sent,
+   delivered, read, failed ("" when the answer cannot be had). */
+async function whatsappDelivery(env, messageId) {
+  if (!messageId || !whatsappReady(env)) return "";
+  try {
+    const response = await fetch(whatsappApi(env) + "/v1/messages/" + encodeURIComponent(messageId), {
+      headers: { authorization: "Bearer " + env.WHATSAPP_OTP_KEY },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) return "";
+    const data = await response.json().catch(function () { return {}; });
+    return String(data.status || "").toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+// The numbers this key's own devices answer on. WhatsApp never delivers a
+// message a phone sends to its own number, so these have to be skipped by name
+// instead of being counted as sent.
+async function whatsappSenderNumbers(env) {
+  if (!whatsappReady(env)) return [];
+  try {
+    const response = await fetch(whatsappApi(env) + "/v1/devices", {
+      headers: { authorization: "Bearer " + env.WHATSAPP_OTP_KEY },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) return [];
+    const data = await response.json().catch(function () { return {}; });
+    return (Array.isArray(data.devices) ? data.devices : [])
+      .map(function (device) { return String(device.phone_number || "").replace(/\D/g, ""); })
+      .filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
+const DELIVERY_VERIFIED = ["sent", "delivered", "read"];
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
 }
 
 // The counter's own WhatsApp, unless BOOKING_NOTIFY_PHONE says otherwise
@@ -1640,6 +1696,9 @@ export async function adminMembers(env) {
    provider's free plan is 100 messages a month and a booking already spends
    two — the dashboard shows how many are left after this send. */
 const MARKETING_MAX = 30;
+// Delivery is checked for at most this many ids: each check is one API call and
+// the provider allows 120 a minute for the key, which the sends also spend.
+const MARKETING_CHECK_MAX = 12;
 const MARKETING_SHIELD = "Zeva Mandi & Grills \u00b7 zevamandiandgrills.in \u00b7 reply STOP to stop these messages";
 
 export async function adminMarketing(env, body) {
@@ -1666,23 +1725,72 @@ export async function adminMarketing(env, body) {
   const batch = all.slice(0, cap);
   const text = message + "\n\n" + MARKETING_SHIELD;
 
+  // A phone cannot message its own number. The provider still answers 200 and
+  // the message waits as "queued" forever, which is exactly how a successful
+  // test send to the shop's own phone turns into "sent, but nothing arrived".
+  // The shop's own number is the usual test, so skip it by name and say why.
+  const senders = await whatsappSenderNumbers(env);
+  function isSender(member) {
+    return senders.indexOf(String((member && member.phone) || "").replace(/\D/g, "")) >= 0;
+  }
+  const self = batch.filter(isSender);
+  const target = batch.filter(function (member) { return !isSender(member); });
+
   let sent = 0;
   let failed = 0;
   let reason = "";
-  for (let i = 0; i < batch.length; i += 5) {
-    const slice = batch.slice(i, i + 5);
+  const accepted = [];
+  for (let i = 0; i < target.length; i += 5) {
+    const slice = target.slice(i, i + 5);
     const results = await Promise.all(
       slice.map(function (member) {
         return whatsappSend(env, member.phone, text);
       })
     );
-    results.forEach(function (result) {
-      if (result && result.ok) sent++;
-      else {
+    results.forEach(function (result, index) {
+      if (result && result.ok) {
+        sent++;
+        accepted.push({ id: result.id || "", phone: slice[index].phone });
+      } else {
         failed++;
         if (!reason) reason = String((result && result.error) || "send failed");
       }
     });
+  }
+
+  /* Acceptance is not delivery. The first few ids are asked about until they
+     stop being queued, so the counter learns that a message the provider took
+     never reached a phone — the difference between "sent" and "received". */
+  const checked = accepted.filter(function (item) { return item.id; }).slice(0, MARKETING_CHECK_MAX);
+  const states = {};
+  let waiting = checked;
+  for (let round = 0; round < 3 && waiting.length; round++) {
+    if (round) await sleep(6000);
+    const answered = await Promise.all(
+      waiting.map(function (item) {
+        return whatsappDelivery(env, item.id).then(function (status) {
+          return { item: item, status: status };
+        });
+      })
+    );
+    const still = [];
+    answered.forEach(function (row) {
+      states[row.item.id] = row.status;
+      if (DELIVERY_VERIFIED.indexOf(row.status) < 0) still.push(row.item);
+    });
+    waiting = still;
+  }
+  let delivered = 0;
+  let queued = 0;
+  checked.forEach(function (item) {
+    if (DELIVERY_VERIFIED.indexOf(states[item.id] || "") >= 0) delivered++;
+    else queued++;
+  });
+  if (queued && !reason) {
+    reason =
+      "The provider accepted " + queued + (queued === 1 ? " message" : " messages") +
+      " but " + (queued === 1 ? "it was" : "they were") +
+      " still queued, so no phone received " + (queued === 1 ? "it" : "them") + ".";
   }
 
   // The same words land in the app, for members who read it there.
@@ -1696,11 +1804,22 @@ export async function adminMarketing(env, body) {
     ok: true,
     audience: audience,
     total: all.length,
+    // sent = the provider took it. delivered/queued = what became of the ones
+    // that could be checked, which is what the counter actually cares about.
     sent: sent,
     failed: failed,
+    delivered: delivered,
+    queued: queued,
+    checked: checked.length,
+    // The shop's own WhatsApp number, left out because a phone cannot message
+    // itself — the send the counter tests with is usually this one.
+    self_skipped: self.length,
+    self_numbers: self.map(function (member) {
+      return maskPhone(String((member && member.phone) || "").replace(/\D/g, ""));
+    }),
     // Why the ones that failed failed — the admin shows this instead of a
     // bare count, so a dead sender is not mistaken for a bad message.
-    reason: failed ? reason : "",
+    reason: reason,
     skipped: Math.max(0, all.length - batch.length),
     cap: cap
   });

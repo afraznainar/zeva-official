@@ -417,7 +417,15 @@ asked for, and there is no Google button anywhere on this page.
   two. The response reports sent, failed, how many were left for the next
   send, and — when anything failed — the provider's own reason in `reason`
   (`quota_exceeded`, `no_device_connected`, `unauthorized`, …), which the
-  composer prints after the count. `GET /api/admin/whatsapp` answers the
+  composer prints after the count. Two things make "sent" honest: the shop's
+  own WhatsApp number is **skipped** (`self_skipped`, `self_numbers`) because a
+  phone cannot deliver a message to itself — LoginWA still answers 200 and the
+  message waits as `queued` for ever, which looked exactly like a send that
+  arrived — and the accepted ids are polled through
+  `GET /v1/messages/{message_id}` (up to `MARKETING_CHECK_MAX` = 12 of them,
+  three rounds six seconds apart) so the reply also carries `checked`,
+  `delivered` and `queued`. "Sent" is the provider taking the message;
+  "delivered" is a phone having it. `GET /api/admin/whatsapp` answers the
   question behind most failures: `WHATSAPP_OTP_API`/default host the key points
   at, and every device that key has with its online state and masked number;
   the **Check sender** button beside **Send on WhatsApp** shows that in the
