@@ -472,19 +472,48 @@ export function sameOrigin(request, env) {
 
 let schemaPromise = null;
 
+/* Every table and every later-added column is already in place on a site that
+   has answered a request before, so the warm path needs no DDL at all: three
+   reads against a column each bootstrap adds prove the schema is there, and
+   anything missing falls back to the full batch below.
+
+   The D1 batch used to run on the first request of every isolate and its
+   failure was thrown at the caller, which the platform answers with its
+   "Site unavailable" 502 — so one busy moment in D1 took out a third of the
+   requests on the site: the admin feed, members, orders and sign-in all died
+   while every table was present and the data was untouched. A transient
+   bootstrap failure now just skips the batch; the query that follows reports a
+   real problem honestly, and the next request tries again. */
+async function schemaReady(env) {
+  try {
+    await env.DB.prepare("SELECT address FROM users LIMIT 1").first();
+    await env.DB.prepare("SELECT upi_seq FROM orders LIMIT 1").first();
+    await env.DB.prepare("SELECT arrived_at FROM reservations LIMIT 1").first();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function database(env) {
   if (!env || !env.DB) return null;
   if (!schemaPromise) {
-    schemaPromise = env.DB.batch(DB_SCHEMA.map(function (sql) { return env.DB.prepare(sql); }))
-      .catch(function (error) {
+    const boot = (async function () {
+      if (await schemaReady(env)) return;
+      try {
+        await env.DB.batch(DB_SCHEMA.map(function (sql) { return env.DB.prepare(sql); }));
+      } catch (error) {
+        console.warn("[db] schema batch failed: " + String((error && error.message) || error).slice(0, 160));
         schemaPromise = null;
-        throw error;
-      });
+        return;
+      }
+      await ensureUserColumns(env);
+      await ensureOrderColumns(env);
+      await ensureReservationColumns(env);
+    })();
+    schemaPromise = boot;
   }
   await schemaPromise;
-  await ensureUserColumns(env);
-  await ensureOrderColumns(env);
-  await ensureReservationColumns(env);
   return env.DB;
 }
 
