@@ -295,6 +295,9 @@
     <p class="pop-copy" id="pop-copy">Stamps on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 6&nbsp;km of Bolar.</p>
 
     <form id="pop-phone" novalidate>
+      <label class="fl"><span>Your name</span>
+        <input id="pop-name" type="text" autocomplete="name" placeholder="Your name" maxlength="80">
+      </label>
       <label class="fl"><span>WhatsApp number</span>
         <input id="pop-num" type="tel" inputmode="tel" autocomplete="tel" placeholder="98450 00000" required>
       </label>
@@ -522,7 +525,7 @@
     if (code.length < 4) { setMsg('Enter the code from WhatsApp.', 'bad'); $('pop-digits').focus(); return; }
     $('pop-verify').disabled = true;
     setMsg('Opening your card\u2026');
-    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code } })
+    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: $('pop-name').value.trim() } })
       .then(function (d) {
         $('pop-verify').disabled = false;
         if (!d.ok) { setMsg(d.error || 'That code is not right.', 'bad'); return; }

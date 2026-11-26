@@ -34,7 +34,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.47">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.48">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -747,6 +747,7 @@
   var waStep = 0;
   var waSession = '';
   var waPhone = '';
+  var waName = '';        // typed at sign-up; the server keeps it only when the profile has no name
   var waNote = '';
   var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
@@ -1350,6 +1351,7 @@
       loadAccount();
       waStep = 1;
       waPhone = (form.phone || '');
+      waName = (form.name || '');
       waNote = '';
       renderYou();
       var waFocus = document.getElementById('wa-phone');
@@ -1415,6 +1417,7 @@
       waStep = 1;
       waNote = '';
       waPhone = (form.phone || '');
+      waName = (form.name || '');
       renderYou();
       var phoneBox = document.getElementById('wa-phone');
       if (phoneBox) phoneBox.focus();
@@ -1426,6 +1429,8 @@
     } else if (what === 'wa-send') {
       var waInput = document.getElementById('wa-phone');
       var typed = waInput ? waInput.value : '';
+      var nameInput = document.getElementById('wa-name');
+      waName = nameInput ? nameInput.value.trim() : '';
       act.disabled = true;
       act.textContent = 'Sending\u2026';
       fetch('/api/auth/whatsapp/start', {
@@ -1460,7 +1465,7 @@
       fetch('/api/auth/whatsapp/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session: waSession, code: code })
+        body: JSON.stringify({ session: waSession, code: code, name: waName })
       })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (d) {
@@ -1468,6 +1473,7 @@
             waStep = 0;
             waNote = '';
             waSession = '';
+            waName = '';
             loadAccount();
             return;
           }
@@ -1745,7 +1751,10 @@
       // the number, step 2 for the code.
       var waForm = '';
       if (waStep === 1) {
-        waForm = '<div class="field" style="margin-top:14px"><label for="wa-phone">WhatsApp number</label><input id="wa-phone" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" value="' + esc(waPhone) + '"></div>' +
+        // The name rides along with the number, so a first order and the
+        // counter's member list carry a name instead of just a number.
+        waForm = '<div class="field" style="margin-top:14px"><label for="wa-name">Your name</label><input id="wa-name" type="text" autocomplete="name" placeholder="Your name" maxlength="80" value="' + esc(waName) + '"></div>' +
+          '<div class="field"><label for="wa-phone">WhatsApp number</label><input id="wa-phone" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" value="' + esc(waPhone) + '"></div>' +
           '<button class="btn" type="button" data-act="wa-send">Send code on WhatsApp</button>' +
           '<button class="btn ghost" type="button" data-act="wa-cancel">Back</button>';
       } else if (waStep === 2) {

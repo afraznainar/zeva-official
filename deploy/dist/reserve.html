@@ -730,6 +730,8 @@
 
     body.innerHTML =
       '<div class="signin">' +
+        '<div style="flex:1 1 190px"><label class="field-label" for="wa-name">Your name</label>' +
+        '<input type="text" id="wa-name" placeholder="Your name" autocomplete="name" maxlength="80"></div>' +
         '<div style="flex:1 1 190px"><label class="field-label" for="wa-phone">Your WhatsApp number</label>' +
         '<input type="tel" id="wa-phone" placeholder="10-digit mobile" autocomplete="tel" maxlength="16"></div>' +
         '<button class="btn btn-solid" type="button" id="wa-send" style="align-self:flex-end">Send code</button>' +
@@ -767,7 +769,8 @@
       if (!waSession) { $('wa-state').textContent = 'Ask for a code first.'; return; }
       if (!code) { $('wa-state').textContent = 'Enter the 6-digit code.'; return; }
       $('wa-verify').disabled = true;
-      api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: waSession, code: code } }).then(function (data) {
+      var name = ($('wa-name').value || '').trim();
+      api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: waSession, code: code, name: name } }).then(function (data) {
         $('wa-verify').disabled = false;
         if (!data.ok) { $('wa-state').textContent = data.error || 'That code is not right.'; return; }
         location.reload();
