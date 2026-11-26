@@ -2422,6 +2422,64 @@ export async function pushNotice(env, notice) {
   return { ok: true, id: (result && result.meta && result.meta.last_row_id) || null };
 }
 
+/* One message from the counter to one customer's phone. The app notice is
+   still written, because the same words are useful there, but WhatsApp is what
+   the customer actually reads. A customer with no number on file is not an
+   error: they simply only get the notice in the app. */
+async function sendPhoneNoticeToUser(env, userId, title, body, orderId) {
+  const db = await database(env);
+  if (!db) return "not configured";
+  const user = await db.prepare("SELECT phone FROM users WHERE id = ?").bind(userId).first();
+  const phone = String((user && user.phone) || "").replace(/\D/g, "");
+  if (!phone) return "no number";
+  if (!whatsappReady(env)) return "not configured";
+  const message = phoneNoticeText(title, body, orderId);
+  return (await whatsappText(env, phone, message)) ? "sent" : "failed";
+}
+
+function phoneNoticeText(title, body, orderId) {
+  return (
+    String(title || "Zeva").slice(0, 80) +
+    (body ? "\n" + String(body).slice(0, 500) : "") +
+    (orderId ? "\n#" + orderId : "") +
+    "\n\n" +
+    MARKETING_SHIELD
+  );
+}
+
+/* The same notice to every customer who has a number. Capped exactly like
+   marketing, because the provider's plan is metered per message. */
+async function sendPhoneNoticeToEveryone(env, title, body) {
+  if (!whatsappReady(env)) return { total: 0, sent: 0, failed: 0, skipped: 0, reason: "WhatsApp is not set up on this site yet." };
+  const db = await database(env);
+  if (!db) return { total: 0, sent: 0, failed: 0, skipped: 0, reason: "accounts are not configured" };
+  const rows = await db
+    .prepare("SELECT id, phone FROM users WHERE phone IS NOT NULL AND phone <> '' ORDER BY created_at DESC")
+    .all();
+  const all = rows.results || [];
+  const batch = all.slice(0, MARKETING_MAX);
+  const text = phoneNoticeText(title, body, "");
+  let sent = 0;
+  let failed = 0;
+  for (let i = 0; i < batch.length; i += 5) {
+    const results = await Promise.all(
+      batch.slice(i, i + 5).map(function (member) {
+        return whatsappText(env, member.phone, text);
+      })
+    );
+    results.forEach(function (ok) {
+      if (ok) sent++;
+      else failed++;
+    });
+  }
+  await Promise.all(
+    batch.map(function (member) {
+      return pushNotice(env, { user_id: member.id, title: title, body: String(body || "").slice(0, 400) });
+    })
+  );
+  return { total: all.length, sent: sent, failed: failed, skipped: Math.max(0, all.length - batch.length) };
+}
+
 export async function adminNotify(env, body) {
   const title = String((body && body.title) || "").trim();
   if (!title) return json(400, { error: "a message is needed" });
@@ -2434,14 +2492,28 @@ export async function adminNotify(env, body) {
     if (!order.user_id) return json(409, { error: "this order has no signed-in customer, so there is no phone to message" });
     to = order.user_id;
   }
-  const sent = await pushNotice(env, {
-    user_id: to || null,
-    title: title,
-    body: String((body && body.body) || "").trim(),
-    order_id: (body && body.order_id) || null
+  const text = String((body && body.body) || "").trim();
+
+  // A single customer keeps the notice on their own record; a broadcast is
+  // written per member by the sender below.
+  if (to) {
+    const sent = await pushNotice(env, { user_id: to, title: title, body: text, order_id: orderId || null });
+    if (!sent) return json(503, { error: "accounts are not configured" });
+    const result = await sendPhoneNoticeToUser(env, to, title, text, orderId);
+    return json(200, { ok: true, to: to, whatsapp: result, delivered: result === "sent" ? "whatsapp" : "app" });
+  }
+
+  const result = await sendPhoneNoticeToEveryone(env, title, text);
+  return json(200, {
+    ok: true,
+    to: "all",
+    whatsapp: result.sent ? "sent" : result.failed ? "failed" : "no number",
+    total: result.total,
+    sent: result.sent,
+    failed: result.failed,
+    skipped: result.skipped,
+    reason: result.reason || null
   });
-  if (!sent) return json(503, { error: "accounts are not configured" });
-  return json(200, { ok: true, to: to || "all" });
 }
 
 export async function myNotices(env, userId, after) {
