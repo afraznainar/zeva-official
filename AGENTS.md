@@ -382,8 +382,12 @@ and brass lamp as `/reserve`, because the card is the object: a brass plate with
 ten stamps pressed into it, and the prize wheel beside it.
 
 - Sign-in is WhatsApp only, through the same one-time-code flow as the rest of
-the site (`POST /api/auth/whatsapp/start` then `/verify`). Nothing else is
-asked for, and there is no Google button anywhere on this page.
+  the site (`POST /api/auth/whatsapp/start` then `/verify`), and there is no
+  Google button anywhere on this page. `/member` and `/join` also ask for a
+  **name**, which `whatsappVerify` takes as an optional `name` and stores on an
+  empty profile — so a new member reaches the counter's list with a name, not
+  just a number. An account that already has a name keeps it, and the other
+  sign-in pages (`/app`, `/profile`, `/reserve`) send no name at all.
 - **A visit is a sit-down visit the counter records.** The staff card on `/admin`
   has **Mark visit** while a booking is live; it sets `reservations.arrived_at`
   and inserts one row into `visits`. `visits.booking_id` is uniquely indexed, so
