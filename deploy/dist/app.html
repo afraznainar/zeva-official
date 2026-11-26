@@ -34,7 +34,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.45">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.46">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -717,7 +717,7 @@
   'use strict';
 
   var REST = { lat: 12.8480914, lon: 74.852712 };
-  var FREE_DELIVERY_M = 500;
+  var FREE_DELIVERY_M = 2000;     // free delivery anywhere inside 2 km
   var DELIVERY_RADIUS_M = 3500;
   var MIN_ORDER = 480;
   var CGST_RATE = 0.025;
@@ -873,8 +873,6 @@
     // Zeva Gold: delivery is free anywhere inside 3.5 km.
     if (goldActive() && m <= GOLD_FREE_M) return 0;
     if (m <= FREE_DELIVERY_M) return 0;
-    if (m <= 1000) return 25;
-    if (m <= 2000) return 40;
     if (m <= 3000) return 55;
     if (m <= DELIVERY_RADIUS_M) return 70;
     return null;
@@ -1145,7 +1143,7 @@
     if (mode === 'pickup') distTxt = 'PICKUP ORDER \u2014 customer collecting in person (no delivery distance needed)';
     else if (pos.metres === null) distTxt = 'Distance not provided \u2014 please confirm the delivery charge with the customer';
     else if (outsideRadius()) distTxt = 'Delivery: ' + pos.metres + ' m \u2014 *OUTSIDE the 3.5 km delivery radius*, charge and drop to be confirmed';
-    else distTxt = 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 500 m' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE');
+    else distTxt = 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 2 km' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE');
 
     return '*NEW ORDER \u2014 Zeva Mandi & Grills*' + '\n' +
       'Order ID: *#' + orderRef + '*' + '\n' +

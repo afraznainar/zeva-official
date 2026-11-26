@@ -977,7 +977,7 @@
     <div class="ico" aria-hidden="true">🛵</div>
     <div>
       <h2>We deliver within 3.5 km of the restaurant</h2>
-      <p>Delivery covers addresses within 3.5 km of our door in Bolar, Mangaluru — free under 500 m, then &#8377;25 up to 1 km, &#8377;40 up to 2 km, &#8377;55 up to 3 km and &#8377;70 up to 3.5 km. GST (2.5% CGST + 2.5% SGST) applies to food only, never to the delivery charge. Add your dishes, fill in your details, choose pickup or delivery, and we&#8217;ll send the order straight to our WhatsApp. Further out, or collecting in person? <a href="tel:+917022771888">Call 070227 71888</a>.</p>
+      <p>Delivery covers addresses within 3.5 km of our door in Bolar, Mangaluru — free up to 2 km, then &#8377;55 up to 3 km and &#8377;70 up to 3.5 km. GST (2.5% CGST + 2.5% SGST) applies to food only, never to the delivery charge. Add your dishes, fill in your details, choose pickup or delivery, and we&#8217;ll send the order straight to our WhatsApp. Further out, or collecting in person? <a href="tel:+917022771888">Call 070227 71888</a>.</p>
     </div>
   </div>
 </section>
@@ -1092,7 +1092,7 @@
   'use strict';
 
   var REST = { lat: 12.8480914, lon: 74.852712 };
-  var FREE_DELIVERY_M = 500;      // under 500 m: free delivery
+  var FREE_DELIVERY_M = 2000;     // free delivery anywhere under 2 km
   var DELIVERY_RADIUS_M = 3500;   // we only deliver within 3.5 km of the restaurant
   var MIN_ORDER = 480;            // continue is blocked below this (rupees)
   var CGST_RATE = 0.025;          // 2.5% CGST on food only
@@ -1141,8 +1141,6 @@
   function sgst() { return round2(total() * SGST_RATE); }
   function deliveryFeeFor(m) {
     if (m <= FREE_DELIVERY_M) return 0;
-    if (m <= 1000) return 25;
-    if (m <= 2000) return 40;
     if (m <= 3000) return 55;
     if (m <= DELIVERY_RADIUS_M) return 70;
     return null;   // outside the 3.5 km radius: no fee applies until we agree one
@@ -1276,7 +1274,7 @@
             ? 'Delivery: ' + pos.metres + ' m \u2014 *OUTSIDE the 3.5 km delivery radius*, charge and drop to be confirmed\n'
             : pos.metres === null
               ? 'Delivery charge: to be confirmed\n'
-              : 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 500 m' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE') + '\n')
+              : 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 2 km' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE') + '\n')
         : '') +
       (tip > 0 ? 'Tip: ' + rupee(tip) + '\n' : '') +
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +

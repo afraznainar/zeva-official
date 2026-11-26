@@ -202,9 +202,12 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   the APK, the Notification API in a browser. Delivery therefore needs the app
   open or the tab alive; true background push would need FCM.
 - Zeva Gold: `GOLD = { price: 499, months: 6, cashback: 5, freeMetres: 5000 }`
-  at the top of `accounts.js`. Free  delivery inside 5 km and ₹5 cashback per
-  order are applied **server-side** in `createOrder`, never trusted from the
-  browser. Joining is a request (`gold.status = 'pending'`) that staff activate
+  at the top of `accounts.js` (`price: 249, months: 12, cashback: 5,
+  freeMetres: 3500`). Free delivery inside 3.5 km and ₹5 cashback per order are
+  applied **server-side** in `createOrder`, never trusted from the browser.
+  Ordinary delivery is free inside 2 km (`FREE_DELIVERY_M` in `menu.html` and
+  `app.html`), then ₹55 for 2–3 km and ₹70 for 3–3.5 km; Gold widens the free
+  zone to the full 3.5 km radius. Joining is a request (`gold.status = 'pending'`) that staff activate
   once paid; cancelling an order reverses its cashback with a negative wallet row.
 - Achievement cards: Zeva Gold members collect a card at 100 delivered orders
   (Silver), 500 (Gold) and 1000 (Diamond). `CARDS` at the top of `accounts.js`
