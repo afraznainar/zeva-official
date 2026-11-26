@@ -410,6 +410,12 @@ asked for, and there is no Google button anywhere on this page.
 - **Every signed-up member is data the shop owns.** `GET /api/admin/members`
   lists the last 500 with name, WhatsApp number, visits, spins, open prizes,
   Gold state and joined date, plus counts (total, on WhatsApp, Gold, visits).
+  Each member has a **four-digit member code** (`MEMBERS.memberCodeDigits`),
+  minted once per account in `assignMemberCode` and shown in that list; the
+  counter types it into the **Member code** box, which stamps one visit
+  (`POST /api/admin/consume-code`) and burns that code. Codes minted before
+  26 Nov 2026 were `Z` + five letters/digits — they are stored as they were and
+  still match, so members who signed up earlier keep working.
   A walk-in who never booked online can still be stamped: `/admin` has an
   **Add a stamp** box that looks the member up by WhatsApp number
   (`POST /api/admin/visit {phone}` or `{user_id}`), records one walk-in visit

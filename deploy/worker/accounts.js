@@ -71,7 +71,10 @@ export const MEMBERS = {
     { key: "pineapple", name: "Pineapple Juice", weight: 2 },
     { key: "musambi", name: "Musambi Juice", weight: 2 }
   ],
-  memberCodeChars: 5
+  // Four digits, read aloud at the counter. Codes minted before 26 Nov 2026
+  // were "Z" + five letters/digits (Z67ZVZ); those rows are untouched and still
+  // match, because the counter looks a code up by its exact stored value.
+  memberCodeDigits: 4
 };
 
 
@@ -1153,11 +1156,12 @@ function slotTimes() {
 // Booking codes are read aloud at the counter, so they avoid 0/O and 1/I.
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
+// 1000–9999, so the code is always exactly four digits with no leading zero.
 function memberCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(MEMBERS.memberCodeChars));
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
-  return "Z" + out;
+  const digits = Math.max(1, Math.min(6, Number(MEMBERS.memberCodeDigits) || 4));
+  const floor = Math.pow(10, digits - 1);
+  const bytes = crypto.getRandomValues(new Uint32Array(1));
+  return String(floor + (bytes[0] % (9 * floor)));
 }
 
 function shapeReservation(row) {
