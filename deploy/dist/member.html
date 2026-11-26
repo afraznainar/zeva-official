@@ -345,8 +345,12 @@
 
       <section class="slip" id="signin" aria-labelledby="signin-h">
         <h2 id="signin-h">One code on WhatsApp, <em>and the card is yours.</em></h2>
-        <p class="hint">No password, no app to install. We send a six-digit code to your WhatsApp and keep your number — nothing else — so the counter knows whose stamps these are.</p>
+        <p class="hint">No password, no app to install. We send a six-digit code to your WhatsApp and keep your name and number, so the counter knows whose stamps these are.</p>
         <form id="wa-form" novalidate>
+          <div class="field">
+            <label for="wa-name">Your name</label>
+            <input id="wa-name" type="text" autocomplete="name" placeholder="Your name" maxlength="80">
+          </div>
           <div class="field">
             <label for="wa-phone">Your WhatsApp number</label>
             <input id="wa-phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile" maxlength="14">
@@ -667,7 +671,7 @@
     if (code.length < 4) { say('Enter the code from WhatsApp.', 'bad'); $('wa-code').focus(); return; }
     $('wa-verify').disabled = true;
     say('Checking…');
-    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code } })
+    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: ($('wa-name').value || '').trim() } })
       .then(function (d) {
         $('wa-verify').disabled = false;
         if (!d.ok) { say(d.error || 'That code is not right.', 'bad'); return; }

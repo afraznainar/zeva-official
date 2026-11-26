@@ -996,9 +996,11 @@ async function assignMemberCode(env, userId) {
   return code;
 }
 
-async function upsertPhoneUser(env, phone, assignCode = true) {
+async function upsertPhoneUser(env, phone, assignCode = true, name = "") {
   const db = await database(env);
   const now = Date.now();
+  // The name is optional at sign-up, so a blank one changes nothing.
+  const typedName = String(name || "").replace(/\s+/g, " ").trim().slice(0, 80);
   const sub = "wa:" + phone;
   const existing = await db
     .prepare("SELECT * FROM users WHERE sub = ? OR (phone IS NOT NULL AND phone = ? AND phone <> '')")
@@ -1007,19 +1009,22 @@ async function upsertPhoneUser(env, phone, assignCode = true) {
   if (existing) {
     // Keep a Google subject intact so that sign-in still lands here.
     const keepSub = existing.sub && !String(existing.sub).startsWith("wa:") ? existing.sub : sub;
-    await db.prepare("UPDATE users SET phone = ?, sub = ?, last_seen_at = ? WHERE id = ?")
-      .bind(phone, keepSub, now, existing.id)
+    // A name filled in at sign-up only fills an empty profile; an account that
+    // already has one keeps it.
+    const keepName = String(existing.name || "").trim() || typedName;
+    await db.prepare("UPDATE users SET phone = ?, sub = ?, name = ?, last_seen_at = ? WHERE id = ?")
+      .bind(phone, keepSub, keepName, now, existing.id)
       .run();
-    const user = { ...existing, phone: phone, sub: keepSub };
+    const user = { ...existing, phone: phone, sub: keepSub, name: keepName };
     if (assignCode) await assignMemberCode(env, user.id);
     return user;
   }
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO users (id, sub, email, name, picture, phone, created_at, last_seen_at) VALUES (?, ?, '', '', '', ?, ?, ?)")
-    .bind(id, sub, phone, now, now)
+  await db.prepare("INSERT INTO users (id, sub, email, name, picture, phone, created_at, last_seen_at) VALUES (?, ?, '', ?, '', ?, ?, ?)")
+    .bind(id, sub, typedName, phone, now, now)
     .run();
   await assignMemberCode(env, id);
-  return { id: id, sub: sub, email: "", name: "", picture: "", phone: phone, created_at: now };
+  return { id: id, sub: sub, email: "", name: typedName, picture: "", phone: phone, created_at: now };
 }
 
 export async function whatsappStart(env, body) {
@@ -1108,8 +1113,11 @@ export async function whatsappVerify(request, env, body) {
   const phone = normalizePhone(env, row.phone);
   if (!phone) return json(400, { error: "That number could not be read. Ask for a new code." });
 
+  // A member may type their name alongside the code; it is cleaned in
+  // upsertPhoneUser and never overwrites a name the account already has.
+  const name = String((body && body.name) || "").slice(0, 120);
   await db.prepare("UPDATE otp_sessions SET verified_at = ? WHERE session = ?").bind(Date.now(), session).run();
-  const user = await upsertPhoneUser(env, phone);
+  const user = await upsertPhoneUser(env, phone, true, name);
   await assignMemberCode(env, user.id);
   const sessionToken = await startSession(env, user.id);
   return json(
