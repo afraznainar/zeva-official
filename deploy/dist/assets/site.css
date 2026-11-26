@@ -1113,3 +1113,59 @@ html.js .col-head { display: none; }
 .social .social-card.rv:hover, .social .social-card.rv:focus-visible { background: var(--brass); border-color: var(--brass); }
 
 .social .social-card:hover svg, .social .social-card:focus-visible svg { fill: #ffffff; }
+
+/* ---------- footer regroup ----------
+   The footer was brand-plus-one "Explore" dump of a dozen links; the app link
+   also sat in the top nav. It is the brand with a single app button and two
+   short columns grouped by intent now, so the app is one tap from the bottom of
+   every page without widening the nav. */
+
+.foot-grid {
+  grid-template-columns: 1.5fr .9fr 1.1fr;
+  gap: 40px 46px;
+  align-items: start;
+}
+
+.foot-brand {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+}
+.foot-brand .brand-mark { grid-column: 1; grid-row: 1; height: 38px; margin: 0; }
+.foot-brand .brand-f { grid-column: 2; grid-row: 1; margin: 0; font-size: 20px; }
+.foot-brand p { grid-column: 1 / -1; }
+.foot-brand p:first-of-type { margin-top: 16px; }
+.foot-brand .foot-hours { margin-top: 10px; }
+.foot-brand .foot-app { grid-column: 1 / -1; }
+
+footer .foot-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  justify-self: start;
+  margin-top: 18px;
+  padding: 10px 16px 10px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: rgba(240, 226, 205, .035);
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+footer .foot-app svg { width: 19px; height: 19px; flex: none; fill: var(--brass-2); }
+footer .foot-app b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.3; color: var(--paper-text); }
+footer .foot-app i { display: block; font-style: normal; font-size: 11.5px; line-height: 1.45; color: var(--text-3); }
+footer .foot-app:hover { border-color: var(--brass); background: rgba(192, 133, 54, .09); }
+footer .foot-app:hover b { color: var(--brass-2); }
+footer .foot-app:focus-visible { outline: 2px solid var(--brass-2); outline-offset: 3px; }
+
+.foot-grid > div > ul { margin: 0; }
+.foot-grid > div > ul a { display: inline-block; padding: 2px 0; }
+
+@media (max-width: 900px) {
+  .foot-grid { grid-template-columns: 1fr 1fr; gap: 34px 32px; }
+  .foot-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .foot-grid { grid-template-columns: 1fr; gap: 30px; }
+  footer .foot-app { width: 100%; }
+}
