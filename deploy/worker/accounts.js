@@ -742,31 +742,93 @@ async function whatsappCall(env, route, payload) {
 /* A plain WhatsApp message, as opposed to an OTP — the provider's
    /v1/messages/send call with the same API key. Bookings use it twice: the
    guest gets their code, and the counter gets the table. A failed message
-   never fails the booking; the code is already on the guest's screen. */
-async function whatsappText(env, phone, message) {
-  if (!whatsappReady(env)) return false;
+   never fails the booking; the code is already on the guest's screen.
+
+   Returns { ok, status, error } rather than a bare boolean: "1 failed" told
+   the counter nothing, and the provider always says why (quota_exceeded,
+   no_device_connected, unauthorized...). The reason is what /admin shows.
+   A busy sender (502/503) gets one more try — those fail before WhatsApp sees the
+   message. A timeout is not retried: the provider may already have delivered it,
+   and a duplicate marketing message to a customer is worse than a failure the
+   counter can see. The send is slow (8–17 s measured from Cloudflare), which is
+   why the old 8-second cap failed every marketing message silently. */
+async function whatsappSend(env, phone, message) {
+  if (!whatsappReady(env)) return { ok: false, status: 0, error: "WHATSAPP_OTP_KEY is not set on this site" };
   const digits = String(phone || "").replace(/\D/g, "");
-  if (!digits) return false;
-  try {
-    const response = await fetch(whatsappApi(env) + "/v1/messages/send", {
-      method: "POST",
-      headers: {
-        authorization: "Bearer " + env.WHATSAPP_OTP_KEY,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ phone: digits, message: String(message).slice(0, 900) }),
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!response.ok) {
+  if (!digits) return { ok: false, status: 0, error: "that member has no phone number" };
+  const body = JSON.stringify({ phone: digits, message: String(message).slice(0, 900) });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(whatsappApi(env) + "/v1/messages/send", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer " + env.WHATSAPP_OTP_KEY,
+          "content-type": "application/json"
+        },
+        body: body,
+        signal: AbortSignal.timeout(25000)
+      });
       const data = await response.json().catch(function () { return {}; });
-      console.warn("[whatsapp] message failed " + response.status + ": " + String(data.error || data.message || "").slice(0, 120));
-      return false;
+      if (response.ok) return { ok: true, status: response.status, error: "" };
+      const reason = String(data.error || data.message || "").slice(0, 160) || "HTTP " + response.status;
+      console.warn("[whatsapp] message failed " + response.status + ": " + reason);
+      if ((response.status === 502 || response.status === 503) && attempt === 0) continue;
+      return { ok: false, status: response.status, error: reason };
+    } catch (error) {
+      const reason = String((error && error.message) || "network error").slice(0, 160);
+      console.warn("[whatsapp] message failed: " + reason);
+      return { ok: false, status: 0, error: reason };
     }
-    return true;
-  } catch (error) {
-    console.warn("[whatsapp] message failed: " + error.message);
-    return false;
   }
+  return { ok: false, status: 0, error: "send failed" };
+}
+
+async function whatsappText(env, phone, message) {
+  return (await whatsappSend(env, phone, message)).ok;
+}
+
+/* GET /api/admin/whatsapp — what the sender looks like from inside this
+   Worker: which API the key points at, which devices that key has, and
+   whether any of them is online. A key can send sign-in codes through the
+   provider's pool while having no device of its own, and then every
+   marketing or booking message fails with no_device_connected. The counter
+   can only tell that apart from a quota problem by seeing this. */
+export async function adminWhatsappStatus(env) {
+  const api = whatsappApi(env);
+  const out = { configured: whatsappReady(env), api: api, online: 0, devices: [], error: "" };
+  if (!out.configured) {
+    out.error = "WhatsApp is not configured: WHATSAPP_OTP_KEY is missing on this site.";
+    return json(200, out);
+  }
+  try {
+    const response = await fetch(api + "/v1/devices", {
+      headers: { authorization: "Bearer " + env.WHATSAPP_OTP_KEY },
+      signal: AbortSignal.timeout(15000)
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      out.error = "The provider refused the key (HTTP " + response.status + "): " + (String(data.error || data.message || "").slice(0, 120) || "no reason given");
+      return json(200, out);
+    }
+    const list = Array.isArray(data.devices) ? data.devices : [];
+    out.devices = list.map(function (device) {
+      return {
+        label: String(device.label || "device").slice(0, 40),
+        status: String(device.status || "").slice(0, 24),
+        online: Boolean(device.is_online),
+        phone: maskPhone(String(device.phone_number || "").replace(/\D/g, ""))
+      };
+    });
+    out.online = out.devices.filter(function (device) { return device.online; }).length;
+    if (!out.online) {
+      out.error = out.devices.length
+        ? "No WhatsApp device is online, so messages cannot go out. Reconnect the sender phone in the provider dashboard."
+        : "This API key has no WhatsApp device linked to it, so only sign-in codes go out. Link the shop's phone to this key in the provider dashboard.";
+    }
+  } catch (error) {
+    out.error = "Could not reach the WhatsApp provider from this site: " + String((error && error.message) || "network error").slice(0, 120);
+  }
+  return json(200, out);
 }
 
 // The counter's own WhatsApp, unless BOOKING_NOTIFY_PHONE says otherwise
@@ -1606,16 +1668,20 @@ export async function adminMarketing(env, body) {
 
   let sent = 0;
   let failed = 0;
+  let reason = "";
   for (let i = 0; i < batch.length; i += 5) {
     const slice = batch.slice(i, i + 5);
     const results = await Promise.all(
       slice.map(function (member) {
-        return whatsappText(env, member.phone, text);
+        return whatsappSend(env, member.phone, text);
       })
     );
-    results.forEach(function (ok) {
-      if (ok) sent++;
-      else failed++;
+    results.forEach(function (result) {
+      if (result && result.ok) sent++;
+      else {
+        failed++;
+        if (!reason) reason = String((result && result.error) || "send failed");
+      }
     });
   }
 
@@ -1632,6 +1698,9 @@ export async function adminMarketing(env, body) {
     total: all.length,
     sent: sent,
     failed: failed,
+    // Why the ones that failed failed — the admin shows this instead of a
+    // bare count, so a dead sender is not mistaken for a bad message.
+    reason: failed ? reason : "",
     skipped: Math.max(0, all.length - batch.length),
     cap: cap
   });
@@ -2749,6 +2818,7 @@ export async function handleAccounts(request, env, url) {
       return adminSetReservation(env, await readJson(request));
     }
     if (path === "/api/admin/members" && request.method === "GET") return adminMembers(env);
+    if (path === "/api/admin/whatsapp" && request.method === "GET") return adminWhatsappStatus(env);
     if (path === "/api/admin/marketing" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminMarketing(env, await readJson(request));

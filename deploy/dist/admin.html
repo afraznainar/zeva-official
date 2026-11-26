@@ -455,6 +455,7 @@
             <textarea id="m_text" maxlength="600" placeholder="e.g. Prawns mandi is back this weekend. Gold members get a free juice."></textarea>
             <div class="acts">
               <button class="primary" type="button" id="m_send">Send on WhatsApp</button>
+              <button type="button" id="m_check">Check sender</button>
               <span class="hint" id="m_state">Up to 30 members per send.</span>
             </div>
           </div>
@@ -1242,7 +1243,29 @@
         if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not send.'; return; }
         note.textContent = 'Sent to ' + d.sent + (d.failed ? ', ' + d.failed + ' failed' : '') +
           (d.skipped ? ', ' + d.skipped + ' left for the next send' : '') + '.';
+        if (d.failed && d.reason) note.textContent += ' The provider said: ' + d.reason;
         if (d.sent) $('m_text').value = '';
+      })
+      .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
+  });
+
+  /* The sender is a linked WhatsApp device, not just a key: it can be
+     offline, have no device at all, or be out of quota. This says which. */
+  $('m_check').addEventListener('click', function () {
+    var btn = $('m_check');
+    var note = $('m_state');
+    btn.disabled = true;
+    note.textContent = 'Checking the WhatsApp sender\u2026';
+    fetch('/api/admin/whatsapp', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d) { note.textContent = 'Could not check the sender.'; return; }
+        var parts = [];
+        (d.devices || []).forEach(function (dev) {
+          parts.push((dev.label || 'device') + ' ' + (dev.online ? 'online' : (dev.status || 'offline')) + (dev.phone ? ' \u00b7 ' + dev.phone : ''));
+        });
+        note.textContent = d.error ? d.error + (parts.length ? ' (' + parts.join('; ') + ')' : '') : 'Sender ready: ' + parts.join('; ') + '.';
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
   });

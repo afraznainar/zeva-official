@@ -414,8 +414,16 @@ asked for, and there is no Google button anywhere on this page.
   member's `notices` for the app. It batches five at a time, appends “reply STOP
   to stop these messages”, and is capped at `MARKETING_MAX` = 30 per send because
   the provider's free plan is 100 messages a month and a booking already spends
-  two. The response reports sent, failed and how many were left for the next
-  send.
+  two. The response reports sent, failed, how many were left for the next
+  send, and — when anything failed — the provider's own reason in `reason`
+  (`quota_exceeded`, `no_device_connected`, `unauthorized`, …), which the
+  composer prints after the count. `GET /api/admin/whatsapp` answers the
+  question behind most failures: `WHATSAPP_OTP_API`/default host the key points
+  at, and every device that key has with its online state and masked number;
+  the **Check sender** button beside **Send on WhatsApp** shows that in the
+  composer. A key can send sign-in codes through the provider's pool while
+  having no linked device of its own, and only this tells that apart from a
+  quota problem.
 - Discovery is footer-only, like `/reserve`: a **Zeva Gold card** item in the
   Explore list of every page that shares that footer, a *Membership card & spins*
   link on the gold card in `/app`, and `/member` in `sitemap.xml` + `llms.txt`.
