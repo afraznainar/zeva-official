@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Your account | Zeva Mandi &amp; Grills</title>
+<meta name="description" content="Your Zeva account: the membership card, Zeva Gold, cashback and past orders in one place. Bolar, Mangaluru.">
+<meta name="theme-color" content="#0b0604">
+<link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
+<style>
+  /* The account is a ledger, not a dashboard: one brass card holding the name,
+     then quiet rows of what the person has with Zeva. Nothing competes with it. */
+  :root {
+    --lacquer: #0b0604;
+    --lacquer-2: #150c07;
+    --brass: #bc7835;
+    --brass-lit: #f0ce95;
+    --paper: #fdf8ee;
+    --dim: #b9a894;
+    --faint: #8d7d6c;
+    --line: rgba(253, 248, 238, .1);
+    --line-strong: rgba(253, 248, 238, .2);
+    --display: 'Newsreader', Georgia, serif;
+    --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--lacquer); color: var(--paper);
+    font-family: var(--body); font-size: 16px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brass-lit); }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 22px; }
+
+  /* ---------- page head ---------- */
+  .acct-head { padding: clamp(36px, 6vw, 68px) 0 26px; }
+  .acct-head h1 {
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(34px, 5.6vw, 54px); line-height: 1.05;
+    letter-spacing: -.015em; margin: 0 0 12px;
+  }
+  .acct-head p { margin: 0; max-width: 54ch; color: var(--dim); }
+  .acct-head .kicker {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 16px;
+  }
+  .acct-head .kicker::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* ---------- the card ---------- */
+  .ledger {
+    border: 1px solid var(--line-strong); border-radius: 20px;
+    background:
+      radial-gradient(130% 100% at 0% 0%, rgba(188, 120, 53, .13), transparent 55%),
+      var(--lacquer-2);
+    padding: 26px 26px 22px;
+    margin-bottom: 26px;
+  }
+  .who { display: flex; align-items: center; gap: 16px; }
+  .mono {
+    flex: none; width: 62px; height: 62px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 1px solid rgba(188, 120, 53, .5);
+    background: rgba(188, 120, 53, .12);
+    font-family: var(--display); font-size: 25px; color: var(--brass-lit);
+  }
+  .who .nm { font-family: var(--display); font-size: 25px; line-height: 1.2; }
+  .who .ph { font-size: 13.5px; color: var(--faint); margin-top: 2px; }
+  .who .ph a { color: var(--dim); text-decoration: none; }
+
+  .figures {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0; margin: 22px 0 0;
+    border-top: 1px solid var(--line);
+  }
+  .fig { padding: 16px 14px 0 0; }
+  .fig + .fig { padding-left: 16px; border-left: 1px solid var(--line); }
+  .fig b {
+    display: block; font-family: var(--display); font-weight: 400;
+    font-size: 24px; line-height: 1.15; font-variant-numeric: tabular-nums;
+  }
+  .fig span { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+  .fig.gold b { color: var(--brass-lit); }
+  @media (max-width: 760px) {
+    .logo-mark { height: 34px; }
+    .logo span { font-size: 16px; }
+    nav.main {
+      position: fixed; inset: 0 0 auto 0; z-index: 30;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+      padding: calc(84px + env(safe-area-inset-top, 0px)) 24px calc(26px + env(safe-area-inset-bottom, 0px));
+      background: var(--lacquer-2); border-bottom: 1px solid var(--line);
+      transform: translateY(-108%); transition: transform .42s cubic-bezier(.2, .7, .3, 1);
+    }
+    nav.main.open { transform: translateY(0); }
+    nav.main a { font-size: 18px; padding: 5px 0; }
+    nav.main a.reserve, nav.main a.call { padding: 9px 16px; }
+    .burger { display: block; }
+    .acct-head { padding-top: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    nav.main { transition: none !important; }
+  }
+
+  @media (max-width: 560px) {
+    .figures { grid-template-columns: 1fr 1fr; }
+    .fig { padding: 14px 12px 0 0; }
+    .fig + .fig { padding-left: 12px; }
+    .fig:nth-child(3) { grid-column: 1 / -1; border-left: 0; padding-left: 0; border-top: 1px solid var(--line); margin-top: 14px; }
+  }
+
+  /* ---------- rows of things to do ---------- */
+  .rows { display: grid; gap: 0; border-top: 1px solid var(--line); }
+  .row {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 17px 2px; border-bottom: 1px solid var(--line);
+    text-decoration: none; color: inherit;
+  }
+  a.row:hover .row-t { color: var(--brass-lit); }
+  .row .row-t { font-weight: 500; transition: color .16s ease; }
+  .row .row-s { font-size: 13px; color: var(--faint); margin-top: 1px; }
+  .row .grow { flex: 1; min-width: 0; }
+  .row .go {
+    flex: none; font-size: 12.5px; color: var(--dim);
+    border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 14px;
+  }
+  a.row:hover .go { border-color: var(--brass); color: var(--brass-lit); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 12px 20px; border-radius: 10px; border: 1px solid transparent;
+    font: inherit; font-size: 14.5px; font-weight: 500; cursor: pointer;
+    text-decoration: none; transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+  }
+  .btn-gold { background: var(--brass); color: #17100b; }
+  .btn-gold:hover { background: var(--brass-lit); }
+  .btn-line { border-color: var(--line-strong); color: var(--paper); background: none; }
+  .btn-line:hover { border-color: var(--brass); color: var(--brass-lit); }
+  .w100 { width: 100%; }
+  .btn:disabled { opacity: .55; cursor: default; }
+
+  .guest-note {
+    border: 1px dashed var(--line-strong); border-radius: 16px;
+    padding: 24px; text-align: center;
+  }
+  .guest-note h2 { font-family: var(--display); font-weight: 400; font-size: 24px; margin: 0 0 8px; }
+  .guest-note p { margin: 0 auto 18px; max-width: 42ch; color: var(--dim); font-size: 14.5px; }
+
+  .quiet { font-size: 12.5px; color: var(--faint); margin-top: 22px; }
+  .skeleton { color: var(--faint); font-size: 14px; padding: 26px 0; }
+
+  /* ---------- sign-up popup ---------- */
+  .pop {
+    position: fixed; inset: 0; z-index: 60;
+    display: grid; place-items: center; padding: 20px;
+    background: rgba(7, 4, 2, .74);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .pop[hidden] { display: none; }
+  .pop-card {
+    position: relative; width: 100%; max-width: 404px;
+    border: 1px solid var(--line-strong); border-radius: 18px;
+    background: var(--lacquer-2); padding: 28px 26px 22px;
+    box-shadow: 0 40px 90px rgba(0, 0, 0, .55);
+    animation: pop-in .22s cubic-bezier(.2, .7, .3, 1);
+  }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .pop-card { animation: none; } }
+
+  .pop-x {
+    position: absolute; top: 12px; right: 12px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    font-size: 18px; line-height: 1; cursor: pointer;
+  }
+  .pop-x:hover { border-color: var(--line-strong); color: var(--paper); }
+  .pop-kicker { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); margin: 0 0 10px; }
+  .pop-card h2 {
+    font-family: var(--display); font-weight: 400; font-size: 26px;
+    line-height: 1.16; margin: 0 0 10px; letter-spacing: -.01em;
+  }
+  .pop-copy { font-size: 14px; color: var(--dim); margin: 0 0 20px; }
+
+  .fl { display: block; margin-bottom: 12px; }
+  .fl > span { display: block; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+  .fl input {
+    width: 100%; padding: 12px 13px; border-radius: 10px;
+    background: #1c1109; border: 1px solid var(--line); color: var(--paper);
+    font: inherit; font-size: 16px; outline: 0;
+  }
+  .fl input:focus { border-color: rgba(188, 120, 53, .7); box-shadow: 0 0 0 3px rgba(188, 120, 53, .14); }
+
+  .pop-back {
+    display: block; width: 100%; margin-top: 10px; background: none; border: 0;
+    color: var(--faint); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .pop-back:hover { color: var(--dim); }
+  .pop-msg { min-height: 18px; margin: 12px 0 0; font-size: 12.5px; color: var(--faint); }
+  .pop-msg.bad { color: #e79686; }
+  .pop-msg.good { color: #8fc9a2; }
+  .pop-google {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    margin-top: 12px; padding: 11px; border-radius: 10px;
+    border: 1px solid var(--line-strong); text-decoration: none;
+    color: var(--paper); font-size: 14px; font-weight: 500;
+  }
+  .pop-google:hover { border-color: var(--brass); color: var(--brass-lit); }
+  .pop-skip {
+    display: block; width: 100%; margin-top: 14px; padding: 4px;
+    background: none; border: 0; color: var(--faint); font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .pop-skip:hover { color: var(--dim); }
+
+  /* ---------- header ---------- */
+  header.site {
+    position: sticky; top: 0; z-index: 40; padding: 16px 0;
+    background: rgba(11, 6, 4, .9); border-bottom: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--paper); }
+  .logo-mark { height: 40px; width: auto; display: block; }
+  .logo span { font-family: var(--display); font-size: 19px; line-height: 1.1; }
+  .logo small {
+    display: block; font-family: var(--body); font-size: 10px;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin-top: 4px;
+  }
+  nav.main { display: flex; align-items: center; gap: 22px; }
+  nav.main a { color: var(--dim); text-decoration: none; font-size: 14.5px; transition: color .16s ease; }
+  nav.main a:hover, nav.main a[aria-current="page"] { color: var(--paper); }
+  nav.main a.reserve {
+    background: var(--brass); color: #17100b;
+    border-radius: 8px; padding: 9px 16px; font-weight: 500;
+  }
+  nav.main a.reserve:hover { background: var(--brass-lit); color: #17100b; }
+  nav.main a.call {
+    border: 1px solid var(--line-strong); border-radius: 999px;
+    padding: 8px 16px; color: var(--paper);
+  }
+  nav.main a.call:hover { border-color: var(--brass); color: var(--brass-lit); }
+  .burger { display: none; background: none; border: 0; cursor: pointer; padding: 10px; }
+  .burger span { display: block; width: 24px; height: 2px; background: var(--brass-lit); margin: 5px 0; transition: transform .3s ease, opacity .3s; }
+  .burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .burger.open span:nth-child(2) { opacity: 0; }
+  .burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  footer.site { border-top: 1px solid var(--line); margin-top: 56px; padding: 24px 0 40px; }
+  footer.site .wrap { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: space-between; font-size: 12.5px; color: var(--faint); }
+  footer.site a { color: var(--dim); text-decoration: none; }
+  footer.site a:hover { color: var(--brass-lit); }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav-inner">
+    <a class="logo" href="index.html"><img class="logo-mark" src="assets/img/zeva-mark.webp" alt="" width="324" height="706" decoding="async"><span>Zeva Mandi &amp; Grills<small>Bolar, Mangaluru</small></span></a>
+    <nav class="main" id="main-nav">
+      <a href="menu.html">Menu</a>
+      <a href="visit.html">Visit</a>
+      <a class="reserve" href="reserve.html">Reserve</a>
+      <a href="faq.html">FAQ</a>
+      <a href="profile.html" aria-current="page">Profile</a>
+      <a class="call" href="tel:+917022771888">070227 71888</a>
+    </nav>
+    <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main>
+  <section class="acct-head">
+    <div class="wrap">
+      <p class="kicker">Your account</p>
+      <h1 id="acct-h">Your account at Zeva</h1>
+      <p id="acct-sub">The card, the cashback and the orders you have had with us — all on one number.</p>
+    </div>
+  </section>
+
+  <section class="wrap" aria-live="polite">
+    <div id="account"><p class="skeleton">Opening your account…</p></div>
+    <p class="quiet">Signing in uses the WhatsApp number you already gave us at the counter. We never post anything to your phone.</p>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Zeva Mandi &amp; Grills · Morgans Gate Rd, Bolar, Mangaluru 575001</span>
+    <span><a href="index.html">Home</a> · <a href="member.html">Membership card</a> · <a href="reserve.html">Reserve a table</a></span>
+  </div>
+</footer>
+
+<div class="pop" id="signup" hidden>
+  <div class="pop-card" role="dialog" aria-modal="true" aria-labelledby="pop-h" aria-describedby="pop-copy">
+    <button class="pop-x" type="button" id="pop-x" aria-label="Close sign-up">&times;</button>
+    <p class="pop-kicker">Zeva Gold &middot; &#8377;249 a year</p>
+    <h2 id="pop-h">One code on WhatsApp and the card is yours.</h2>
+    <p class="pop-copy" id="pop-copy">Stamps on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 3.5&nbsp;km of Bolar.</p>
+
+    <form id="pop-phone" novalidate>
+      <label class="fl"><span>WhatsApp number</span>
+        <input id="pop-num" type="tel" inputmode="tel" autocomplete="tel" placeholder="98450 00000" required>
+      </label>
+      <button class="btn btn-gold w100" id="pop-send" type="submit">Send my code</button>
+    </form>
+
+    <form id="pop-code" hidden novalidate>
+      <label class="fl"><span>Code from WhatsApp</span>
+        <input id="pop-digits" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required>
+      </label>
+      <button class="btn btn-gold w100" id="pop-verify" type="submit">Open my card</button>
+      <button class="pop-back" type="button" id="pop-change">Use another number</button>
+    </form>
+
+    <p class="pop-msg" id="pop-msg" role="status"></p>
+    <a class="pop-google" id="pop-google" href="/api/auth/google/start?next=/profile.html" hidden>Continue with Google</a>
+    <button class="pop-skip" type="button" id="pop-skip">Not now</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var state = { session: '', asked: false };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function api(path, options) {
+    var init = options || {};
+    init.credentials = 'same-origin';
+    init.headers = init.headers || {};
+    init.cache = 'no-store';
+    if (init.body && typeof init.body !== 'string') {
+      init.headers['content-type'] = 'application/json';
+      init.body = JSON.stringify(init.body);
+    }
+    return fetch(path, init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { d.http = r.status; return d; });
+    });
+  }
+
+  function money(n) {
+    var v = Number(n) || 0;
+    return '\u20b9' + (v % 1 === 0 ? String(v) : v.toFixed(2));
+  }
+
+  function when(ts) {
+    if (!ts) return '';
+    try {
+      return new Date(Number(ts)).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' });
+    } catch (e) { return ''; }
+  }
+
+  function goldWord(gold) {
+    if (!gold || !gold.status || gold.status === 'none') return 'Not joined';
+    if (gold.status === 'active') return 'Active';
+    if (gold.status === 'pending') return 'Awaiting approval';
+    return gold.status;
+  }
+
+  function firstName(user) {
+    var name = String((user && user.name) || '').trim();
+    if (!name) return '';
+    return name.split(/\s+/)[0];
+  }
+
+  /* ---------------- render ---------------- */
+  function render(d) {
+    var host = $('account');
+    if (!d || !d.signed_in) {
+      host.innerHTML =
+        '<div class="ledger">' +
+          '<div class="who"><div class="mono" aria-hidden="true">?</div>' +
+            '<div><div class="nm">Not signed in</div>' +
+            '<div class="ph">Your card, cashback and orders appear here once you sign up.</div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="guest-note">' +
+          '<h2>Sign up in one message</h2>' +
+          '<p>We send a six-digit code to your WhatsApp number. No password to remember, and the counter can stamp your card the same evening.</p>' +
+          '<button class="btn btn-gold" type="button" id="open-signup">Sign up with WhatsApp</button>' +
+        '</div>';
+      $('acct-h').textContent = 'Your account at Zeva';
+      $('acct-sub').textContent = 'The card, the cashback and the orders you have had with us \u2014 all on one number.';
+      var reopen = $('open-signup');
+      if (reopen) reopen.addEventListener('click', function () { openPop(); });
+      if (!state.asked) {
+        state.asked = true;
+        setTimeout(openPop, 550);
+      }
+      return;
+    }
+
+    var user = d.user || {};
+    var gold = d.gold || {};
+    var plan = d.gold_plan || {};
+    var wallet = d.wallet || { balance: 0, entries: [] };
+    var orders = d.orders || [];
+    var initial = (firstName(user) || user.phone || 'Z').charAt(0).toUpperCase();
+    var name = user.name || (user.phone ? '+' + user.phone : 'Zeva member');
+
+    $('acct-h').textContent = firstName(user) ? 'Hello, ' + firstName(user) : 'Your account at Zeva';
+    $('acct-sub').textContent = 'Signed in with ' + (user.phone ? '+' + user.phone : 'your Zeva account') + '.';
+
+    host.innerHTML =
+      '<div class="ledger">' +
+        '<div class="who">' +
+          '<div class="mono" aria-hidden="true">' + esc(initial) + '</div>' +
+          '<div><div class="nm">' + esc(name) + '</div>' +
+            '<div class="ph">' + (user.phone ? 'WhatsApp <a href="tel:+91' + esc(user.phone) + '">+' + esc(user.phone) + '</a>' : esc(user.email || 'No number on file')) +
+            (user.created_at ? ' \u00b7 with us since ' + esc(when(user.created_at)) : '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="figures">' +
+          '<div class="fig gold"><b>' + esc(goldWord(gold)) + '</b><span>Zeva Gold</span></div>' +
+          '<div class="fig"><b>' + esc(money(wallet.balance)) + '</b><span>Zeva money</span></div>' +
+          '<div class="fig"><b>' + esc(orders.length) + '</b><span>' + (orders.length === 1 ? 'Order' : 'Orders') + '</span></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="rows">' +
+        '<a class="row" href="member.html">' +
+          '<div class="grow"><div class="row-t">Membership card &amp; stamps</div>' +
+          '<div class="row-s">Ten visits earn one spin at the wheel.</div></div>' +
+          '<span class="go">Open card</span>' +
+        '</a>' +
+        (gold.status === 'active'
+          ? '<a class="row" href="member.html">' +
+              '<div class="grow"><div class="row-t">Gold is on until ' + esc(when(gold.expires_at)) + '</div>' +
+              '<div class="row-s">Free delivery inside 3.5 km and \u20b95 back on every order.</div></div>' +
+              '<span class="go">See the card</span></a>'
+          : '<a class="row" href="join.html">' +
+              '<div class="grow"><div class="row-t">Join Zeva Gold \u00b7 ' + esc(money((plan && plan.price) || 249)) + '/yr</div>' +
+              '<div class="row-s">' + (gold.status === 'pending' ? 'Your request is with the counter.' : 'Free delivery inside 3.5 km, and \u20b95 back on every order.') + '</div></div>' +
+              '<span class="go">' + (gold.status === 'pending' ? 'Pending' : 'Join') + '</span></a>') +
+        '<a class="row" href="reserve.html">' +
+          '<div class="grow"><div class="row-t">Book a table</div>' +
+          '<div class="row-s">Any evening, up to fifty guests. \u20b9500 advance by UPI.</div></div>' +
+          '<span class="go">Reserve</span>' +
+        '</a>' +
+      '</div>' +
+
+      (orders.length
+        ? '<div class="ledger" style="margin-top:26px">' +
+            '<div class="rows" style="border-top:0">' +
+              orders.slice(0, 4).map(function (o) {
+                var placed = when(o.created_at);
+                var total = money(o.total);
+                return '<div class="row">' +
+                  '<div class="grow"><div class="row-t">#' + esc(o.id) + ' \u00b7 ' + esc(total) + '</div>' +
+                  '<div class="row-s">' + esc(placed) + ' \u00b7 ' + esc(o.status === 'done' ? 'Delivered' : o.status === 'cancelled' ? 'Cancelled' : 'In progress') + '</div></div>' +
+                  '<span class="go">' + esc(o.mode === 'pickup' ? 'Pickup' : 'Delivery') + '</span>' +
+                '</div>';
+              }).join('') +
+            '</div>' +
+          '</div>'
+        : '') +
+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px">' +
+        '<button class="btn btn-line" type="button" id="sign-out">Sign out</button>' +
+        '<a class="btn btn-line" href="app.html">Order something</a>' +
+      '</div>';
+
+    var out = $('sign-out');
+    if (out) out.addEventListener('click', function () {
+      out.disabled = true;
+      api('/api/auth/logout', { method: 'POST' }).then(function () { location.reload(); });
+    });
+  }
+
+  /* ---------------- sign-up popup ---------------- */
+  function setMsg(text, kind) {
+    var el = $('pop-msg');
+    el.textContent = text || '';
+    el.className = 'pop-msg' + (kind ? ' ' + kind : '');
+  }
+
+  function openPop() {
+    var pop = $('signup');
+    pop.hidden = false;
+    document.body.style.overflow = 'hidden';
+    var first = $('pop-code').hidden ? $('pop-num') : $('pop-digits');
+    if (first) setTimeout(function () { first.focus(); }, 40);
+  }
+
+  function closePop() {
+    $('signup').hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  $('pop-x').addEventListener('click', closePop);
+  $('pop-skip').addEventListener('click', closePop);
+  $('signup').addEventListener('click', function (e) { if (e.target === $('signup')) closePop(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('signup').hidden) closePop();
+  });
+
+  $('pop-phone').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var phone = $('pop-num').value.replace(/[^\d+]/g, '');
+    if (phone.replace(/\D/g, '').length < 10) { setMsg('Enter the 10-digit WhatsApp number.', 'bad'); $('pop-num').focus(); return; }
+    $('pop-send').disabled = true;
+    setMsg('Sending your code\u2026');
+    api('/api/auth/whatsapp/start', { method: 'POST', body: { phone: phone } })
+      .then(function (d) {
+        $('pop-send').disabled = false;
+        if (!d.ok) { setMsg(d.error || 'WhatsApp could not send the code.', 'bad'); return; }
+        state.session = d.session;
+        $('pop-phone').hidden = true;
+        $('pop-code').hidden = false;
+        setMsg('Code sent to ' + (d.phone || 'your WhatsApp') + '.', 'good');
+        $('pop-digits').focus();
+      })
+      .catch(function () { $('pop-send').disabled = false; setMsg('Could not reach the server.', 'bad'); });
+  });
+
+  $('pop-code').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var code = $('pop-digits').value.replace(/\D/g, '');
+    if (code.length < 4) { setMsg('Enter the code from WhatsApp.', 'bad'); $('pop-digits').focus(); return; }
+    $('pop-verify').disabled = true;
+    setMsg('Opening your card\u2026');
+    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code } })
+      .then(function (d) {
+        $('pop-verify').disabled = false;
+        if (!d.ok) { setMsg(d.error || 'That code is not right.', 'bad'); return; }
+        closePop();
+        load();
+      })
+      .catch(function () { $('pop-verify').disabled = false; setMsg('Could not reach the server.', 'bad'); });
+  });
+
+  $('pop-change').addEventListener('click', function () {
+    $('pop-code').hidden = true;
+    $('pop-phone').hidden = false;
+    state.session = '';
+    setMsg('');
+    $('pop-num').focus();
+  });
+
+  /* ---------------- boot ---------------- */
+  function load() {
+    return api('/api/me').then(function (d) {
+      if (d && d.google) $('pop-google').hidden = false;
+      if (d && d.whatsapp === false) setMsg('WhatsApp sign-in is not switched on yet. Try Google, or ask at the counter.', 'bad');
+      render(d);
+    }).catch(function () {
+      render({ signed_in: false });
+    });
+  }
+
+  var burger = document.getElementById('burger');
+  var navMain = document.getElementById('main-nav');
+  burger.addEventListener('click', function () {
+    var open = navMain.classList.toggle('open');
+    burger.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  navMain.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') {
+      navMain.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

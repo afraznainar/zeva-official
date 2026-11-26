@@ -150,6 +150,31 @@
   h1 .accent { color: var(--gold-bright); }
   .hero p.lead { font-size: clamp(16px, 2vw, 19px); opacity: .92; margin-top: 20px; max-width: 54ch; }
   .hero .cta-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+
+  /* Four doors, ranked: book or call first, then the membership pair. */
+  .hero .cta-row.hero-actions {
+    display: grid; grid-template-columns: repeat(2, max-content);
+    gap: 10px 12px; align-items: stretch; justify-content: start; margin-top: 30px;
+  }
+  .hero .cta-row.hero-actions .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 13px 22px; line-height: 1.2;
+  }
+  .hero .cta-row.hero-actions .ha-rule {
+    grid-column: 1 / -1; height: 1px; margin: 4px 0 2px;
+    background: linear-gradient(90deg, rgba(240, 226, 205, .24), rgba(240, 226, 205, 0));
+  }
+  .hero-actions .ha-outline { background: transparent; border-color: rgba(240, 226, 205, .28); color: var(--paper-text); }
+  .hero-actions .ha-outline:hover { border-color: var(--brass); color: var(--brass-2); background: transparent; }
+  .hero-actions .ha-gold-quiet { background: transparent; border-color: rgba(192, 133, 54, .5); color: var(--brass-2); }
+  .hero-actions .ha-gold-quiet:hover { background: rgba(192, 133, 54, .12); border-color: var(--brass); color: var(--brass-2); }
+  .hero-actions .ha-quiet { background: transparent; border-color: transparent; color: var(--text-2); padding-left: 4px; }
+  .hero-actions .ha-quiet:hover { background: transparent; border-color: transparent; color: var(--paper-text); text-decoration: underline; text-underline-offset: 4px; }
+  @media (max-width: 620px) {
+    .hero .cta-row.hero-actions { grid-template-columns: 1fr; }
+    .hero-actions .ha-rule { display: none; }
+    .hero .cta-row.hero-actions .btn { width: 100%; }
+  }
   .hero .mini-facts { display: flex; gap: 22px; margin-top: 30px; flex-wrap: wrap; font-size: 14px; opacity: .85; }
   .hero .mini-facts b { color: var(--gold-bright); }
 
@@ -648,7 +673,9 @@
       <a class="goo" href="faq.html">FAQ</a>
       <a class="goo" href="review-us.html">Review us</a>
       <a class="goo" href="download.html">App</a>
-      <a class="goo" href="tel:+917022771888">Call now</a>
+      <a class="reserve" href="reserve.html">Reserve</a>
+      <a class="goo" href="profile.html">Profile</a>
+      <a class="call" href="tel:+917022771888">Call now</a>
     </nav>
     <button class="burger" id="burger" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
   </div>
@@ -660,14 +687,12 @@
       <span class="eyebrow">Turkish &amp; Arabic Multi-Cuisine • Bolar, Mangaluru</span>
       <h1>Mandi restaurant in <span class="accent">Mangalore</span></h1>
       <p class="lead">Slow-cooked mandi rice, charcoal grills and Gulf flavours — served the traditional way in the heart of Mangalore. Every grain infused with smoke, every plate made to share.</p>
-      <div class="cta-row">
-        <a class="btn btn-gold" href="tel:+917022771888">Call 070227 71888</a>
-        <a class="btn btn-maroon" href="reserve.html">Book a table</a>
-        <a class="btn btn-gold" href="/join.html">Join Zeva Gold · ₹249/yr</a>
-        <a class="btn btn-ghost-light" href="/member.html">My membership card</a>
-        <a class="btn btn-ghost-light" href="/join.html">Send friends to Zeva Gold</a>
-        <a class="btn btn-ghost-light" href="/feedback.html">Tell us what you want</a>
-        <a class="btn btn-ghost-light" href="https://www.google.com/maps?cid=16420937955802426277" rel="noopener">Get Directions</a>
+      <div class="cta-row hero-actions">
+        <a class="btn btn-gold" href="reserve.html">Book a table</a>
+        <a class="btn ha-outline" href="tel:+917022771888">Call 070227 71888</a>
+        <span class="ha-rule" aria-hidden="true"></span>
+        <a class="btn ha-gold-quiet" href="join.html">Join Zeva Gold · ₹249/yr</a>
+        <a class="btn ha-quiet" href="member.html">My membership card</a>
       </div>
       <div class="mini-facts">
         <span><b>★★★★★</b> 4.7 on Google</span>

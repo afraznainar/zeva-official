@@ -80,6 +80,8 @@
   nav.main a { color: rgba(253, 246, 233, .8); text-decoration: none; font-size: 14.5px; font-weight: 500; }
   nav.main a:hover, nav.main a[aria-current="page"] { color: var(--brass-lit); }
   nav.main a.call { border: 1px solid var(--rule); border-radius: 999px; padding: 8px 18px; }
+  nav.main a.reserve { background: var(--brass); color: #17100b; border-radius: 8px; padding: 9px 17px; font-weight: 600; }
+  nav.main a.reserve:hover { background: var(--brass-lit); color: #17100b; }
   .burger { display: none; background: none; border: 0; cursor: pointer; padding: 10px; }
   .burger span { display: block; width: 24px; height: 2px; background: var(--brass-lit); margin: 5px 0; transition: transform .3s var(--ease), opacity .3s; }
   .burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
@@ -290,9 +292,10 @@
     <nav class="main" id="main-nav">
       <a href="menu.html">Menu</a>
       <a href="visit.html">Visit</a>
-      <a href="reserve.html">Reserve</a>
       <a href="faq.html">FAQ</a>
       <a href="review-us.html">Review us</a>
+      <a class="reserve" href="reserve.html">Reserve</a>
+      <a href="profile.html">Profile</a>
       <a class="call" href="tel:+917022771888">070227 71888</a>
     </nav>
     <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>

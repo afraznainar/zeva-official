@@ -239,21 +239,35 @@ nav.main a::after {
   transition: width .22s var(--ease);
 }
 
-/* last item is the call action, set as a quiet outline button */
-nav.main a:last-child {
+/* the call action, set as a quiet outline button */
+nav.main a.call {
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 8px 16px;
   color: var(--paper-text);
 }
-nav.main a:last-child:hover { border-color: var(--brass); color: var(--brass-2); }
-nav.main a:last-child::after { display: none; }
+nav.main a.call:hover { border-color: var(--brass); color: var(--brass-2); }
+nav.main a.call::after { display: none; }
+
+/* Reserve is the one filled action in the bar; Profile sits beside it as a
+   plain link, so the header always offers a table and a way in. */
+nav.main a.reserve {
+  background: var(--brass) !important;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 17px;
+  color: #17100b !important;
+  font-size: 14px;
+  font-weight: 500;
+}
+nav.main a.reserve:hover { background: var(--brass-2) !important; color: #17100b !important; }
+nav.main a.reserve::after, nav.main a.reserve::before { display: none !important; }
 
 @media (max-width: 1150px) and (min-width: 701px) {
-  nav.main { gap: 16px; }
+  nav.main { gap: 15px; }
   nav.main a, nav.main a.goo { font-size: 13.5px; }
-  nav.main a:last-child { padding: 7px 12px; }
-  nav.main a:last-child { font-size: 13.5px; }
+  nav.main a.call { padding: 7px 12px; }
+  nav.main a.reserve { padding: 8px 13px; font-size: 13px; }
 }
 
 @media (max-width: 820px) and (min-width: 701px) {
@@ -276,7 +290,16 @@ nav.main a:last-child::after { display: none; }
     border-radius: 0 !important;
     border-bottom: var(--rule) !important;
   }
-  nav.main a:last-child { border-bottom: 0 !important; color: var(--brass-2); }
+  nav.main a.call { border-bottom: 0 !important; border-radius: 999px; color: var(--brass-2); }
+  /* in the drawer Reserve stays a solid brass bar: one clear action */
+  nav.main a.reserve {
+    background: var(--brass) !important;
+    color: #17100b !important;
+    border-radius: 8px;
+    padding: 12px 14px !important;
+    border-bottom: 0 !important;
+    text-align: center;
+  }
 }
 
 /* ---------- buttons ---------- */
