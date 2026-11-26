@@ -728,6 +728,11 @@ function maskPhone(digits) {
   return "+" + s.slice(0, s.length - 7) + " \u2022\u2022\u2022\u2022 " + s.slice(-4);
 }
 
+/* 12 s was too tight: the provider takes 8–17 s to answer an /auth/start in
+   normal running and 11.3 s measured on 26 Nov 2026, so a slow minute made the
+   Worker give up while the code was already on its way — the customer saw
+   "WhatsApp is not reachable right now" and could not sign up. 25 s clears the
+   slowest send we have measured without holding the button forever. */
 async function whatsappCall(env, route, payload) {
   const response = await fetch(whatsappApi(env) + route, {
     method: "POST",
@@ -736,7 +741,7 @@ async function whatsappCall(env, route, payload) {
       "content-type": "application/json"
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(25000)
   });
   const data = await response.json().catch(function () { return {}; });
   return { ok: response.ok, status: response.status, data: data || {} };
