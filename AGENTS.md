@@ -73,7 +73,19 @@ launched.
 drifted — the deploy is fine.** On 27 Nov 2026 both `www` and `@` pointed at
 `217.21.85.253`, Hostinger's own vhost, so `www` served that plan's inert
 placeholder (565 bytes, `platform: hostinger`) while Production, D1 and every
-page were healthy the whole time. Tell the two apart before touching anything:
+page were healthy the whole time. The same thing happened a second time that
+day when a Node.js deploy on that plan was attached to the domain: it rewrote
+`www` into `CNAME www -> zevamandiandgrills.in` (an alias of the apex), which put
+the whole site — `/api/*` included — on that plan's Node app. `deploy/server.js`
+is the *local* server (SQLite shim, `whatsapp:false`, `upi:false`, `dev:true`), so
+sign-in and sign-up answered `503 whatsapp sign-in is not configured` and the
+accounts/orders were an empty file instead of D1. `/api/config` is how to tell
+where the domain points without guessing: `whatsapp:true`, `upi:true`,
+`dev:false` is the Worker; `whatsapp:false`, `dev:true`, `Server: LiteSpeed` is
+the Node app. Pointing `www` back at the `customers.freebuff.page` CNAME
+restored it in one command and loses nothing, because the database never left
+D1 — a Node deployment on that plan is a static copy with no secrets and no
+data, not a replacement host. Tell the two apart before touching anything:
 `https://site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page` 307s to the domain,
 and a 307 there means the Worker is alive and only DNS is wrong. The repair is
 the two records the platform's own `domain_primary` receipt names —
