@@ -69,6 +69,24 @@ the path and query intact. Never point `@` back at Hostinger's CDN
 (`*.cdn.hstgr.net`): that is what answered 403 for the bare domain before it
 launched.
 
+**When the domain answers "This address does not serve the site", the zone has
+drifted — the deploy is fine.** On 27 Nov 2026 both `www` and `@` pointed at
+`217.21.85.253`, Hostinger's own vhost, so `www` served that plan's inert
+placeholder (565 bytes, `platform: hostinger`) while Production, D1 and every
+page were healthy the whole time. Tell the two apart before touching anything:
+`https://site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page` 307s to the domain,
+and a 307 there means the Worker is alive and only DNS is wrong. The repair is
+the two records the platform's own `domain_primary` receipt names —
+`node scripts/hostinger-dns.mjs delete A www` then `cname www <cnameTarget>`, the
+target being the receipt's `cnameTarget`
+(`cc7ff30827dadf9175673080690ac80e1afdb7171afe2cc3.customers.freebuff.page`,
+never guessed; the matching `_freebuff.www` TXT stays as it is) — plus the four
+GitHub A/AAAA records for `@`. TTL is 300, so a resolver that cached the bad
+record keeps answering for five minutes; `ipconfig /flushdns` clears the
+machine but not the router, and `curl --resolve
+www.zevamandiandgrills.in:443:104.21.85.171` shows the platform's answer
+immediately.
+
 `zeva-apex` must stay **public**: GitHub Pages is not available for a private
 repo on the free plan, and when the repo went private the Pages site vanished
 while the zone still pointed at GitHub, so the apex answered `404 Site not
