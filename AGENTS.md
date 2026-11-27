@@ -510,6 +510,13 @@ kept on disk at `deploy/admin-passcode.secret` (gitignored).
 ## Android APK (Capacitor)
 
 `apk/` wraps the same live `/app` page in a Capacitor WebView (`com.zeva.mandi`);
+**Capacitor 6.2.4 is the floor** — GHSA-jjx3-p5hf-mvvc (25 Nov 2026) let
+untrusted WebView content reach the bridge's internal `/_capacitor_file_`,
+`/_capacitor_content_` and `/_capacitor_http_interceptor_` routes and a path
+traversal in the app's own file serving, all at the app origin. `@capacitor/android`
+and `@capacitor/core` are pinned at `^6.2.4` for it, and the Java that carries the
+fix ships inside the Android project `cap add` generates, so an APK built from an
+older `node_modules` stays vulnerable — rebuild after changing it.
 `.github/workflows/android-apk.yml` builds `app-debug.apk` on GitHub Actions
 because there is no Android SDK here — Actions → **Android APK** → Run workflow,
 then download the artifact. See `apk/README.md`.
