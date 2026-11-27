@@ -302,6 +302,7 @@
         <input id="pop-num" type="tel" inputmode="tel" autocomplete="tel" placeholder="98450 00000" required>
       </label>
       <button class="btn btn-gold w100" id="pop-send" type="submit">Send my code</button>
+      <button class="pop-back" type="button" id="pop-login">Already signed up? Sign in with just my number</button>
     </form>
 
     <form id="pop-code" hidden novalidate>
@@ -500,6 +501,20 @@
     if (e.key === 'Escape' && !$('signup').hidden) closePop();
   });
 
+  // An existing member knows their number and nothing else: the same code goes
+  // out, no name is asked for, and the server matches the account on the number.
+  var loginOnly = false;
+  $('pop-login').addEventListener('click', function () {
+    var phone = $('pop-num').value.replace(/[^\d+]/g, '');
+    if (phone.replace(/\D/g, '').length < 10) { setMsg('Enter the 10-digit WhatsApp number.', 'bad'); $('pop-num').focus(); return; }
+    loginOnly = true;
+    $('pop-name').parentNode.hidden = true;
+    $('pop-login').hidden = true;
+    $('pop-send').textContent = 'Send my login code';
+    if ($('pop-phone').requestSubmit) $('pop-phone').requestSubmit();
+    else $('pop-phone').dispatchEvent(new Event('submit', { cancelable: true }));
+  });
+
   $('pop-phone').addEventListener('submit', function (e) {
     e.preventDefault();
     var phone = $('pop-num').value.replace(/[^\d+]/g, '');
@@ -525,7 +540,7 @@
     if (code.length < 4) { setMsg('Enter the code from WhatsApp.', 'bad'); $('pop-digits').focus(); return; }
     $('pop-verify').disabled = true;
     setMsg('Opening your card\u2026');
-    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: $('pop-name').value.trim() } })
+    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: loginOnly ? '' : $('pop-name').value.trim() } })
       .then(function (d) {
         $('pop-verify').disabled = false;
         if (!d.ok) { setMsg(d.error || 'That code is not right.', 'bad'); return; }
@@ -539,6 +554,10 @@
     $('pop-code').hidden = true;
     $('pop-phone').hidden = false;
     state.session = '';
+    loginOnly = false;
+    $('pop-name').parentNode.hidden = false;
+    $('pop-login').hidden = false;
+    $('pop-send').textContent = 'Send my code';
     setMsg('');
     $('pop-num').focus();
   });

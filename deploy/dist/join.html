@@ -249,6 +249,7 @@
             <input id="wa-phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile" maxlength="14">
           </div>
           <button class="btn wide" type="submit" id="wa-send">Send my code</button>
+          <p class="foot-note"><button class="btn ghost" type="button" id="wa-login">Already signed up? Sign in with just my number</button></p>
         </form>
         <form id="code-form" hidden novalidate>
           <div class="field">
@@ -346,6 +347,20 @@
     el.className = 'msg' + (kind ? ' ' + kind : '');
   }
 
+  // Gold members already have an account, so signing in is the number alone:
+  // no name is sent and the server matches the account that already exists.
+  var loginOnly = false;
+  $('wa-login').addEventListener('click', function () {
+    var phone = $('wa-phone').value.trim();
+    if (phone.replace(/\D/g, '').length < 10) { say('Enter your mobile number.', 'bad'); $('wa-phone').focus(); return; }
+    loginOnly = true;
+    $('wa-name').parentNode.hidden = true;
+    $('wa-login').hidden = true;
+    $('wa-send').textContent = 'Send my login code';
+    if ($('wa-form').requestSubmit) $('wa-form').requestSubmit();
+    else $('wa-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  });
+
   $('wa-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var phone = $('wa-phone').value.trim();
@@ -371,7 +386,7 @@
     if (code.length < 4) { say('Enter the code from WhatsApp.', 'bad'); $('wa-code').focus(); return; }
     $('wa-verify').disabled = true;
     say('Checking…');
-    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: ($('wa-name').value || '').trim() } })
+    api('/api/auth/whatsapp/verify', { method: 'POST', body: { session: state.session, code: code, name: loginOnly ? '' : ($('wa-name').value || '').trim() } })
       .then(function (d) {
         $('wa-verify').disabled = false;
         if (!d.ok) { say(d.error || 'That code is not right.', 'bad'); return; }
@@ -390,6 +405,10 @@
     $('code-form').hidden = true;
     $('wa-form').hidden = false;
     state.session = '';
+    loginOnly = false;
+    $('wa-name').parentNode.hidden = false;
+    $('wa-login').hidden = false;
+    $('wa-send').textContent = 'Send my code';
     say('');
     $('wa-phone').focus();
   });

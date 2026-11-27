@@ -181,6 +181,12 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   (`sessionStorage.zeva.signup.skipped`) or while the chat panel or the cart
   drawer is open. `/app`, `/profile`, `/member`, `/join`, `/reserve` and
   `/admin` do not load it: each already leads with its own sign-in form.
+  Signing up and signing in are one flow on the server — a verified number
+  matches the account that already holds it — but the sheet, `/profile`'s popup
+  and `/join` also carry a plain **Already signed up? Sign in with just my
+  number** button for a returning customer: it hides the name field, sends the
+  same code and verifies with no name, so Gold members are never asked to fill
+  in a sign-up they do not need.
 - **WhatsApp is the only sign-in the site offers.** The Google button used to
   sit beside it in the You tab, the checkout prompt and the `/profile` sign-up
   sheet; all three are gone (26 Nov 2026) so no page draws a Google choice and

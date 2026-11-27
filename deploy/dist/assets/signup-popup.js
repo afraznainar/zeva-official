@@ -64,6 +64,12 @@
   }
   .zsg-go:hover { background: #f0ce95; }
   .zsg-go:disabled { opacity: .55; cursor: default; }
+  .zsg-login {
+    display: block; width: 100%; margin-top: 10px; padding: 10px 12px;
+    background: none; border: 1px solid rgba(253, 248, 238, .16); border-radius: 10px;
+    color: #b9a894; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .zsg-login:hover { border-color: rgba(188, 120, 53, .6); color: #fdf8ee; }
   .zsg-back {
     display: block; width: 100%; margin-top: 10px; padding: 0; background: none; border: 0;
     color: #8d7d6c; font: inherit; font-size: 12.5px; cursor: pointer;
@@ -90,7 +96,7 @@
       '<button type="button" class="zsg-x" data-zsg-close aria-label="Close">&times;</button>' +
       '<p class="zsg-kicker">Zeva Gold &middot; &#8377;249 a year</p>' +
       '<h2 id="zsg-h">Sign in with one message on WhatsApp.</h2>' +
-      '<p class="zsg-copy" id="zsg-copy">New here? The same code opens your card: a stamp on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 6&nbsp;km of Bolar.</p>' +
+      '<p class="zsg-copy" id="zsg-copy">New here? The same code opens your card: a stamp on every visit, a spin every ten, &#8377;5 back on every order and free delivery inside 6&nbsp;km of Bolar. Already have a card? Sign in with your number alone.</p>' +
       '<form class="zsg-form" data-zsg-phone novalidate>' +
         '<label class="zsg-fl"><span>Your name</span>' +
           '<input type="text" data-zsg-name autocomplete="name" placeholder="Your name" maxlength="80">' +
@@ -99,6 +105,7 @@
           '<input type="tel" data-zsg-num inputmode="numeric" autocomplete="tel" placeholder="98450 00000" maxlength="16">' +
         '</label>' +
         '<button type="submit" class="zsg-go" data-zsg-send>Send my code</button>' +
+        '<button type="button" class="zsg-login" data-zsg-login>Already signed up? Sign in with just my number</button>' +
       '</form>' +
       '<form class="zsg-form" data-zsg-code hidden novalidate>' +
         '<label class="zsg-fl"><span>Code from WhatsApp</span>' +
@@ -119,6 +126,7 @@
   var host = null;
   var el = {};
   var session = '';
+  var loginOnly = false;
   var signedIn = false;
   var answered = false;
   var shown = false;
@@ -143,7 +151,7 @@
     host.innerHTML = HTML;
     document.body.appendChild(host);
 
-    ['close', 'skip', 'phone', 'name', 'num', 'send', 'code', 'digits', 'verify', 'back', 'done', 'msg']
+    ['close', 'skip', 'phone', 'name', 'num', 'send', 'login', 'code', 'digits', 'verify', 'back', 'done', 'msg']
       .forEach(function (key) { el[key] = host.querySelector('[data-zsg-' + key + ']'); });
 
     el.close.addEventListener('click', function () { hide(true); });
@@ -155,10 +163,12 @@
 
     el.phone.addEventListener('submit', function (e) { e.preventDefault(); send(); });
     el.code.addEventListener('submit', function (e) { e.preventDefault(); verify(); });
+    el.login.addEventListener('click', signIn);
     el.back.addEventListener('click', function () {
       el.code.hidden = true;
       el.phone.hidden = false;
       session = '';
+      resetLogin();
       say('');
       el.num.focus();
     });
@@ -190,6 +200,30 @@
     host.hidden = true;
     document.body.style.overflow = '';
     if (remember) rememberSkip();
+  }
+
+  // Someone who already has a card only has a number to give: the same code
+  // goes out, the name is not asked for, and the server matches the account on
+  // the number. A number that is new still ends up with a card.
+  function signIn() {
+    var phone = el.num.value.replace(/[^\d+]/g, '');
+    if (phone.replace(/\D/g, '').length < 10) {
+      say('Enter the 10-digit WhatsApp number.', 'bad');
+      el.num.focus();
+      return;
+    }
+    loginOnly = true;
+    el.name.parentNode.hidden = true;
+    el.login.hidden = true;
+    el.send.textContent = 'Send my login code';
+    send();
+  }
+
+  function resetLogin() {
+    loginOnly = false;
+    el.name.parentNode.hidden = false;
+    el.login.hidden = false;
+    el.send.textContent = 'Send my code';
   }
 
   function body(init) {
@@ -241,7 +275,7 @@
     say('Signing you in\u2026');
     api('/api/auth/whatsapp/verify', {
       method: 'POST',
-      body: { session: session, code: code, name: (el.name.value || '').trim() }
+      body: { session: session, code: code, name: loginOnly ? '' : (el.name.value || '').trim() }
     })
       .then(function (d) {
         el.verify.disabled = false;
@@ -249,7 +283,8 @@
         signedIn = true;
         el.code.hidden = true;
         el.done.hidden = false;
-        say('Welcome to Zeva.', 'good');
+        el.done.querySelector('.zsg-ok').textContent = loginOnly ? 'Welcome back.' : 'You\u2019re in.';
+        say(loginOnly ? 'Signed in on your number.' : 'Welcome to Zeva.', 'good');
       })
       .catch(function () { el.verify.disabled = false; say('Could not reach the server.', 'bad'); });
   }
