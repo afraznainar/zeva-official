@@ -109,12 +109,15 @@ Pages can only ever serve a page that redirects itself. Swapping between the two
 is just the `@` A/AAAA records: GitHub's four `185.199.10x.153` /
 `2606:50c0:800x::153`, or the one hosting IP.
 
-The vhost is stood down while GitHub serves the apex: `node
-.tools/apex-redirect.mjs off` replaces its `index.html` with an inert placeholder
-(no redirect, `noindex`), and the vhost has no `.htaccess` — Hostinger's file API
-only uploads, lists and reads, so a file put there can be overwritten but never
-deleted. Anything that plan serves should therefore stay harmless, because the
-domain does not resolve to it.
+The vhost carries that same 301 while GitHub Pages serves the apex, as a
+backstop for resolvers that still cache the old address: GitHub's page hands
+over in JavaScript only, so a visit that landed on `217.21.85.253` from a stale
+record used to see the stood-down placeholder ("This address does not serve the
+site", 27 Nov 2026) instead of the site. `node .tools/apex-redirect.mjs on`
+leaves `.htaccess` plus a redirecting `index.html` there, so both routes end on
+`www` with path and query intact. Hostinger's file API only uploads, lists and
+reads — a file put there can be overwritten but never deleted, so `off` now only
+reverts `index.html` and prints a reminder to remove `.htaccess` in hPanel.
 
 Whichever hostname Production gets must also be in the Production secret
 `SITE_ORIGINS` (comma separated, e.g.
