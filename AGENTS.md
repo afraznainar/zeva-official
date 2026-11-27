@@ -493,7 +493,26 @@ ten stamps pressed into it, and the prize wheel beside it.
   `GET /v1/messages/{message_id}` (up to `MARKETING_CHECK_MAX` = 12 of them,
   three rounds six seconds apart) so the reply also carries `checked`,
   `delivered` and `queued`. "Sent" is the provider taking the message;
-  "delivered" is a phone having it. `GET /api/admin/whatsapp` answers the
+  "delivered" is a phone having it.
+  The same composer sends **pictures and links**. A link is just text: WhatsApp
+  makes a URL tappable by itself, so `message` is sent untouched and the 600
+  character cap leaves room for the link plus a sentence. A picture is the
+  **Picture (optional)** box: the browser shrinks the photo to 1280 px JPEG
+  (`createImageBitmap` + canvas, so a 5 MB phone photo becomes ~150 kB), posts
+  it as a data URL to `POST /api/admin/media`, and the Worker stores the base64
+  in the `media` table and answers `{id, url}`. The send then goes out as
+  `type: "image"` with `media_url` — LoginWA fetches media **by public HTTPS
+  URL**, which is why `GET /api/media/<id>` is deliberately unauthenticated
+  (the provider has no cookie) and why the id is a 32-hex random UUID: the link
+  is the only thing guarding the picture. The message becomes the image's
+  `caption` (so words are optional when a picture is attached, and the shield
+  line still rides along), and the app notice carries the picture's URL because
+  a notice is text. Uploads are capped at 700 kB decoded to stay inside D1's
+  1 MB row limit, only JPEG/PNG/WebP are accepted, and each upload deletes
+  rows older than `MEDIA_KEEP_DAYS` = 60 so a year of promos cannot fill the
+  database. A new table needs a line in `schemaReady`'s probe list too —
+  `media` is probed there, otherwise an existing database reports itself up to
+  date and the table is never created. `GET /api/admin/whatsapp` answers the
   question behind most failures: `WHATSAPP_OTP_API`/default host the key points
   at, and every device that key has with its online state and masked number;
   the **Check sender** button beside **Send on WhatsApp** shows that in the

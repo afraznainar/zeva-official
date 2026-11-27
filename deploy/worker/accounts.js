@@ -247,6 +247,17 @@ const DB_SCHEMA = [
   // booking codes, and make 'used' rows easy to skip if anyone ever goes back
   // through them.
   `CREATE INDEX IF NOT EXISTS member_codes_code ON member_codes (code) WHERE code IS NOT NULL AND used_at IS NULL`,
+  // Pictures the counter sends from /admin. The provider fetches media by URL,
+  // so the bytes live here and /api/media/<id> serves them back. base64 in a
+  // text column keeps this inside D1's 1 MB row limit without a bucket.
+  `CREATE TABLE IF NOT EXISTS media (
+     id TEXT PRIMARY KEY,
+     mime TEXT NOT NULL,
+     bytes INTEGER NOT NULL,
+     data TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS media_created ON media (created_at DESC)`,
   // Status rename: an order now waits for the counter ('pending') and leaves
   // the kitchen for 'out' — no more 'new' / 'ready'.
   `UPDATE orders SET status = 'pending' WHERE status = 'new'`,
@@ -489,6 +500,9 @@ async function schemaReady(env) {
     await env.DB.prepare("SELECT address FROM users LIMIT 1").first();
     await env.DB.prepare("SELECT upi_seq FROM orders LIMIT 1").first();
     await env.DB.prepare("SELECT arrived_at FROM reservations LIMIT 1").first();
+    // The newest table: a database that already had everything else still has
+    // to pick up `media` (the pictures /admin sends), so it is probed too.
+    await env.DB.prepare("SELECT created_at FROM media LIMIT 1").first();
     return true;
   } catch (error) {
     return false;
@@ -789,11 +803,18 @@ async function whatsappCall(env, route, payload) {
    and a duplicate marketing message to a customer is worse than a failure the
    counter can see. The send is slow (8–17 s measured from Cloudflare), which is
    why the old 8-second cap failed every marketing message silently. */
-async function whatsappSend(env, phone, message) {
+async function whatsappSend(env, phone, message, mediaUrl) {
   if (!whatsappReady(env)) return { ok: false, status: 0, error: "WHATSAPP_OTP_KEY is not set on this site" };
   const digits = String(phone || "").replace(/\D/g, "");
   if (!digits) return { ok: false, status: 0, error: "that member has no phone number" };
-  const body = JSON.stringify({ phone: digits, message: String(message).slice(0, 900) });
+  // A picture goes out as a WhatsApp image and the words become its caption:
+  // type=image + media_url, which the provider fetches itself (a public https
+  // URL is the only kind it accepts). Text keeps the plain message field.
+  const picture = String(mediaUrl || "");
+  const payload = picture
+    ? { phone: digits, type: "image", media_url: picture, caption: String(message || "").slice(0, 900) }
+    : { phone: digits, message: String(message).slice(0, 900) };
+  const body = JSON.stringify(payload);
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const response = await fetch(whatsappApi(env) + "/v1/messages/send", {
@@ -1737,6 +1758,76 @@ export async function adminMembers(env) {
   });
 }
 
+/* ------------------------------------------------------------
+   Pictures from the counter
+   ------------------------------------------------------------
+   The WhatsApp provider sends media by URL, so a picture the counter attaches
+   on /admin is stored in D1 and handed back at /api/media/<id>. The id is a
+   random UUID: WhatsApp has to fetch the URL with no cookie, so the link is the
+   only thing guarding it, and it must not be guessable.
+
+   The browser shrinks a photo to 1280 px before uploading it, both because
+   WhatsApp does not need more and because a phone photo would blow past D1's
+   1 MB row limit. */
+const MEDIA_MAX_BYTES = 700 * 1024;
+const MEDIA_KEEP_DAYS = 60;
+const MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+export async function adminMediaUpload(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+  const raw = String((body && body.image) || "");
+  const match = raw.match(/^data:([a-z/+.-]+);base64,([A-Za-z0-9+/=\s]+)$/i);
+  if (!match || MEDIA_TYPES.indexOf(match[1].toLowerCase()) < 0) {
+    return json(400, { error: "Attach a JPEG, PNG or WebP picture." });
+  }
+  const mime = match[1].toLowerCase();
+  const base64 = match[2].replace(/\s+/g, "");
+  const bytes = Math.floor((base64.length * 3) / 4);
+  if (!bytes) return json(400, { error: "That picture came through empty. Try again." });
+  if (bytes > MEDIA_MAX_BYTES) {
+    return json(413, { error: "That picture is " + Math.round(bytes / 1024) + " kB \u2014 keep it under 700 kB." });
+  }
+
+  // Old sends keep working: WhatsApp has already downloaded their picture. What
+  // must not happen is a year of promos filling the database.
+  await db
+    .prepare("DELETE FROM media WHERE created_at < ?")
+    .bind(Date.now() - MEDIA_KEEP_DAYS * 86400000)
+    .run()
+    .catch(function () {});
+
+  const id = crypto.randomUUID().replace(/-/g, "");
+  await db
+    .prepare("INSERT INTO media (id, mime, bytes, data, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(id, mime, bytes, base64, Date.now())
+    .run();
+  return json(200, { ok: true, id: id, url: SITE + "/api/media/" + id, bytes: bytes, kept_days: MEDIA_KEEP_DAYS });
+}
+
+// GET /api/media/<id> — public on purpose: the provider fetches it. Immutable
+// because the id never changes its content.
+export async function serveMedia(env, id) {
+  const db = await database(env);
+  if (!db) return json(404, { error: "no such picture" });
+  const key = String(id || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 64);
+  if (!key) return json(404, { error: "no such picture" });
+  const row = await db.prepare("SELECT mime, data FROM media WHERE id = ?").bind(key).first();
+  if (!row) return json(404, { error: "no such picture" });
+  const binary = atob(String(row.data || ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      "content-type": String(row.mime || "image/jpeg"),
+      "content-length": String(bytes.length),
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff"
+    }
+  });
+}
+
 /* Marketing from the counter. One message to every member, or to the Gold
    members, or to people who have actually come in. It is capped because the
    provider's free plan is 100 messages a month and a booking already spends
@@ -1752,7 +1843,19 @@ export async function adminMarketing(env, body) {
   if (!db) return json(503, { error: "accounts are not configured" });
   if (!whatsappReady(env)) return json(503, { error: "WhatsApp is not configured on this site, so nothing can be sent." });
   const message = String((body && body.message) || "").trim().slice(0, 600);
-  if (message.length < 3) return json(400, { error: "Write the message first." });
+  // A picture on its own is a message: the words are the caption and are
+  // optional then. Without one, the text still has to say something.
+  const wantedMedia = String((body && body.media) || "").trim();
+  let mediaUrl = "";
+  if (wantedMedia) {
+    const picture = await db
+      .prepare("SELECT id FROM media WHERE id = ?")
+      .bind(wantedMedia.replace(/[^a-zA-Z0-9]/g, ""))
+      .first();
+    if (!picture) return json(400, { error: "That picture is no longer stored. Attach it again." });
+    mediaUrl = SITE + "/api/media/" + picture.id;
+  }
+  if (message.length < 3 && !mediaUrl) return json(400, { error: "Write the message first." });
   const wanted = String((body && body.audience) || "all");
   const audience = ["all", "gold", "visited"].indexOf(wanted) >= 0 ? wanted : "all";
   const cap = Math.max(1, Math.min(MARKETING_MAX, Number((body && body.limit) || MARKETING_MAX)));
@@ -1769,7 +1872,7 @@ export async function adminMarketing(env, body) {
     .all();
   const all = rows.results || [];
   const batch = all.slice(0, cap);
-  const text = message + "\n\n" + MARKETING_SHIELD;
+  const text = (message ? message + "\n\n" : "") + MARKETING_SHIELD;
 
   // A phone cannot message its own number. The provider still answers 200 and
   // the message waits as "queued" forever, which is exactly how a successful
@@ -1790,7 +1893,7 @@ export async function adminMarketing(env, body) {
     const slice = target.slice(i, i + 5);
     const results = await Promise.all(
       slice.map(function (member) {
-        return whatsappSend(env, member.phone, text);
+        return whatsappSend(env, member.phone, text, mediaUrl);
       })
     );
     results.forEach(function (result, index) {
@@ -1839,10 +1942,12 @@ export async function adminMarketing(env, body) {
       " still queued, so no phone received " + (queued === 1 ? "it" : "them") + ".";
   }
 
-  // The same words land in the app, for members who read it there.
+  // The same words land in the app, for members who read it there. A picture
+  // travels as its link, because the app notice is text.
+  const noticeBody = (message ? message.slice(0, 300) : "") + (mediaUrl ? (message ? "\n" : "") + mediaUrl : "");
   await Promise.all(
     batch.map(function (member) {
-      return pushNotice(env, { user_id: member.id, title: "From Zeva", body: message.slice(0, 400) });
+      return pushNotice(env, { user_id: member.id, title: "From Zeva", body: noticeBody || message.slice(0, 400) });
     })
   );
 
@@ -1867,6 +1972,9 @@ export async function adminMarketing(env, body) {
     // bare count, so a dead sender is not mistaken for a bad message.
     reason: reason,
     skipped: Math.max(0, all.length - batch.length),
+    // The dashboard keeps its picture until the send is over, and clears it
+    // with the text when this comes back set.
+    media: mediaUrl || "",
     cap: cap
   });
 }
@@ -2954,6 +3062,12 @@ export async function handleAccounts(request, env, url) {
     return json(200, await myNotices(env, user && user.id, url.searchParams.get("after")));
   }
 
+  // A picture the counter sent: fetched by WhatsApp's servers, which have no
+  // cookie to offer, so this one route is deliberately public.
+  if (path.startsWith("/api/media/") && request.method === "GET") {
+    return serveMedia(env, path.slice("/api/media/".length));
+  }
+
   if (path === "/api/admin/session") {
     return json(200, { signed_in: await adminGate(request, env), configured: Boolean(env.ADMIN_PASSCODE) });
   }
@@ -2993,6 +3107,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/marketing" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminMarketing(env, await readJson(request));
+    }
+    if (path === "/api/admin/media" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminMediaUpload(env, await readJson(request));
     }
     if (path === "/api/admin/spin" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });

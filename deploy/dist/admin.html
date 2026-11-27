@@ -150,6 +150,13 @@
   .compose input, .compose textarea, .compose select { width: 100%; margin-bottom: 7px; }
   .compose textarea { resize: vertical; min-height: 62px; font: inherit; line-height: 1.5; }
   .compose .acts { align-items: center; }
+  /* A picture ready to go: the thumbnail is the proof it uploaded, the note
+     says how big it is, and Remove puts the composer back to text only. */
+  .compose .mpic { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; }
+  .compose .mpic img { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+  .compose .mpic .hint { flex: 1; }
+  .compose .mpic button { border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 11px; font-size: 12px; }
+  .compose input[type="file"] { font-size: 12px; padding: 5px 0; }
   .hint { font-size: 11.5px; color: var(--text-3); }
 
   /* -------- members -------- */
@@ -457,11 +464,19 @@
                 <option value="gold">Zeva Gold members</option>
               </select>
             </label>
-            <textarea id="m_text" maxlength="600" placeholder="e.g. Prawns mandi is back this weekend. Gold members get a free juice."></textarea>
+            <textarea id="m_text" maxlength="600" placeholder="e.g. Prawns mandi is back this weekend \u2014 https://www.zevamandiandgrills.in/menu"></textarea>
+            <div class="mpic" id="m_pic" hidden>
+              <img id="m_pic_img" alt="Picture ready to send">
+              <span class="hint" id="m_pic_note"></span>
+              <button type="button" id="m_pic_clear">Remove</button>
+            </div>
+            <label class="field"><span>Picture (optional)</span>
+              <input id="m_file" type="file" accept="image/*">
+            </label>
             <div class="acts">
               <button class="primary" type="button" id="m_send">Send on WhatsApp</button>
               <button type="button" id="m_check">Check sender</button>
-              <span class="hint" id="m_state">Up to 30 members per send.</span>
+              <span class="hint" id="m_state">Up to 30 members per send. Links in the message open in WhatsApp; a picture sends with the text as its caption.</span>
             </div>
           </div>
 
@@ -1227,20 +1242,89 @@
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
   });
 
+  /* A picture for the marketing send. It is shrunk here, uploaded once, and
+     then sent as a WhatsApp image with the message as its caption \u2014 which is
+     why the send is allowed with a picture and no words. */
+  var marketingPicture = null;
+
+  function showPicture(pic) {
+    marketingPicture = pic;
+    var box = $('m_pic');
+    if (!pic) {
+      box.hidden = true;
+      $('m_pic_img').removeAttribute('src');
+      $('m_pic_note').textContent = '';
+      return;
+    }
+    $('m_pic_img').src = pic.url;
+    $('m_pic_note').textContent = Math.round((pic.bytes || 0) / 1024) + ' kB \u00b7 sent with the message as its caption';
+    box.hidden = false;
+  }
+
+  // A phone photo is several megabytes; WhatsApp only needs 1280 px, and D1
+  // holds the bytes, so it is re-encoded in the browser before uploading.
+  function shrinkPicture(file) {
+    return createImageBitmap(file).then(function (bitmap) {
+      var scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      return canvas.toDataURL('image/jpeg', 0.86);
+    });
+  }
+
+  $('m_file').addEventListener('change', function () {
+    var input = $('m_file');
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var note = $('m_state');
+    note.textContent = 'Preparing the picture\u2026';
+    shrinkPicture(file)
+      .then(function (dataUrl) {
+        return fetch('/api/admin/media', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl })
+        }).then(function (r) { return r.json().catch(function () { return {}; }); });
+      })
+      .then(function (d) {
+        input.value = '';
+        if (!d || !d.ok) { note.textContent = (d && d.error) || 'Could not upload that picture.'; return; }
+        showPicture({ id: d.id, url: d.url, bytes: d.bytes });
+        note.textContent = 'Picture ready. Send it with a caption, or on its own.';
+      })
+      .catch(function () {
+        input.value = '';
+        note.textContent = 'Could not read that picture. Try a JPEG or PNG.';
+      });
+  });
+
+  $('m_pic_clear').addEventListener('click', function () {
+    showPicture(null);
+    $('m_state').textContent = 'Picture removed.';
+  });
+
   $('m_send').addEventListener('click', function () {
     var btn = $('m_send');
     var text = $('m_text').value.trim();
     var note = $('m_state');
-    if (text.length < 3) { $('m_text').focus(); note.textContent = 'Write the message first.'; return; }
+    if (text.length < 3 && !marketingPicture) { $('m_text').focus(); note.textContent = 'Write the message or attach a picture first.'; return; }
     var audience = $('m_audience').value;
     var label = audience === 'gold' ? 'Zeva Gold members' : audience === 'visited' ? 'members who have visited' : 'every member on WhatsApp';
-    if (!window.confirm('Send this to ' + label + '? Up to ' + memberCap + ' messages go out now.')) return;
+    if (!window.confirm('Send this' + (marketingPicture ? ' picture' : '') + ' to ' + label + '? Up to ' + memberCap + ' messages go out now.')) return;
     btn.disabled = true;
     note.textContent = 'Sending\u2026';
     fetch('/api/admin/marketing', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: text, audience: audience, limit: memberCap })
+      body: JSON.stringify({
+        message: text,
+        audience: audience,
+        limit: memberCap,
+        media: marketingPicture ? marketingPicture.id : ''
+      })
     })
       .then(function (r) { return r.json().catch(function () { return {}; }); })
       .then(function (d) {
@@ -1260,7 +1344,10 @@
           note.textContent += ' ' + d.self_numbers.join(', ') +
             ' is this WhatsApp\u2019s own number \u2014 WhatsApp cannot deliver a message from a phone to itself, so test on another phone.';
         }
-        if (d.sent) $('m_text').value = '';
+        if (d.sent) {
+          $('m_text').value = '';
+          if (d.media) showPicture(null);
+        }
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
   });

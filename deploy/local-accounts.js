@@ -114,6 +114,7 @@ const ACCOUNT_ROUTES = [
   "/api/upi/",
   "/api/notices",
   "/api/member",
+  "/api/media/",
   "/api/admin/"
 ];
 
