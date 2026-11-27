@@ -10,7 +10,7 @@
     "bump": "node ../scripts/bump-version.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^6.2.0",
+    "@capacitor/android": "^6.2.4",
     "@capacitor/app": "^6.0.3",
     "@capacitor/browser": "^6.0.6",
     "@capacitor/core": "^6.2.0",
