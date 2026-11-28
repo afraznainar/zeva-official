@@ -8,6 +8,7 @@
      WHATSAPP_OTP_KEY                         -> WhatsApp code sign-in
      SESSION_SECRET                           -> cookie signing
      ADMIN_PASSCODE                           -> staff dashboard
+     MEMBERS_PASSCODE                         -> members list pin (default 988051)
      UPI_GATEWAY_URL / _KEY / _SECRET         -> online UPI payments (./upi.js)
      UPI_WEBHOOK_SECRET                       -> gateway webhook signatures
    ZEVA_DEV_LOGIN=1 exists only for local development.
@@ -2747,6 +2748,23 @@ export async function updateProfile(request, env, body) {
    Admin
    ------------------------------------------------------------ */
 
+/* The members list has a short pin of its own, so a tablet behind the counter
+   can open it without the dashboard's longer passcode. It is not the dashboard:
+   a pin session reaches only the five routes /members calls. Override the pin
+   with MEMBERS_PASSCODE in Sites → Secrets. */
+const MEMBERS_PIN = "988051";
+const MEMBER_PAGE_ROUTES = [
+  "/api/admin/members",
+  "/api/admin/visit",
+  "/api/admin/wallet",
+  "/api/admin/notify",
+  "/api/admin/spin"
+];
+
+function membersPin(env) {
+  return String(env.MEMBERS_PASSCODE || MEMBERS_PIN);
+}
+
 export async function adminGate(request, env) {
   const token = cookies(request).zeva_admin;
   if (!token) return false;
@@ -2754,18 +2772,36 @@ export async function adminGate(request, env) {
   return Boolean(payload && payload.role === "admin");
 }
 
+/* "admin" for the dashboard passcode, "members" for the members pin, "" for
+   neither — so one cookie can be worth less than the other. */
+export async function staffRole(request, env) {
+  const token = cookies(request).zeva_admin;
+  if (!token) return "";
+  const payload = await unseal(env, token);
+  const role = payload && payload.role;
+  if (role === "admin" || role === "members") return role;
+  return "";
+}
+
+async function passMatches(env, pass, expected) {
+  if (!pass || !expected) return false;
+  const a = b64u(await hmac(secretFor(env), pass));
+  const b = b64u(await hmac(secretFor(env), String(expected)));
+  let diff = a.length === b.length ? 0 : 1;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export async function adminLogin(request, env, body) {
   if (!env.ADMIN_PASSCODE) return json(503, { error: "admin dashboard is not configured" });
   if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
-  const pass = String((body && body.passcode) || "");
-  const expected = String(env.ADMIN_PASSCODE);
-  const a = b64u(await hmac(secretFor(env), pass));
-  const b = b64u(await hmac(secretFor(env), expected));
-  let diff = a.length === b.length ? 0 : 1;
-  for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  if (diff !== 0) return json(401, { error: "wrong passcode" });
-  const token = await sign(env, { role: "admin", exp: Date.now() + 30 * 86400000 });
-  return json(200, { ok: true }, { "set-cookie": cookieHeader("zeva_admin", token, 30 * 86400) });
+  const pass = String((body && body.passcode) || "").trim();
+  let role = "";
+  if (await passMatches(env, pass, env.ADMIN_PASSCODE)) role = "admin";
+  else if (await passMatches(env, pass, membersPin(env))) role = "members";
+  if (!role) return json(401, { error: "wrong passcode" });
+  const token = await sign(env, { role: role, exp: Date.now() + 30 * 86400000 });
+  return json(200, { ok: true, role: role }, { "set-cookie": cookieHeader("zeva_admin", token, 30 * 86400) });
 }
 
 export async function adminOrders(env, after) {
@@ -3216,7 +3252,15 @@ export async function handleAccounts(request, env, url) {
   }
 
   if (path === "/api/admin/session") {
-    return json(200, { signed_in: await adminGate(request, env), configured: Boolean(env.ADMIN_PASSCODE) });
+    const role = await staffRole(request, env);
+    // The members pin counts as signed in only where the page says so: the
+    // dashboard asks without ?page=members and keeps wanting the real passcode.
+    const members = url.searchParams.get("page") === "members";
+    return json(200, {
+      signed_in: members ? Boolean(role) : role === "admin",
+      role: role,
+      configured: Boolean(env.ADMIN_PASSCODE)
+    });
   }
 
   if (path === "/api/admin/login" && request.method === "POST") {
@@ -3228,7 +3272,12 @@ export async function handleAccounts(request, env, url) {
   }
 
   if (path.startsWith("/api/admin/")) {
-    if (!(await adminGate(request, env))) return json(401, { error: "sign in to the dashboard" });
+    const role = await staffRole(request, env);
+    if (!role) return json(401, { error: "sign in to the dashboard" });
+    // The members pin is not the dashboard: it may only reach what /members uses.
+    if (role === "members" && MEMBER_PAGE_ROUTES.indexOf(path) < 0) {
+      return json(403, { error: "that needs the dashboard passcode" });
+    }
     if (path === "/api/admin/orders" && request.method === "GET") {
       return adminOrders(env, url.searchParams.get("after"));
     }

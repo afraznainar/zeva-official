@@ -578,9 +578,15 @@ kept on disk at `deploy/admin-passcode.secret` (gitignored).
 ## Members page
 
 `deploy/dist/members.html` is **`/members`** — the members list on a page of its
-own, behind the same passcode gate as `/admin` (`/api/admin/session`,
-`/api/admin/login`; the cookie is shared, so signing in to one signs in the
-other). A search box filters by name, WhatsApp number (digits only, so spaces
+own, behind its own short passcode (**`MEMBERS_PIN` = `988051`** in
+`worker/accounts.js`, overridable with `MEMBERS_PASSCODE` in Sites → Secrets).
+The dashboard passcode still opens it, but the pin is not the dashboard: the
+login route (`/api/admin/login`) answers with `role: "members"` for the pin and
+the cookie carries that role, so a pin session may only reach the five routes
+the page uses (`/api/admin/members`, `visit`, `wallet`, `notify`, `spin`) and
+answers `403` everywhere else. `/api/admin/session` counts the pin as signed in
+only when asked with `?page=members`, so `/admin` still wants the real passcode.
+A search box filters by name, WhatsApp number (digits only, so spaces
 and +91 still match) or member code, and the counts row stays above it. Tapping
 a member opens a native `<dialog>` with their card facts (visits, spins, Zeva
 Money balance, whether today's stamp is already given) and the three things the

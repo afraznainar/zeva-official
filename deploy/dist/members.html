@@ -160,7 +160,7 @@
     <img class="gate-mark" src="/assets/img/zeva-mark.webp" alt="" width="324" height="706">
     <p class="gate-kicker">Zeva Mandi &amp; Grills · Bolar</p>
     <h1>Counter sign-in</h1>
-    <p class="gate-copy">The members list is behind the same passcode as the counter.</p>
+    <p class="gate-copy">The members list has its own passcode. The dashboard passcode opens it too.</p>
     <label class="field"><span>Passcode</span>
       <input id="pass" type="password" placeholder="••••••" autocomplete="current-password" inputmode="text">
     </label>
@@ -277,7 +277,7 @@
     $('gate').hidden = false;
     $('main').hidden = true;
     if (configured === false) {
-      $('gateerr').textContent = 'The passcode is not set on the server yet. Add ADMIN_PASSCODE in Sites \u2192 Secrets.';
+      $('gateerr').textContent = 'Sign-in is not set up yet. Add ADMIN_PASSCODE in Sites \u2192 Secrets.';
     }
     if ($('pass')) $('pass').focus();
   }
@@ -586,7 +586,7 @@
   });
 
   /* ---------------- boot ---------------- */
-  fetch('/api/admin/session', { headers: { accept: 'application/json' }, cache: 'no-store' })
+  fetch('/api/admin/session?page=members', { headers: { accept: 'application/json' }, cache: 'no-store' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (d && d.signed_in) showMain();
