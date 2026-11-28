@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.68">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.69">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -896,10 +896,12 @@
     return fee === null ? 0 : fee;
   }
   // The bill before Zeva Money, then what the signed-in customer's wallet takes
-  // off it. The server does the same arithmetic when the order is placed.
+  // off it when they choose to redeem it. The server does the same arithmetic
+  // when the order is placed, and only when use_wallet is sent.
+  var walletOn = false;
   function billTotal() { return round2(total() + cgst() + sgst() + deliveryFee()); }
   function walletAvailable() { return signedIn() ? Number((ACCT.wallet && ACCT.wallet.balance) || 0) || 0 : 0; }
-  function walletUse() { return Math.min(walletAvailable(), billTotal()); }
+  function walletUse() { return walletOn ? Math.min(walletAvailable(), billTotal()) : 0; }
   function grandTotal() { return round2(billTotal() - walletUse()); }
 
   /* ---------------- rendering ---------------- */
@@ -1036,6 +1038,11 @@
       html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to Zeva Money on delivery</span></div>';
     }
     html += '<div class="row total"><span>To pay at handover</span><span class="v">' + rupee(grandTotal()) + '</span></div></div>';
+    if (signedIn() && walletAvailable() > 0 && billTotal() > 0) {
+      html += '<button class="btn ghost" type="button" data-act="wallet" style="margin-top:8px">' +
+        (walletOn ? 'Don\u2019t use Zeva Money' : 'Redeem Zeva Money \u00b7 ' + rupee(walletAvailable()) + ' available') +
+        '</button>';
+    }
     return html;
   }
 
@@ -1210,7 +1217,7 @@
       items: cart.map(function (l) { return { name: l.name, variant: l.variant, qty: l.qty, price: l.price }; })
     };
     var totals = {
-      items_total: total(), cgst: cgst(), sgst: sgst(), delivery: deliveryFee(), total: grandTotal(), tip: 0
+      items_total: total(), cgst: cgst(), sgst: sgst(), delivery: deliveryFee(), total: grandTotal(), use_wallet: walletUse() > 0, tip: 0
     };
     try {
       var orderStatus = 0;
@@ -1351,6 +1358,7 @@
     if (!act) return;
     var what = act.getAttribute('data-act');
     if (what === 'geo') checkDistance();
+    else if (what === 'wallet') { walletOn = !walletOn; renderCartScreen(); }
     else if (what === 'checkout') { screen = 'checkout'; renderCartScreen(); }
     else if (what === 'gosignin') {
       // Straight into the WhatsApp number step on the You tab.
@@ -1365,14 +1373,14 @@
       var waFocus = document.getElementById('wa-phone');
       if (waFocus) waFocus.focus();
     }
-    else if (what === 'clear') { cart = []; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
+    else if (what === 'clear') { cart = []; walletOn = false; write(CART_KEY, cart); renderCartChrome(); renderMenu(); renderCartScreen(); }
     else if (what === 'send') sendOrder();
     else if (what === 'neworder') {
       closeScreen('cart');
       screen = 'home';
       mode = ''; pos = { state: 'idle', metres: null };
       orderState = 'idle';
-      orderRef = ''; orderErr = ''; orderTry = 0;
+      orderRef = ''; orderErr = ''; orderTry = 0; walletOn = false;
       window.scrollTo({ top: 0 });
     }
   });

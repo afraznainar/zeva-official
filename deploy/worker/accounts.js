@@ -2219,12 +2219,16 @@ export async function createOrder(request, env, body) {
   const freeDelivery = Boolean(gold.active && mode === "delivery" && distance > 0 && distance <= GOLD.freeMetres);
   const delivery = freeDelivery ? 0 : requestedDelivery;
   const billTotal = money(itemsTotal + cgst + sgst + delivery + money(body.tip));
+  // Redeeming Zeva Money is the customer's choice: the checkout sends
+  // use_wallet only after they tap the redeem button.
+  const useWallet = Boolean(body.use_wallet);
   const now = Date.now();
 
   const existing = await db.prepare("SELECT id FROM orders WHERE id = ?").bind(id).first();
   if (existing) return json(409, { error: "duplicate order" });
 
-  // The order and its Zeva Money spend go in one batch. The spend itself is a
+  // The order and, when the customer asked for it, its Zeva Money spend go in
+  // one batch. The spend itself is a
   // single INSERT ... SELECT that reads the live balance and writes the debit at
   // the same time, so two orders placed together cannot both spend the same
   // rupees: whichever statement runs second sees the first one's row and stops
@@ -2256,7 +2260,7 @@ export async function createOrder(request, env, body) {
         now
       )
   ];
-  if (user) {
+  if (user && useWallet) {
     const balanceNow = "COALESCE((SELECT SUM(w0.amount) FROM wallet w0 WHERE w0.user_id = ?), 0)";
     statements.push(
       db

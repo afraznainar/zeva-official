@@ -186,6 +186,9 @@
   .cart-deliver { font-size: 12.5px; line-height: 1.55; color: rgba(253, 246, 233, .72); background: rgba(188, 120, 53, .14); border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; }
   .cart-deliver strong { color: var(--gold-bright); }
   .cart-fee { display: flex; justify-content: space-between; font-size: 13.5px; color: rgba(253, 246, 233, .85); background: rgba(188, 120, 53, .1); border: 1px dashed rgba(188, 120, 53, .38); border-radius: 10px; padding: 8px 12px; margin: -4px 0 12px; font-weight: 700; }
+  .wm-btn { display: block; width: 100%; margin: -2px 0 12px; padding: 10px 12px; border: 1.5px solid rgba(188, 120, 53, .55); border-radius: 10px; background: rgba(188, 120, 53, .12); color: var(--gold-bright); font-family: var(--body); font-size: 13.5px; font-weight: 800; letter-spacing: .02em; cursor: pointer; transition: background .2s, border-color .2s; }
+  .wm-btn:hover { background: rgba(188, 120, 53, .24); border-color: var(--gold); }
+  .wm-btn.wm-off { margin-top: -4px; border-style: dashed; background: transparent; color: rgba(253, 246, 233, .7); font-weight: 700; font-size: 12.5px; }
   .co-gate { border-left: 4px solid #b3261e; }
   .bh-transition { position: fixed; inset: 0; z-index: 95; background: #191919; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
   .bh-transition.on { opacity: 1; pointer-events: auto; }
@@ -1126,10 +1129,11 @@
   var order = { name: '', phone: '', addr: '', note: '' };
   try { order = Object.assign(order, JSON.parse(localStorage.getItem('zeva_co_v1')) || {}); } catch (e) {}
 
-  // Zeva Money: the signed-in customer's wallet pays into the bill. The server
-  // does the real calculation when the order is placed, so this is only what
-  // the drawer shows — it always matches what the counter will charge.
-  var ME = { signed: false, balance: 0 };
+  // Zeva Money: the signed-in customer's wallet can pay into the bill, but only
+  // if they tap Redeem. The server does the real calculation when the order is
+  // placed, so this is only what the drawer shows — it always matches what the
+  // counter will charge.
+  var ME = { signed: false, balance: 0, use: false };
   function loadWallet() {
     fetch('/api/me', { headers: { accept: 'application/json' }, cache: 'no-store' })
       .then(function (r) { return r.json(); })
@@ -1188,7 +1192,7 @@
     save(); render();
   }
   function removeLine(id) { cart = cart.filter(function (l) { return l.id !== id; }); save(); render(); }
-  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; orderRef = ''; save(); render(); }
+  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; orderRef = ''; ME.use = false; save(); render(); }
 
   function distanceKnown() { return pos.metres !== null; }
   // Delivery is never gated on distance: when the guest types a distance the fee
@@ -1258,7 +1262,7 @@
   }
   // The bill before Zeva Money, then what the wallet takes off it.
   function billTotal() { return round2(total() + cgst() + sgst() + (feeApplies() ? deliveryFee() : 0) + tip); }
-  function walletUse() { return ME.signed ? Math.min(ME.balance, billTotal()) : 0; }
+  function walletUse() { return ME.signed && ME.use ? Math.min(ME.balance, billTotal()) : 0; }
   function grandTotal() { return round2(billTotal() - walletUse()); }
   function detailsValid() {
     var ph = order.phone.replace(/[^0-9]/g, '');
@@ -1344,6 +1348,7 @@
       sgst: sgst(),
       delivery: feeApplies() ? deliveryFee() : 0,
       total: grandTotal(),
+      use_wallet: walletUse() > 0,
       tip: tip
     };
   }
@@ -1489,7 +1494,12 @@
     h += '<div class="cart-fee"><span>SGST 2.5%</span><span>+' + rupee(sgst()) + '</span></div>';
     if (distanceKnown()) h += feeRowHtml();
     if (tip > 0) h += '<div class="cart-fee"><span>Tip</span><span>+' + rupee(tip) + '</span></div>';
-    if (walletUse() > 0) h += '<div class="cart-fee"><span>Zeva Money used <small>(of ' + rupee(ME.balance) + ')</small></span><span>\u2212' + rupee(walletUse()) + '</span></div>';
+    if (walletUse() > 0) {
+      h += '<div class="cart-fee"><span>Zeva Money used <small>(of ' + rupee(ME.balance) + ')</small></span><span>\u2212' + rupee(walletUse()) + '</span></div>';
+      h += '<button type="button" class="wm-btn wm-off" data-act="wallet">Don\u2019t use Zeva Money</button>';
+    } else if (ME.signed && ME.balance > 0 && billTotal() > 0) {
+      h += '<button type="button" class="wm-btn" data-act="wallet">Redeem Zeva Money \u00b7 ' + rupee(ME.balance) + ' available</button>';
+    }
     h += '<div class="cart-total"><span>Total</span><span>' + rupee(grandTotal()) + '</span></div>';
     if (view === 'list') {
       h += '<div class="cart-deliver">\ud83d\udfe5 Delivery: we’ll calculate the delivery charge for your distance in the next step. Your order stays <strong>pending</strong> until we confirm it on WhatsApp.</div>';
@@ -1683,6 +1693,7 @@
       else { mode = 'delivery'; modeMsg = ''; goStep('send'); }
     }
     else if (act === 'tip') { tip = Number(t.getAttribute('data-val')) || 0; render(); }
+    else if (act === 'wallet') { ME.use = !ME.use; render(); }
     else if (act === 'send') openWhatsApp();
     else if (act === 'neworder') { clearCart(); view = 'list'; mode = ''; closeDrawer(); }
   });

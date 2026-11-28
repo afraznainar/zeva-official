@@ -275,13 +275,16 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Zeva Money is the cashback wallet (`wallet` table). Cashback is credited in
   `adminSetStatus` when an order becomes `done`, never at order time, and a
   cancellation writes the matching negative row. Only once per order.
-  **A signed-in customer spends it on the order itself** (28 Nov 2026):
-  `createOrder` reads their balance and takes off as much of the bill as the
-  wallet covers — never more, so a ₹0 order is possible but never a negative one
-  — stores it in `orders.wallet_redeemed`, writes one `kind = 'redeem'` row and
-  saves the net amount in `orders.total`. The browser only displays that sum
-  (`walletUse()` in `menu.html` and `app.html`, from `/api/me`'s
-  `wallet.balance`); a browser that sends a different total changes nothing.
+  **A signed-in customer may choose to spend it on the order** (28 Nov 2026),
+  and only when they do: the checkout shows a **Redeem Zeva Money · ₹X
+  available** button, and sends `use_wallet: true` only while the customer has
+  switched it on. `createOrder` ignores the flag unless it is true, and then
+  takes off as much of the bill as the wallet actually covers — never more, so
+  a ₹0 order is possible but never a negative one — stores it in
+  `orders.wallet_redeemed`, writes one `kind = 'redeem'` row and saves the net
+  amount in `orders.total`. The browser only displays that sum (`walletUse()`
+  in `menu.html` and `app.html`, from `/api/me`'s `wallet.balance`); a browser
+  that sends a different total changes nothing, and no button means no debit.
   The printed bill carries a **Zeva Money used −₹X** line, the dashboard card
   shows it beside the delivery line, and the WhatsApp order text says it too.
   Cancelling an order writes one `kind = 'refund'` row for exactly what was
