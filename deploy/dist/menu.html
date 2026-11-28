@@ -1324,17 +1324,33 @@
     };
   }
 
-  // Hand the order to the server so the counter printer can print the bill
-  // and PetPooja can receive the order. WhatsApp stays the customer's copy.
+  // Hand the order to the server so the counter dashboard records it, the
+  // printer can print the bill and PetPooja can receive it. WhatsApp stays the
+  // customer's copy. The WhatsApp tab has to open inside the tap (browsers
+  // block a window opened later), so this cannot be awaited before it — but a
+  // single request used to be lost whenever the phone dropped it on the way,
+  // so one quiet retry now covers that. 409 means an earlier try of this same
+  // order already landed, exactly as the app treats it.
   function submitOrder() {
-    try {
+    var payload = JSON.stringify(orderBody());
+    var attempt = 0;
+    function send() {
+      attempt++;
+      try {
         fetch('/api/orders', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(orderBody()),
+          body: payload,
           keepalive: true
-        }).catch(function () {});
-    } catch (e) { /* the WhatsApp message still carries the order */ }
+        }).then(function (r) {
+          if (r.ok || r.status === 409) return;
+          if (attempt < 2) setTimeout(send, 1500);
+        }).catch(function () {
+          if (attempt < 2) setTimeout(send, 1500);
+        });
+      } catch (e) { /* the WhatsApp message still carries the order */ }
+    }
+    send();
 
     // Also stage the order bill to the BILL printer queue (optional: may be disabled on some installs)
     var printPayload = {
