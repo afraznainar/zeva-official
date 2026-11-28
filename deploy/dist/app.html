@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.70">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.71">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -728,7 +728,7 @@
   'use strict';
 
   var REST = { lat: 12.8480914, lon: 74.852712 };
-  var FREE_DELIVERY_M = 2000;     // free delivery anywhere inside 2 km
+  var FREE_DELIVERY_M = 3500;     // free delivery everywhere we serve: the whole 3.5 km radius
   var DELIVERY_RADIUS_M = 3500;
   var MIN_ORDER = 480;
   var CGST_RATE = 0.025;
@@ -885,9 +885,10 @@
     if (m === null) return null;
     // Zeva Gold: delivery is free anywhere inside 6 km.
     if (goldActive() && m <= GOLD_FREE_M) return 0;
+    // The free zone for everyone else is the whole 3.5 km radius, so nothing
+    // inside it is charged. The function stays because the bill and the order
+    // body both ask it for a figure.
     if (m <= FREE_DELIVERY_M) return 0;
-    if (m <= 3000) return 55;
-    if (m <= DELIVERY_RADIUS_M) return 70;
     return null;
   }
   function deliveryFee() {
@@ -1050,10 +1051,10 @@
     if (mode === 'pickup') return '<div class="status ok">No delivery charge &mdash; you collect it yourself.</div>';
     var html = '<button class="geo" type="button" data-act="geo">' +
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>' +
-      (pos.metres !== null ? 'Checked &middot; ' + pos.metres + ' m from us' : 'Check my distance (for the delivery fee)') + '</button>';
+      (pos.metres !== null ? 'Checked &middot; ' + pos.metres + ' m from us' : 'Check my distance (3.5 km zone)') + '</button>';
     if (pos.state === 'locating') html += '<div class="status warn">Finding you&hellip;</div>';
-    if (pos.state === 'denied') html += '<div class="status bad">Location is blocked. Type your address and we will confirm the delivery charge.</div>';
-    if (pos.state === 'failed') html += '<div class="status bad">Could not read your location. We will confirm the delivery charge.</div>';
+    if (pos.state === 'denied') html += '<div class="status bad">Location is blocked. Type your address and we will confirm delivery.</div>';
+    if (pos.state === 'failed') html += '<div class="status bad">Could not read your location. We will confirm delivery.</div>';
     if (outsideRadius()) html += '<div class="status bad">' + pos.metres + ' m is outside our ' + (goldActive() ? (GOLD_FREE_M / 1000) + ' km Gold' : '3.5 km') + ' delivery radius. Send the order anyway and we will call you about the drop &mdash; or choose pickup.</div>';
     else if (pos.metres !== null) html += '<div class="status ok">Inside our ' + (goldActive() ? (GOLD_FREE_M / 1000) + ' km Zeva Gold' : '3.5 km') + ' radius &mdash; delivery ' + (deliveryFee() === 0 ? 'is free' : 'is ' + rupee(deliveryFee())) + '.</div>';
     return html;
@@ -1109,7 +1110,7 @@
           '<div class="stepper"><button type="button" data-q="-1" data-id="' + esc(l.id) + '">&minus;</button><span>' + l.qty + '</span><button type="button" data-q="1" data-id="' + esc(l.id) + '">+</button></div>' +
           '<div class="amt">' + rupee(l.price * l.qty) + '</div></div>';
       }).join('') + bills() +
-      '<p class="foot-note" style="text-align:left;padding:12px 0 0">Prices exclude GST. Delivery charge is not taxed.</p>';
+      '<p class="foot-note" style="text-align:left;padding:12px 0 0">Prices exclude GST.</p>';
 
       var short = total() < MIN_ORDER;
       foot.innerHTML =
@@ -1168,9 +1169,9 @@
     });
     var distTxt;
     if (mode === 'pickup') distTxt = 'PICKUP ORDER \u2014 customer collecting in person (no delivery distance needed)';
-    else if (pos.metres === null) distTxt = 'Distance not provided \u2014 please confirm the delivery charge with the customer';
+    else if (pos.metres === null) distTxt = 'Distance not provided \u2014 please confirm delivery with the customer';
     else if (outsideRadius()) distTxt = 'Delivery: ' + pos.metres + ' m \u2014 *OUTSIDE the 3.5 km delivery radius*, charge and drop to be confirmed';
-    else distTxt = 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 2 km' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE');
+    else distTxt = 'Delivery (' + pos.metres + ' m): free \u2014 inside our 3.5 km zone';
 
     return '*NEW ORDER \u2014 Zeva Mandi & Grills*' + '\n' +
       'Order ID: *#' + orderRef + '*' + '\n' +
@@ -1183,7 +1184,7 @@
       (mode === 'delivery' ? distTxt + '\n' : '') +
       (walletUse() > 0 ? 'Zeva Money used: -' + rupee(walletUse()) + '\n' : '') +
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
-      '(GST on food only; delivery charge untaxed)' + '\n\n' +
+      '(GST on food only)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
       '*Payment: PAY ON HANDOVER \u2014 cash or UPI*' + '\n\n' +
       '*Customer*' + '\n' +
@@ -1240,7 +1241,6 @@
             orderErr = (d && d.error) ? 'The counter said: ' + String(d.error) + '.' : 'The counter answered ' + (orderStatus || 'nothing') + '.';
           }
           if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
-          if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
           if (orderState === 'ok') {
             // The order spent whatever Zeva Money was redeemed, and the reply
             // carries the balance the database holds now: take it, and turn the

@@ -980,7 +980,7 @@
     <div class="ico" aria-hidden="true">🛵</div>
     <div>
       <h2>We deliver within 3.5 km of the restaurant</h2>
-      <p>Delivery covers addresses within 3.5 km of our door in Bolar, Mangaluru — free up to 2 km, then &#8377;55 up to 3 km and &#8377;70 up to 3.5 km. GST (2.5% CGST + 2.5% SGST) applies to food only, never to the delivery charge. Add your dishes, fill in your details, choose pickup or delivery, and we&#8217;ll send the order straight to our WhatsApp. Further out, or collecting in person? <a href="tel:+917022771888">Call 070227 71888</a>.</p>
+      <p>Delivery covers addresses within 3.5 km of our door in Bolar, Mangaluru, and it is free. GST (2.5% CGST + 2.5% SGST) applies to food only. Add your dishes, fill in your details, choose pickup or delivery, and we&#8217;ll send the order straight to our WhatsApp. Further out, or collecting in person? <a href="tel:+917022771888">Call 070227 71888</a>.</p>
     </div>
   </div>
 </section>
@@ -1095,7 +1095,7 @@
   'use strict';
 
   var REST = { lat: 12.8480914, lon: 74.852712 };
-  var FREE_DELIVERY_M = 2000;     // free delivery anywhere under 2 km
+  var FREE_DELIVERY_M = 3500;     // free delivery everywhere we serve: the whole 3.5 km radius
   var DELIVERY_RADIUS_M = 3500;   // we only deliver within 3.5 km of the restaurant
   var MIN_ORDER = 480;            // continue is blocked below this (rupees)
   var CGST_RATE = 0.025;          // 2.5% CGST on food only
@@ -1165,9 +1165,11 @@
   function cgst() { return round2(total() * CGST_RATE); }
   function sgst() { return round2(total() * SGST_RATE); }
   function deliveryFeeFor(m) {
-    if (m <= FREE_DELIVERY_M) return 0;
-    if (m <= 3000) return 55;
-    if (m <= DELIVERY_RADIUS_M) return 70;
+    // The free zone is the whole delivery radius, so nothing inside 3.5 km is
+    // charged. The function stays because the bill, the WhatsApp text and the
+    // order body all ask it for a figure, and it is where a future paid zone
+    // would be priced.
+    if (m <= DELIVERY_RADIUS_M) return 0;
     return null;   // outside the 3.5 km radius: no fee applies until we agree one
   }
 
@@ -1301,13 +1303,13 @@
         ? (outsideRadius()
             ? 'Delivery: ' + pos.metres + ' m \u2014 *OUTSIDE the 3.5 km delivery radius*, charge and drop to be confirmed\n'
             : pos.metres === null
-              ? 'Delivery charge: to be confirmed\n'
-              : 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 2 km' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE') + '\n')
+              ? 'Delivery: to be confirmed\n'
+              : 'Delivery (' + pos.metres + ' m): free \u2014 inside our 3.5 km zone\n')
         : '') +
       (tip > 0 ? 'Tip: ' + rupee(tip) + '\n' : '') +
       (walletUse() > 0 ? 'Zeva Money used: -' + rupee(walletUse()) + '\n' : '') +
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
-      '(GST on food only; delivery charge untaxed)' + '\n\n' +
+      '(GST on food only)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
       '*Payment: ' + payLine() + '*' + '\n' +
       '(nothing is taken online \u2014 pay the bill when it reaches you)\n' +
@@ -1450,7 +1452,7 @@
     h += '<div class="co-field"><label for="co-addr">Delivery address</label><textarea id="co-addr" rows="2" placeholder="Flat / house, street, landmark">' + esc(order.addr) + '</textarea></div>';
     h += '<div class="co-field"><label for="co-note">Note (optional)</label><input id="co-note" type="text" value="' + esc(order.note) + '" placeholder="Less spicy, no onion, etc."></div>';
     h += '<div class="co-block"><h3>Delivery distance</h3>';
-    h += '<div class="co-hint">Tap <strong>Check my distance</strong> at the delivery address and we\u2019ll measure it from the restaurant \u2014 or type it in metres if you already know it. Either way the right delivery charge is added to your bill.</div>';
+    h += '<div class="co-hint">Tap <strong>Check my distance</strong> at the delivery address and we\u2019ll measure it from the restaurant \u2014 or type it in metres if you already know it. Either way we need it to know whether we deliver to you: inside 3.5 km the delivery is free.</div>';
     h += '<div class="co-field"><label for="co-dist">Delivery distance (metres)</label><input id="co-dist" type="number" inputmode="numeric" min="0" step="50" value="' + (pos.metres !== null ? pos.metres : '') + '" placeholder="e.g. 1250"></div>';
     h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="geo-dist">\ud83d\udccd Check my distance</button><button class="btn btn-outline" data-act="use-dist">Save typed distance</button></div>';
     if (geoMsg === 'locating') h += '<div class="co-status">\ud83d\udce1 Finding your location\u2026</div>';
@@ -1464,7 +1466,7 @@
     } else if (pos.metres !== null) {
       h += '<div class="co-status ok">\u2705 ' + pos.metres + ' m' + distSrcTag() + ' \u2014 a delivery charge of &#8377;' + deliveryFeeFor(pos.metres) + ' will be added to the total.</div>';
     } else {
-      h += '<div class="co-hint">No distance entered \u2014 the delivery charge will be confirmed on your bill.</div>';
+      h += '<div class="co-hint">No distance entered \u2014 we\u2019ll confirm delivery with you before the order is fired.</div>';
     }
     if (formErr) h += '<div class="co-status bad co-gate">Please fill in your name, a 10-digit phone number and your delivery address.</div>';
     h += '</div>';
@@ -1525,7 +1527,7 @@
     }
     h += '<div class="cart-total"><span>Total</span><span>' + rupee(grandTotal()) + '</span></div>';
     if (view === 'list') {
-      h += '<div class="cart-deliver">\ud83d\udfe5 Delivery: we’ll calculate the delivery charge for your distance in the next step. Your order stays <strong>pending</strong> until we confirm it on WhatsApp.</div>';
+      h += '<div class="cart-deliver">\ud83d\udfe5 Delivery: we’ll check your distance in the next step — free inside 3.5 km. Your order stays <strong>pending</strong> until we confirm it on WhatsApp.</div>';
       if (gateNote && total() < MIN_ORDER) {
         h += '<div class="co-status bad co-gate">Your order needs to be above &#8377;480 to continue \u2014 add ' + rupee(MIN_ORDER - total()) + ' more.</div>';
       }

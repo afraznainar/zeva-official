@@ -356,9 +356,12 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   at the top of `accounts.js` (`app.html` mirrors it with `maxCashback: 50` for
   the "up to ₹50" words). Free delivery inside 6 km and the cashback are
   applied **server-side** in `createOrder`, never trusted from the browser.
-  Ordinary delivery is free inside 2 km (`FREE_DELIVERY_M` in `menu.html` and
-  `app.html`), then ₹55 for 2–3 km and ₹70 for 3–3.5 km; Gold widens the free
-  zone to 6 km (the app raises Gold's radius check to `GOLD_FREE_M`). Joining is a request (`gold.status = 'pending'`) that staff activate
+  Ordinary delivery is free on every address inside the 3.5 km radius —
+  `FREE_DELIVERY_M` equals `DELIVERY_RADIUS_M` (3500) in `menu.html` and
+  `app.html`, so the old ₹55 (2–3 km) and ₹70 (3–3.5 km) slabs are gone and
+  `deliveryFeeFor` returns 0 anywhere we deliver (null beyond it, so the
+  counter agrees a charge by phone); Gold widens the free zone to 6 km (the app
+  raises Gold's radius check to `GOLD_FREE_M`). Joining is a request (`gold.status = 'pending'`) that staff activate
   once paid; cancelling an order reverses its cashback with a negative wallet row.
 - Achievement cards: Zeva Gold members collect a card at 100 delivered orders
   (Silver), 500 (Gold) and 1000 (Diamond). `CARDS` at the top of `accounts.js`
