@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.65">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.66">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -746,7 +746,6 @@
   var mode = '';
   var pos = { state: 'idle', metres: null };
   var orderRef = '';
-  var printState = 'idle';
   var orderState = 'idle'; // did /api/orders actually take the order
   var orderErr = '';      // why it did not, in the customer's words
   var orderTry = 0;       // attempts for the current id, so a retry can spot its own order
@@ -1075,7 +1074,6 @@
           ? 'The kitchen has it on their screen. It stays <b>pending</b> until they accept it, then about 20 minutes to cook.'
           : 'Straight to the kitchen screen in the app.') + '</p>' +
         '<div class="ref">#' + esc(orderRef) + '</div>' +
-        '<div class="mini">' + (printState === 'ok' ? 'Counter copy printed.' : printState === 'fail' ? 'Counter copy did not print &mdash; the order is still on the counter screen.' : 'Sending the counter copy&hellip;') + '</div>' +
         (cashbackNote ? '<div class="mini" style="color:var(--good);margin-top:7px">' + esc(cashbackNote) + '</div>' : '') +
         '</div>';
       foot.innerHTML =
@@ -1249,20 +1247,8 @@
       if (screen === 'done') renderCartScreen();
     }
 
-    printState = 'sending';
-    var printPayload = {
-      id: payload.id, mode: payload.mode, pay: payload.pay, name: payload.name, phone: payload.phone,
-      address: payload.address, note: payload.note, distance_m: payload.distance_m, items: payload.items,
-      items_total: totals.items_total, total: totals.total, cgst: totals.cgst, sgst: totals.sgst, tip: 0,
-      outside_radius: outsideRadius(), date: new Date().toISOString()
-    };
-    try {
-      fetch('/api/print', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(printPayload) })
-        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { printState = (r.ok && d && d.ok) ? 'ok' : 'fail'; }); })
-        .catch(function () { printState = 'fail'; })
-        .then(function () { if (screen === 'done') renderCartScreen(); });
-    } catch (e) { printState = 'fail'; }
-
+    // The counter prints the kitchen ticket and the bill when it accepts the
+    // order; the phone has nothing to print.
     screen = 'done';
     renderCartChrome();
     renderMenu();
@@ -1375,7 +1361,7 @@
     else if (what === 'neworder') {
       closeScreen('cart');
       screen = 'home';
-      mode = ''; pos = { state: 'idle', metres: null }; printState = 'idle';
+      mode = ''; pos = { state: 'idle', metres: null };
       orderState = 'idle';
       orderRef = ''; orderErr = ''; orderTry = 0;
       window.scrollTo({ top: 0 });

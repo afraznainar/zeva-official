@@ -806,6 +806,9 @@
     }).join('');
     var acts = [];
     if (o.status === 'pending') acts.push('<button class="primary" data-set="' + esc(o.id) + '|preparing">Accept order</button>');
+    // Accepting prints the kitchen ticket and the bill; this repeats both when
+    // a roll jammed or a printer was switched off at that moment.
+    if (o.status === 'preparing' || o.status === 'out') acts.push('<button data-print="' + esc(o.id) + '">Print again</button>');
     if (o.status === 'pending' || o.status === 'preparing') acts.push('<button data-set="' + esc(o.id) + '|out">' + (o.mode === 'pickup' ? 'Ready for pickup' : 'Out for delivery') + '</button>');
     if (o.status === 'out') acts.push('<button class="primary" data-set="' + esc(o.id) + '|done">Delivered</button>');
     if (o.status !== 'done' && o.status !== 'cancelled') acts.push('<button class="danger" data-set="' + esc(o.id) + '|cancelled">Cancel</button>');
@@ -853,6 +856,24 @@
 
   function statusWord(s) {
     return ({ pending: 'Pending confirmation', preparing: 'Preparing', out: 'On the way', done: 'Delivered', cancelled: 'Cancelled' })[s] || s;
+  }
+
+  // One kitchen ticket and one bill leave the counter when an order is
+  // accepted. Either printer can be offline, so a failed copy is said out loud
+  // instead of leaving staff to find out when the food is already cooking.
+  function reportPrint(orderId, print) {
+    if (!print) return;
+    var failed = [];
+    if (print.kitchen && !print.kitchen.ok) {
+      failed.push('Kitchen ticket (' + (print.kitchen.printer || 'kitchen printer') + '): ' + (print.kitchen.error || 'did not print'));
+    }
+    if (print.bill && !print.bill.ok) {
+      failed.push('Bill (' + (print.bill.printer || 'bill printer') + '): ' + (print.bill.error || 'did not print'));
+    }
+    if (failed.length) {
+      window.alert('Order #' + orderId + ' is accepted, but a copy did not print.\n\n' + failed.join('\n\n') +
+        '\n\nCheck the printer and paper, then use Print again on the order.');
+    }
   }
 
   /* ---------------- messages to the customer's phone ---------------- */
@@ -934,8 +955,28 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: bits[0], status: bits[1] })
       }).then(function (r) { return r.json().catch(function () { return {}; }); })
-        .then(function () { firstLoad = true; load(false); })
+        .then(function (d) {
+          reportPrint(bits[0], d && d.print);
+          firstLoad = true;
+          load(false);
+        })
         .catch(function () { set.disabled = false; });
+      return;
+    }
+    var again = e.target.closest('[data-print]');
+    if (again) {
+      var printId = again.getAttribute('data-print');
+      again.disabled = true;
+      fetch('/api/admin/print', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: printId })
+      }).then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (d) {
+          again.disabled = false;
+          reportPrint(printId, d && d.print);
+        })
+        .catch(function () { again.disabled = false; });
       return;
     }
     var upi = e.target.closest('[data-upi]');

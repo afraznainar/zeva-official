@@ -20,6 +20,9 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const PRINTER = process.env.PRINT_PRINTER || "BILL";
+// The kitchen has its own queue. When there is only one printer on the counter
+// machine, set PRINT_KITCHEN_PRINTER=BILL and both copies come out of it.
+const KITCHEN_PRINTER = process.env.PRINT_KITCHEN_PRINTER || "KITCHEN";
 const WIDTH = Number(process.env.PRINT_WIDTH || 42);
 const PS_SCRIPT = path.join(__dirname, "raw-print.ps1");
 const LOGO_FILE = path.join(__dirname, "assets", "logo.bin");
@@ -202,6 +205,47 @@ function renderBill(order) {
   return out.join("\n");
 }
 
+// The kitchen's copy: what to cook and how much of it, and nothing about money.
+// It is read on a hot line, so the portion is in the item name and the note has
+// its own block at the bottom.
+function renderTicket(order) {
+  const o = order || {};
+  const items = Array.isArray(o.items) ? o.items : [];
+  const when = stamp(o.date || o.created_at);
+  const out = [];
+
+  out.push("<<C>><<D>>KITCHEN");
+  out.push("<<C>>ZEVA MANDI & GRILLS");
+  out.push(rule("="));
+  out.push("<<B>><<H>>#" + (o.id || "-"));
+  out.push("Time   : " + when);
+  out.push("Type   : " + (o.mode === "pickup" ? "PICKUP" : "DELIVERY"));
+  if (o.name) out.push("Name   : " + o.name);
+  if (o.phone) out.push("Phone  : " + o.phone);
+
+  out.push(rule("-"));
+  items.forEach(function (item) {
+    const qty = Number(item.qty || 1);
+    const name = String(item.name || "Item") + (item.variant ? " (" + item.variant + ")" : "");
+    out.push("<<B>>" + qty + " x " + name);
+  });
+  out.push(rule("-"));
+
+  const count = items.reduce(function (sum, it) { return sum + Number(it.qty || 1); }, 0);
+  out.push("<<B>>" + (items.length === 1 ? "1 dish" : items.length + " dishes") +
+    "  /  " + (count === 1 ? "1 item" : count + " items") + " total");
+  if (o.note) {
+    out.push(rule("-"));
+    out.push("<<B>>NOTE FROM CUSTOMER");
+    out.push(String(o.note));
+  }
+  out.push(rule("="));
+  out.push("<<C>>" + when);
+  out.push("");
+
+  return out.join("\n");
+}
+
 /* ---------- ESC/POS job ---------- */
 
 const ESC = {
@@ -338,18 +382,29 @@ function runPowershell(args, timeoutMs) {
   });
 }
 
-// Accepts an order object (rendered here), a { text } object, or plain text.
+// Accepts an order object (rendered here), a { order, kind } pair, a { text }
+// object, or plain text. kind "kitchen" renders the ticket instead of the bill.
 function toJobText(input) {
   if (input == null) return "";
   if (typeof input === "string") return input;
-  if (input.order && typeof input.order === "object") return renderBill(input.order);
-  if (input.text && !Array.isArray(input.items)) return String(input.text);
-  return renderBill(input);
+  const order = input.order && typeof input.order === "object" ? input.order : input;
+  if (input.text && !Array.isArray(order.items)) return String(input.text);
+  return input.kind === "kitchen" ? renderTicket(order) : renderBill(order);
+}
+
+// Which Windows queue a job belongs in: an explicit printer name wins, then a
+// kitchen ticket goes to the kitchen queue and everything else to the bill one.
+function printerFor(input) {
+  if (input && typeof input === "object" && typeof input.printer === "string" && input.printer.trim()) {
+    return input.printer.trim();
+  }
+  return input && typeof input === "object" && input.kind === "kitchen" ? KITCHEN_PRINTER : PRINTER;
 }
 
 async function printBill(input) {
   const text = toJobText(input);
-  if (!String(text).trim()) return { ok: false, error: "empty bill" };
+  const printer = printerFor(input);
+  if (!String(text).trim()) return { ok: false, printer: printer, error: "empty bill" };
   if (process.platform !== "win32") {
     return { ok: false, error: "direct printing is Windows-only (platform " + process.platform + ")" };
   }
@@ -363,11 +418,11 @@ async function printBill(input) {
   );
   try {
     fs.writeFileSync(file, buildJob(text));
-    const result = await runPowershell(["-File", PS_SCRIPT, "-Path", file, "-Printer", PRINTER], 20000);
-    if (!result.ok) return { ok: false, error: result.error };
+    const result = await runPowershell(["-File", PS_SCRIPT, "-Path", file, "-Printer", printer], 20000);
+    if (!result.ok) return { ok: false, printer: printer, error: result.error };
     const out = result.output || "";
-    if (out.startsWith("OK")) return { ok: true, printer: PRINTER };
-    return { ok: false, error: out.replace(/^ERROR:\s*/, "") || "spooler returned no result" };
+    if (out.startsWith("OK")) return { ok: true, printer: printer };
+    return { ok: false, printer: printer, error: out.replace(/^ERROR:\s*/, "") || "spooler returned no result" };
   } catch (error) {
     return { ok: false, error: error.message };
   } finally {
@@ -376,23 +431,24 @@ async function printBill(input) {
 }
 
 // Real status: does the Windows queue exist and is it ready?
-async function printerStatus() {
+async function printerStatus(name) {
+  const printer = String(name || PRINTER);
   if (process.platform !== "win32") {
-    return { ok: false, printer: PRINTER, error: "Windows-only direct printing" };
+    return { ok: false, printer: printer, error: "Windows-only direct printing" };
   }
   const result = await runPowershell(
-    ["-Command", "Get-Printer -Name '" + PRINTER.replace(/'/g, "''") + "' | Select-Object -ExpandProperty PrinterStatus"],
+    ["-Command", "Get-Printer -Name '" + printer.replace(/'/g, "''") + "' | Select-Object -ExpandProperty PrinterStatus"],
     15000
   );
-  if (!result.ok) return { ok: false, printer: PRINTER, error: result.error };
+  if (!result.ok) return { ok: false, printer: printer, error: result.error };
   const status = (result.output || "").trim();
-  if (!status) return { ok: false, printer: PRINTER, error: "printer queue '" + PRINTER + "' not found" };
+  if (!status) return { ok: false, printer: printer, error: "printer queue '" + printer + "' not found" };
   const ready = /^(normal|idle|printing)$/i.test(status);
   return {
     ok: ready,
-    printer: PRINTER,
+    printer: printer,
     status: status,
-    error: ready ? undefined : "printer '" + PRINTER + "' reports " + status
+    error: ready ? undefined : "printer '" + printer + "' reports " + status
   };
 }
 
@@ -400,10 +456,12 @@ module.exports = {
   printBill,
   printerStatus,
   renderBill,
+  renderTicket,
   buildJob,
   toJobText,
   money,
   PRINTER,
+  KITCHEN_PRINTER,
   WIDTH,
   SHOP
 };

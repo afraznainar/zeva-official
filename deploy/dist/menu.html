@@ -1120,8 +1120,6 @@
   var formErr = false;            // show form validation errors on the details step
   var modeMsg = '';               // status message on the pickup/delivery step
   var geoMsg = '';                // '' | locating | denied | failed | unsupported — geolocation status
-  var printState = 'idle';        // idle | sending | ok | fail
-  var printErr = '';              // why the counter bill could not be printed
 
   var upiTimer = null, upiTicks = 0;
 
@@ -1168,7 +1166,7 @@
     save(); render();
   }
   function removeLine(id) { cart = cart.filter(function (l) { return l.id !== id; }); save(); render(); }
-  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; printState = 'idle'; printErr = ''; orderRef = ''; save(); render(); }
+  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; orderRef = ''; save(); render(); }
 
   function distanceKnown() { return pos.metres !== null; }
   // Delivery is never gated on distance: when the guest types a distance the fee
@@ -1352,48 +1350,9 @@
     }
     send();
 
-    // Also stage the order bill to the BILL printer queue (optional: may be disabled on some installs)
-    var printPayload = {
-      id: orderRef,
-      mode: mode,
-      pay: 'cash',
-      name: order.name,
-      phone: order.phone,
-      address: order.addr,
-      note: order.note,
-      distance_m: pos.metres,
-      items: cart.map(function (l) {
-        return { name: l.name, variant: l.variant, qty: l.qty, price: l.price };
-      }),
-      items_total: total(),
-      total: grandTotal(),
-      cgst: cgst(),
-      sgst: sgst(),
-      tip: tip,
-      outside_radius: outsideRadius(),
-      date: new Date().toISOString()
-    };
-    printState = 'sending'; printErr = '';
-    try {
-      fetch('/api/print', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(printPayload)
-      }).then(function (r) {
-        return r.json().catch(function () { return {}; }).then(function (data) {
-          printState = (r.ok && data && data.ok) ? 'ok' : 'fail';
-          printErr = (data && data.error) || ('http ' + r.status);
-        });
-      }).catch(function () {
-        printState = 'fail';
-        printErr = 'network error';
-      }).then(function () {
-        if (view === 'done') renderFoot();
-      });
-    } catch (e) {
-      printState = 'fail';
-      printErr = 'print unavailable';
-    }
+    // Nothing prints here. The kitchen ticket and the bill both leave the
+    // counter when staff press Accept order on /admin, so a pending order that
+    // is never confirmed does not waste paper.
   }
 
   function openWhatsApp() {
@@ -1466,8 +1425,6 @@
     var h = '<div class="co-block">';
     h += '<h3>Order sent \u2014 pending confirmation</h3>';
     h += '<div class="co-status">\u23e9 Sent as order <strong>#' + esc(orderRef) + '</strong> to our WhatsApp (' + distTxt + ').</div>';
-    if (printState === 'ok') h += '<div class="co-status ok">\ud83e\uddfe Bill sent to our counter printer.</div>';
-    else if (printState === 'fail') h += '<div class="co-status">\u26a0\ufe0f The counter printer could not be reached \u2014 your WhatsApp order still reached us.</div>';
     h += '<div class="co-hint"><strong>Your order is PENDING.</strong> It is <em>not</em> confirmed yet. Our team must reply <strong>CONFIRM</strong> on WhatsApp to accept it. If you don\u2019t get a confirmation, please call <a href="tel:+917022771888">070227 71888</a>.</div>';
     h += '<div class="co-status">\ud83d\udcb0 Pay ' + rupee(grandTotal()) + ' when the bill reaches you \u2014 cash or UPI.</div>';
     h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="neworder">Start another order</button></div>';

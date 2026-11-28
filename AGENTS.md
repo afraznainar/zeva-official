@@ -249,6 +249,26 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Order statuses: `pending` (customer sees "Pending confirmation") → `preparing`
   (staff pressed **Accept order**) → `out` → `done`, plus `cancelled`. The
   schema batch also rewrites legacy `new`/`ready` rows into the new names.
+- **Accepting prints two copies, and nothing else prints** (28 Nov 2026). The
+  Accept button is `POST /api/admin/order {id, status:'preparing'}`, so
+  `adminSetStatus` sends the order through the counter's print bridge twice: a
+  kitchen ticket (`kind:'kitchen'` — quantities and the customer's note, no
+  prices, rendered by `renderTicket` in `print-core.js`) to
+  `PRINT_KITCHEN_PRINTER` (default `KITCHEN`), and the customer's bill to
+  `PRINT_BILL_PRINTER` (default `BILL`). Both go to `PRINT_BRIDGE_URL`
+  (`printer-bridge.js`), because the site runs in a data centre and the printers
+  sit in the restaurant; the bridge picks the Windows queue from the job's
+  `printer`. Only the first acceptance prints (`before !== 'preparing'`), so
+  reopening and re-accepting never leaves a third copy, and **Print again** on an
+  accepted card repeats both through `POST /api/admin/print {id}`. The answer
+  carries `print: {kitchen, bill}` and the dashboard alerts on whichever copy
+  failed, naming the queue — a missing kitchen queue is the usual first symptom,
+  fixed with the printer's real Windows name in `PRINT_KITCHEN_PRINTER` (or
+  `=BILL` on a single-printer counter).
+  **The pages no longer print at checkout:** `menu.html` and `app.html` used to
+  POST `/api/print` the moment the customer ordered, which would now print a
+  second bill for an order the counter might still decline. `/api/print` still
+  exists for a manual job, but the site does not call it.
 - Zeva Money is the cashback wallet (`wallet` table). Cashback is credited in
   `adminSetStatus` when an order becomes `done`, never at order time, and a
   cancellation writes the matching negative row. Only once per order.
@@ -348,8 +368,8 @@ reason. Sending early is allowed, and simply lands as unpaid.
 
 **In the app** (`deploy/dist/app.html`) there is no WhatsApp step: the checkout
 button is **Confirm & pay ₹X by UPI** (or **Confirm order · ₹X** for cash), and
-it posts `POST /api/orders` and `POST /api/print` and shows the order screen, so
-the customer confirms and pays without leaving the app. On the order screen the
+it posts `POST /api/orders` and shows the order screen, so the customer confirms
+and pays without leaving the app (the printing happens at Accept on `/admin`). On the order screen the
 footer carries the `upi://` intent for the server's amount, and
 `GET /api/upi/status` turns it into "UPI payment received" once the counter
 confirms. WhatsApp is only a fallback: if the order post fails, the screen says
@@ -375,7 +395,8 @@ reports `upi:false` and the app says nothing about paying online:
   the dashboard's webhook URL set to `https://<site>/api/upi/webhook`
 
 Flow: the order is placed exactly as before (`POST /api/orders`, WhatsApp
-message, counter print); then `POST /api/upi/pay {id}` asks the gateway for a
+message; the two counter copies print at Accept); then `POST /api/upi/pay {id}`
+asks the gateway for a
 payment and returns its hosted page plus the `upi://` intent. The amount comes
 from the orders row, never from the browser, and a live link is reused until it
 expires (a retry is `…-r2`, `…-r3`). `GET /api/upi/status?id=` is what the app

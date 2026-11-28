@@ -99,7 +99,14 @@ function localEnv() {
     UPI_GATEWAY_KEY: process.env.UPI_GATEWAY_KEY || "",
     UPI_GATEWAY_SECRET: process.env.UPI_GATEWAY_SECRET || "",
     UPI_WEBHOOK_SECRET: process.env.UPI_WEBHOOK_SECRET || "",
-    SITE_ORIGINS: process.env.SITE_ORIGINS || ""
+    SITE_ORIGINS: process.env.SITE_ORIGINS || "",
+    // Accepting an order prints through the counter's bridge, exactly as the
+    // deployed Worker does, so the two copies can be tried locally.
+    PRINT_BRIDGE_URL: process.env.PRINT_BRIDGE_URL || "",
+    PRINT_BRIDGE_TOKEN: process.env.PRINT_BRIDGE_TOKEN || "",
+    PRINT_PRINTER: process.env.PRINT_PRINTER || "",
+    PRINT_BILL_PRINTER: process.env.PRINT_BILL_PRINTER || "",
+    PRINT_KITCHEN_PRINTER: process.env.PRINT_KITCHEN_PRINTER || ""
   };
 }
 

@@ -2855,6 +2855,72 @@ const STATUS_NOTICE = {
   cancelled: ["Order cancelled", "This order was cancelled. Nothing was charged."]
 };
 
+/* ------------------------------------------------------------
+   The counter's two copies
+   ------------------------------------------------------------
+   Accepting an order is what sets a delivery going, so that tap is
+   also what prints: a ticket to the kitchen (quantities, no money)
+   and the customer's bill at the counter. Both leave through the
+   local print bridge, because the site runs in a data centre and the
+   printers sit in the restaurant (see printer-bridge.js).
+
+     PRINT_BRIDGE_URL       e.g. https://xxxx.trycloudflare.com/print
+     PRINT_BRIDGE_TOKEN     optional shared secret, sent as x-print-token
+     PRINT_PRINTER          bill queue, default BILL
+     PRINT_KITCHEN_PRINTER  kitchen queue, default KITCHEN */
+
+function printBridge(env) {
+  const raw = String(env.PRINT_BRIDGE_URL || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (!url.pathname || url.pathname === "/") url.pathname = "/print";
+    return url.toString();
+  } catch (error) {
+    return raw;
+  }
+}
+
+async function printCopy(env, order, kind) {
+  const printer = kind === "kitchen"
+    ? String(env.PRINT_KITCHEN_PRINTER || "KITCHEN")
+    : String(env.PRINT_BILL_PRINTER || "BILL");
+  const bridge = printBridge(env);
+  if (!bridge) return { ok: false, kind: kind, printer: printer, error: "printer bridge not configured" };
+  const headers = { "content-type": "application/json" };
+  if (env.PRINT_BRIDGE_TOKEN) headers["x-print-token"] = String(env.PRINT_BRIDGE_TOKEN);
+  try {
+    const response = await fetch(bridge, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ id: order.id, kind: kind, printer: printer, order: order })
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (!response.ok || !(data && data.ok)) {
+      return { ok: false, kind: kind, printer: printer, error: (data && data.error) || "printer bridge error " + response.status };
+    }
+    return { ok: true, kind: kind, printer: data.printer || printer };
+  } catch (error) {
+    return { ok: false, kind: kind, printer: printer, error: "printer bridge unreachable: " + error.message };
+  }
+}
+
+// Two jobs, one after the other: a queued ticket is useless if the bill never
+// follows, so the answer says exactly which copy failed and why.
+async function printOrderCopies(env, order) {
+  if (!order || !Array.isArray(order.items) || !order.items.length) {
+    return {
+      kitchen: { ok: false, printer: "", error: "this order has no items" },
+      bill: { ok: false, printer: "", error: "this order has no items" }
+    };
+  }
+  const copy = Object.assign({}, order, {
+    date: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
+    pay: order.payment === "upi" ? (order.upi_status === "paid" ? "UPI PAID" : "UPI") : "cash"
+  });
+  return { kitchen: await printCopy(env, copy, "kitchen"), bill: await printCopy(env, copy, "bill") };
+}
+
 export async function adminSetStatus(env, body) {
   const db = await database(env);
   const id = String((body && body.id) || "");
@@ -2864,9 +2930,17 @@ export async function adminSetStatus(env, body) {
   if (!id || ORDER_STATUSES.indexOf(status) < 0) {
     return json(400, { error: "bad request" });
   }
-  const order = await db.prepare("SELECT id, user_id, status, mode, items_total FROM orders WHERE id = ?").bind(id).first();
+  const order = await db.prepare("SELECT " + ORDER_FIELDS + " FROM orders WHERE id = ?").bind(id).first();
   if (!order) return json(404, { error: "unknown order" });
+  const before = order.status;
   await db.prepare("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?").bind(status, Date.now(), id).run();
+
+  // Only the first acceptance prints. Reopening an order and accepting it
+  // again would otherwise leave the counter with a third copy of the bill.
+  let print = null;
+  if (status === "preparing" && before !== "preparing") {
+    print = await printOrderCopies(env, shapeOrder(order));
+  }
 
   let credited = 0;
   let earned = null;
@@ -2918,7 +2992,26 @@ export async function adminSetStatus(env, body) {
         .run();
     }
   }
-  return json(200, { ok: true, id: id, status: status, cashback: credited, card: earned && earned.key });
+  return json(200, {
+    ok: true,
+    id: id,
+    status: status,
+    cashback: credited,
+    card: earned && earned.key,
+    print: print
+  });
+}
+
+// Staff asked for the two copies again: a jammed roll, a printer that was off,
+// or a paper-out halfway through the bill.
+export async function adminReprint(env, body) {
+  const db = await database(env);
+  const id = String((body && body.id) || "");
+  if (!id) return json(400, { error: "bad request" });
+  const row = await db.prepare("SELECT " + ORDER_FIELDS + " FROM orders WHERE id = ?").bind(id).first();
+  if (!row) return json(404, { error: "unknown order" });
+  const print = await printOrderCopies(env, shapeOrder(row));
+  return json(200, { ok: true, id: id, print: print });
 }
 
 // Returns the achievement card this delivery unlocked, or null when the count
@@ -3284,6 +3377,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/order" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminSetStatus(env, await readJson(request));
+    }
+    if (path === "/api/admin/print" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminReprint(env, await readJson(request));
     }
     if (path === "/api/admin/upi" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });

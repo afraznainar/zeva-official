@@ -34,7 +34,7 @@
 "use strict";
 
 const http = require("http");
-const { printBill, printerStatus, toJobText } = require("./print-core");
+const { printBill, printerStatus, toJobText, KITCHEN_PRINTER } = require("./print-core");
 
 const PORT = Number(process.env.BRIDGE_PORT || 8080);
 const TOKEN = String(process.env.PRINT_BRIDGE_TOKEN || "");
@@ -84,7 +84,9 @@ const server = http.createServer(async function (req, res) {
 
   if (path === "/health" && req.method === "GET") {
     if (!authorised(req, url)) { reply(res, 401, { ok: false, error: "unauthorised" }); return; }
+    // Both queues, because an order cannot be accepted without either one.
     const status = await printerStatus();
+    status.kitchen = await printerStatus(KITCHEN_PRINTER);
     reply(res, status.ok ? 200 : 502, status);
     return;
   }
@@ -98,14 +100,24 @@ const server = http.createServer(async function (req, res) {
       reply(res, 413, { ok: false, error: error.message });
       return;
     }
-    // Accepts { order: {...} } (rendered as a full bill), { text: "..." }, or a
-    // raw text body.
+    // Accepts { order: {...}, kind, printer } — kind "kitchen" renders the
+    // ticket, anything else the customer bill, and `printer` names the Windows
+    // queue — plus { text: "..." } or a raw text body.
     let payload = raw;
     if (String(req.headers["content-type"] || "").includes("application/json")) {
       try {
         const body = JSON.parse(raw);
-        if (body && body.order && typeof body.order === "object") payload = { order: body.order };
-        else payload = String((body && body.text) || "");
+        if (body && body.order && typeof body.order === "object") {
+          payload = {
+            order: body.order,
+            kind: body.kind === "kitchen" ? "kitchen" : "bill",
+            printer: body.printer ? String(body.printer) : ""
+          };
+        } else if (body && body.text) {
+          payload = { text: String(body.text), printer: body.printer ? String(body.printer) : "" };
+        } else {
+          payload = "";
+        }
       } catch (error) {
         reply(res, 400, { ok: false, error: "bad json" });
         return;
@@ -119,7 +131,7 @@ const server = http.createServer(async function (req, res) {
       reply(res, 502, { ok: false, error: result.error });
       return;
     }
-    console.log("[bridge] bill printed to " + result.printer);
+    console.log("[bridge] " + (payload.kind === "kitchen" ? "kitchen ticket" : "bill") + " printed to " + result.printer);
     reply(res, 200, { ok: true, printed: true, printer: result.printer });
     return;
   }
@@ -129,7 +141,8 @@ const server = http.createServer(async function (req, res) {
 
 server.listen(PORT, function () {
   console.log("Zeva printer bridge on http://localhost:" + PORT);
-  console.log("  printer queue: " + (process.env.PRINT_PRINTER || "BILL") + " (direct RAW, Windows spooler)");
+  console.log("  bill queue:    " + (process.env.PRINT_PRINTER || "BILL") + " (direct RAW, Windows spooler)");
+  console.log("  kitchen queue: " + KITCHEN_PRINTER);
   console.log("  token: " + (TOKEN ? "required" : "not set (anyone who can reach this port can print)"));
   console.log("  next: cloudflared tunnel --url http://localhost:" + PORT);
 });
