@@ -847,6 +847,7 @@
         '<span>Items ' + rupee(o.items_total) + '</span>' +
         '<span>GST ' + rupee(Number(o.cgst || 0) + Number(o.sgst || 0)) + '</span>' +
         '<span>Delivery ' + (Number(o.delivery) === 0 ? 'free' : rupee(o.delivery)) + '</span>' +
+        (Number(o.wallet_redeemed || 0) > 0 ? '<span>Zeva Money \u2212' + rupee(o.wallet_redeemed) + '</span>' : '') +
         '<span class="sum">' + rupee(o.total) + '</span>' +
       '</div>' +
       (o.note ? '<div class="note">' + esc(o.note) + '</div>' : '') +

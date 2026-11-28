@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.67">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.68">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -895,7 +895,12 @@
     var fee = deliveryFeeFor(pos.metres);
     return fee === null ? 0 : fee;
   }
-  function grandTotal() { return round2(total() + cgst() + sgst() + deliveryFee()); }
+  // The bill before Zeva Money, then what the signed-in customer's wallet takes
+  // off it. The server does the same arithmetic when the order is placed.
+  function billTotal() { return round2(total() + cgst() + sgst() + deliveryFee()); }
+  function walletAvailable() { return signedIn() ? Number((ACCT.wallet && ACCT.wallet.balance) || 0) || 0 : 0; }
+  function walletUse() { return Math.min(walletAvailable(), billTotal()); }
+  function grandTotal() { return round2(billTotal() - walletUse()); }
 
   /* ---------------- rendering ---------------- */
   function renderChips() {
@@ -1023,6 +1028,9 @@
       else if (deliveryFee() === 0) value = '<span style="color:var(--good);font-weight:600">FREE</span>';
       else value = rupee(deliveryFee());
       html += '<div class="row"><span>' + label + '</span><span class="v">' + value + '</span></div>';
+    }
+    if (walletUse() > 0) {
+      html += '<div class="row"><span>Zeva Money used <span class="muted">(of ' + rupee(walletAvailable()) + ')</span></span><span class="v" style="color:var(--good)">\u2212' + rupee(walletUse()) + '</span></div>';
     }
     if (goldActive() && cart.length) {
       html += '<div class="row"><span>Zeva Gold cashback</span><span class="v" style="color:var(--good)">+' + rupee(GOLD.cashback) + ' to Zeva Money on delivery</span></div>';
@@ -1166,6 +1174,7 @@
       'CGST 2.5%: ' + rupee(cgst()) + '\n' +
       'SGST 2.5%: ' + rupee(sgst()) + '\n' +
       (mode === 'delivery' ? distTxt + '\n' : '') +
+      (walletUse() > 0 ? 'Zeva Money used: -' + rupee(walletUse()) + '\n' : '') +
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
       '(GST on food only; delivery charge untaxed)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +

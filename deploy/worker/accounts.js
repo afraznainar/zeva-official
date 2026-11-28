@@ -131,6 +131,7 @@ const DB_SCHEMA = [
      sgst REAL NOT NULL DEFAULT 0,
      delivery REAL NOT NULL DEFAULT 0,
      total REAL NOT NULL DEFAULT 0,
+     wallet_redeemed REAL NOT NULL DEFAULT 0,
      distance_m INTEGER,
      status TEXT NOT NULL DEFAULT 'pending',
      gold_delivery INTEGER NOT NULL DEFAULT 0,
@@ -301,7 +302,8 @@ const ORDER_PAY_COLUMNS = [
   "ALTER TABLE orders ADD COLUMN upi_seq INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN upi_attempts INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN upi_checked_at INTEGER",
-  "ALTER TABLE orders ADD COLUMN upi_paid_at INTEGER"
+  "ALTER TABLE orders ADD COLUMN upi_paid_at INTEGER",
+  "ALTER TABLE orders ADD COLUMN wallet_redeemed REAL NOT NULL DEFAULT 0"
 ];
 
 /* The ₹500 advance arrived after the first reservations were already booked,
@@ -506,6 +508,7 @@ async function schemaReady(env) {
   try {
     await env.DB.prepare("SELECT address FROM users LIMIT 1").first();
     await env.DB.prepare("SELECT upi_seq FROM orders LIMIT 1").first();
+    await env.DB.prepare("SELECT wallet_redeemed FROM orders LIMIT 1").first();
     await env.DB.prepare("SELECT arrived_at FROM reservations LIMIT 1").first();
     // The newest table: a database that already had everything else still has
     // to pick up `media` (the pictures /admin sends), so it is probed too.
@@ -2215,7 +2218,12 @@ export async function createOrder(request, env, body) {
   const requestedDelivery = money(body.delivery);
   const freeDelivery = Boolean(gold.active && mode === "delivery" && distance > 0 && distance <= GOLD.freeMetres);
   const delivery = freeDelivery ? 0 : requestedDelivery;
-  const total = money(itemsTotal + cgst + sgst + delivery + money(body.tip));
+  const billTotal = money(itemsTotal + cgst + sgst + delivery + money(body.tip));
+  // A signed-in customer pays with whatever Zeva Money they have, up to the
+  // bill total. The server owns this calculation; the browser only displays it.
+  const walletAvailable = user ? await walletBalance(env, user.id) : 0;
+  const walletRedeemed = user ? Math.min(walletAvailable, billTotal) : 0;
+  const total = money(billTotal - walletRedeemed);
   const now = Date.now();
 
   const existing = await db.prepare("SELECT id FROM orders WHERE id = ?").bind(id).first();
@@ -2223,7 +2231,7 @@ export async function createOrder(request, env, body) {
 
   await db
     .prepare(
-      "INSERT INTO orders (id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, distance_m, status, gold_delivery, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO orders (id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, wallet_redeemed, distance_m, status, gold_delivery, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(
       id,
@@ -2240,12 +2248,22 @@ export async function createOrder(request, env, body) {
       sgst,
       delivery,
       total,
+      walletRedeemed,
       Math.round(distance),
       "pending",
       freeDelivery ? 1 : 0,
       now
     )
     .run();
+
+  // Spend the redeemed Zeva Money now, so the balance the customer sees is
+  // already net of this order.
+  if (user && walletRedeemed > 0) {
+    await db
+      .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'redeem', ?, ?, ?)")
+      .bind(user.id, -walletRedeemed, id, "Zeva Money redeemed \u00b7 #" + id, Date.now())
+      .run();
+  }
 
   // Keep the delivery address on the profile so the next order is one tap.
   const orderAddress = String(body.address || "").slice(0, 400);
@@ -2263,12 +2281,13 @@ export async function createOrder(request, env, body) {
     delivery: delivery,
     free_delivery: freeDelivery,
     cashback_due: cashbackDue,
+    wallet_redeemed: walletRedeemed,
     wallet_balance: user ? await walletBalance(env, user.id) : 0
   });
 }
 
 const ORDER_FIELDS =
-  "id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, distance_m, status, gold_delivery, created_at, upi_ref, upi_url, upi_intent, upi_status, upi_utr, upi_amount, upi_seq, upi_attempts, upi_checked_at, upi_paid_at";
+  "id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, wallet_redeemed, distance_m, status, gold_delivery, created_at, upi_ref, upi_url, upi_intent, upi_status, upi_utr, upi_amount, upi_seq, upi_attempts, upi_checked_at, upi_paid_at";
 
 export function shapeOrder(row) {
   if (!row) return null;
@@ -2292,6 +2311,7 @@ export function shapeOrder(row) {
     sgst: row.sgst,
     delivery: row.delivery,
     total: row.total,
+    wallet_redeemed: Number(row.wallet_redeemed || 0),
     distance_m: row.distance_m,
     status: row.status,
     user_id: row.user_id || null,
@@ -2993,6 +3013,23 @@ export async function adminSetStatus(env, body) {
       await db
         .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'reversal', ?, ?, ?)")
         .bind(order.user_id, -Math.abs(Number(credit.sum)), id, "Cashback reversed (order cancelled)", Date.now())
+        .run();
+    }
+    // Money the customer spent from Zeva Money comes back if the order never
+    // happens, exactly once (a second cancel finds the row already refunded).
+    const spent = await db
+      .prepare("SELECT COALESCE(SUM(amount), 0) AS sum FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'redeem'")
+      .bind(order.user_id, id)
+      .first();
+    const refunded = await db
+      .prepare("SELECT COALESCE(SUM(amount), 0) AS sum FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'refund'")
+      .bind(order.user_id, id)
+      .first();
+    const back = -1 * (Number((spent && spent.sum) || 0) + Number((refunded && refunded.sum) || 0));
+    if (back > 0.004) {
+      await db
+        .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'refund', ?, ?, ?)")
+        .bind(order.user_id, back, id, "Zeva Money returned (order cancelled) \u00b7 #" + id, Date.now())
         .run();
     }
   }

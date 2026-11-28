@@ -39,3 +39,6 @@ deploy/dist/*.apk
 .env
 .env.*
 !.env.example
+
+# A staging passcode kept on this machine only
+deploy/.admin-passcode.staging

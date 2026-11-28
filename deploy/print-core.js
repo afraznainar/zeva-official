@@ -185,7 +185,9 @@ function renderBill(order) {
   const sgst = o.sgst != null ? Number(o.sgst) : 0;
   const tip = o.tip != null ? Number(o.tip) : 0;
   const total = Number(o.total != null ? o.total : itemsTotal + cgst + sgst + tip);
-  const delivery = Math.round((total - itemsTotal - cgst - sgst - tip) * 100) / 100;
+  // Zeva Money the customer spent on this bill: `total` is already net of it.
+  const redeemed = Math.max(Number(o.wallet_redeemed || 0), 0);
+  const delivery = Math.round((total + redeemed - itemsTotal - cgst - sgst - tip) * 100) / 100;
 
   out.push(totalRow("Items total", itemsTotal));
   if (delivery > 0.004) out.push(totalRow("Delivery charge", delivery));
@@ -193,6 +195,7 @@ function renderBill(order) {
   if (tip > 0.004) out.push(totalRow("Tip (optional)", tip));
   if (cgst) out.push(totalRow("CGST 2.5%", cgst));
   if (sgst) out.push(totalRow("SGST 2.5%", sgst));
+  if (redeemed > 0.004) out.push(totalRow("Zeva Money used", -redeemed));
   out.push(rule("="));
   out.push("<<H>><<B>>" + totalRow("TOTAL", total));
   out.push(rule("="));

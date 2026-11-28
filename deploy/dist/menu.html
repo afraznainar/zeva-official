@@ -1126,6 +1126,28 @@
   var order = { name: '', phone: '', addr: '', note: '' };
   try { order = Object.assign(order, JSON.parse(localStorage.getItem('zeva_co_v1')) || {}); } catch (e) {}
 
+  // Zeva Money: the signed-in customer's wallet pays into the bill. The server
+  // does the real calculation when the order is placed, so this is only what
+  // the drawer shows — it always matches what the counter will charge.
+  var ME = { signed: false, balance: 0 };
+  function loadWallet() {
+    fetch('/api/me', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d) return;
+        ME.signed = !!d.user;
+        ME.balance = Number((d.wallet && d.wallet.balance) || 0) || 0;
+        if (d.user) {
+          if (!order.name && d.user.name) order.name = d.user.name;
+          if (!order.phone && d.user.phone) order.phone = d.user.phone;
+          if (!order.addr && d.user.address) order.addr = d.user.address;
+          saveOrder();
+        }
+        render();
+      })
+      .catch(function () {});
+  }
+
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(cart)); } catch (e) {} }
   function saveOrder() { try { localStorage.setItem('zeva_co_v1', JSON.stringify(order)); } catch (e) {} }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
@@ -1234,7 +1256,10 @@
     var fee = deliveryFeeFor(pos.metres);
     return fee == null ? 0 : fee;
   }
-  function grandTotal() { return round2(total() + cgst() + sgst() + (feeApplies() ? deliveryFee() : 0) + tip); }
+  // The bill before Zeva Money, then what the wallet takes off it.
+  function billTotal() { return round2(total() + cgst() + sgst() + (feeApplies() ? deliveryFee() : 0) + tip); }
+  function walletUse() { return ME.signed ? Math.min(ME.balance, billTotal()) : 0; }
+  function grandTotal() { return round2(billTotal() - walletUse()); }
   function detailsValid() {
     var ph = order.phone.replace(/[^0-9]/g, '');
     if (ph.length === 12 && ph.indexOf('91') === 0) ph = ph.slice(2);
@@ -1275,6 +1300,7 @@
               : 'Delivery charge (' + (pos.metres <= FREE_DELIVERY_M ? 'free under 2 km' : pos.metres + ' m') + '): ' + (deliveryFee() ? rupee(deliveryFee()) : 'FREE') + '\n')
         : '') +
       (tip > 0 ? 'Tip: ' + rupee(tip) + '\n' : '') +
+      (walletUse() > 0 ? 'Zeva Money used: -' + rupee(walletUse()) + '\n' : '') +
       '*Total: ' + rupee(grandTotal()) + '*' + '\n' +
       '(GST on food only; delivery charge untaxed)' + '\n\n' +
       '*Mode: ' + (mode === 'pickup' ? 'PICKUP' : 'DELIVERY') + '*' + '\n' +
@@ -1463,6 +1489,7 @@
     h += '<div class="cart-fee"><span>SGST 2.5%</span><span>+' + rupee(sgst()) + '</span></div>';
     if (distanceKnown()) h += feeRowHtml();
     if (tip > 0) h += '<div class="cart-fee"><span>Tip</span><span>+' + rupee(tip) + '</span></div>';
+    if (walletUse() > 0) h += '<div class="cart-fee"><span>Zeva Money used <small>(of ' + rupee(ME.balance) + ')</small></span><span>\u2212' + rupee(walletUse()) + '</span></div>';
     h += '<div class="cart-total"><span>Total</span><span>' + rupee(grandTotal()) + '</span></div>';
     if (view === 'list') {
       h += '<div class="cart-deliver">\ud83d\udfe5 Delivery: we’ll calculate the delivery charge for your distance in the next step. Your order stays <strong>pending</strong> until we confirm it on WhatsApp.</div>';
@@ -1519,6 +1546,7 @@
     h += '<div class="co-row"><span>SGST 2.5%</span><span>' + rupee(sgst()) + '</span></div>';
     if (mode === 'delivery') h += '<div class="co-row"><span>Delivery <small>(' + (pos.metres !== null ? pos.metres + ' m' : 'not specified') + ')</small></span><span>' + (outsideRadius() ? 'Outside 3.5 km \u2014 to confirm' : (pos.metres === null ? 'To be confirmed' : (deliveryFee() ? rupee(deliveryFee()) : 'Free'))) + '</span></div>';
     if (tip > 0) h += '<div class="co-row"><span>Tip <small>(optional)</small></span><span>' + rupee(tip) + '</span></div>';
+    if (walletUse() > 0) h += '<div class="co-row"><span>Zeva Money used <small>(of ' + rupee(ME.balance) + ')</small></span><span>\u2212' + rupee(walletUse()) + '</span></div>';
     h += '<div class="co-row co-grand"><span>Total</span><span>' + rupee(grandTotal()) + '</span></div>';
     h += '<div class="co-row"><span>Mode</span><span>' + (mode === 'pickup' ? 'Pickup' : 'Delivery') + '</span></div>';
     h += '<div class="co-row"><span>Payment</span><span>At handover</span></div>';
@@ -1812,6 +1840,7 @@
   }
 
   render();
+  loadWallet();
 })();
 </script>
 <svg width="0" height="0" style="position: absolute;" aria-hidden="true" focusable="false"><filter id="goo" x="-50%" y="-50%" width="200%" height="200%"><feComponentTransfer><feFuncA type="discrete" tableValues="0 1"></feFuncA></feComponentTransfer><feGaussianBlur stdDeviation="5"></feGaussianBlur><feComponentTransfer><feFuncA type="table" tableValues="-5 11"></feFuncA></feComponentTransfer></filter></svg>
