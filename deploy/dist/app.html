@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.61">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.62">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -763,7 +763,9 @@
   var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
   var NOTICE_KEY = 'zeva_notice_after';
-  var GOLD = { price: 249, months: 12, cashback: 10, freeMetres: 6000 };
+  var GOLD = { price: 249, months: 12, cashback: 10, maxCashback: 50, freeMetres: 6000 };
+  // cashback is what the wallet actually pays; maxCashback is the ceiling the
+  // copy promises ("up to ₹50"), so the two never drift apart in the wording.
   var GOLD_FREE_M = 6000;
   var cashbackNote = '';
 
@@ -1124,9 +1126,9 @@
       (goldActive()
         ? '<div class="status ok">Zeva Gold: free delivery inside ' + (GOLD_FREE_M / 1000) + ' km, and ' + rupee(GOLD.cashback) + ' lands in Zeva Money once this order is delivered.</div>'
         : signedIn()
-          ? '<div class="status warn">Zeva Gold gives free delivery inside ' + (GOLD_FREE_M / 1000) + ' km plus ' + rupee(GOLD.cashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
+          ? '<div class="status warn">Zeva Gold gives free delivery inside ' + (GOLD_FREE_M / 1000) + ' km plus up to ' + rupee(GOLD.maxCashback) + ' back on every order &mdash; ' + rupee(GOLD.price) + ' for ' + GOLD.months + ' months, in the You tab.</div>'
           : (ACCT && ACCT.whatsapp
-            ? '<div class="status warn" style="cursor:pointer" data-act="gosignin">Sign in with your WhatsApp number &mdash; save this order and earn ' + rupee(GOLD.cashback) + ' cashback</div>'
+            ? '<div class="status warn" style="cursor:pointer" data-act="gosignin">Sign in with your WhatsApp number &mdash; save this order and earn up to ' + rupee(GOLD.maxCashback) + ' cashback</div>'
             : '<div class="status warn">Sign in is being switched on. This order still reaches the kitchen.</div>')) +
       '<p class="foot-note" style="text-align:left;padding:12px 0 0">Your order goes straight to the kitchen screen in the app and stays <b>pending</b> until they accept it.</p>';
 
@@ -1777,7 +1779,7 @@
       body.innerHTML =
         '<div class="card"><h3>Sign in to Zeva</h3>' +
           '<p>Your orders, your wallet and Zeva Gold &mdash; all in one place.</p>' +
-                     '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside ' + (GOLD_FREE_M / 1000) + ' km with Zeva Gold</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li></ul>' +
+                     '<ul><li>Order history and one-tap reorder</li><li>Free delivery inside ' + (GOLD_FREE_M / 1000) + ' km with Zeva Gold</li><li>Up to ' + rupee(GOLD.maxCashback) + ' cashback to your wallet on every order</li></ul>' +
           (waStep
             ? waForm + (waNote ? '<div class="status warn" style="margin-top:10px">' + esc(waNote) + '</div>' : '')
             : (ACCT.whatsapp
@@ -1787,7 +1789,7 @@
           '<p class="muted">We only keep your mobile number, name and address. No password is stored.</p>' +
         '</div>' +
         '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
-                     '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, plus ' + rupee(GOLD.cashback) + ' cashback into your Zeva wallet each time you order.</p>' +
+                     '<p>Pay once for ' + GOLD.months + ' months: free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, plus up to ' + rupee(GOLD.maxCashback) + ' cashback into your Zeva wallet each time you order.</p>' +
         '</div>';
       // The build label has to be here too: a freshly installed APK has not
       // signed in yet, and that is exactly when someone needs to prove which
@@ -1809,14 +1811,14 @@
     var goldCard;
     if (gold.active) {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">ACTIVE</span></h3>' +
-        '<p>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, and ' + rupee(GOLD.cashback) + ' cashback into your wallet each time.</p>' +
+        '<p>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km, and up to ' + rupee(GOLD.maxCashback) + ' cashback into your wallet each time.</p>' +
         (gold.expires_at ? '<p class="muted">Valid until ' + dateText(gold.expires_at) + '</p>' : '') + memberLink + '</div>';
     } else if (gold.status === 'pending') {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill" style="background:var(--ink-800);color:var(--brass-2)">PENDING</span></h3>' +
         '<p>Request received. Pay ' + rupee(GOLD.price) + ' at the counter (or on the payment link once it is live) and we switch Gold on for ' + GOLD.months + ' months right here.</p>' + memberLink + '</div>';
     } else {
       goldCard = '<div class="card gold"><h3>Zeva Gold <span class="gold-pill">' + rupee(GOLD.price) + '</span></h3>' +
-        '<ul><li>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km</li><li>' + rupee(GOLD.cashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
+        '<ul><li>Free delivery on every order inside ' + (GOLD_FREE_M / 1000) + ' km</li><li>Up to ' + rupee(GOLD.maxCashback) + ' cashback to your wallet on every order</li><li>Valid for ' + GOLD.months + ' months</li></ul>' +
         '<button class="btn" type="button" data-act="goldjoin" style="margin-top:12px">Join Zeva Gold &middot; ' + rupee(GOLD.price) + '</button>' +
         '<p class="muted">Payment link coming soon &mdash; for now the counter can collect it and switch Gold on.</p>' + memberLink + '</div>';
     }
@@ -1895,7 +1897,7 @@
       achievementSection(ach, u) +
       '<div class="card"><h3>Zeva Money</h3>' +
         '<div class="bal">' + rupee(money) + '</div>' +
-        '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 ' + rupee(GOLD.cashback) + ' on every order while Gold is active \u2014 and every visit the counter stamps adds \u20b910 more. Show the balance at the counter to use it on your bill.</p>' +
+        '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 up to ' + rupee(GOLD.maxCashback) + ' on every order while Gold is active \u2014 and every visit the counter stamps adds \u20b910 more. Show the balance at the counter to use it on your bill.</p>' +
         ((ACCT.wallet.entries || []).length
           ? '<ul class="ledger">' + ACCT.wallet.entries.map(function (e) {
               return '<li><span>' + esc(e.note || e.kind) + '<span class="st">' + dateText(e.created_at) + '</span></span><span style="color:' + (e.amount < 0 ? 'var(--bad)' : 'var(--good)') + ';font-variant-numeric:tabular-nums">' + (e.amount < 0 ? '\u2212' : '+') + rupee(Math.abs(e.amount)) + '</span></li>';

@@ -266,6 +266,16 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   raised from ₹5 an order to ₹10, and stamps from nothing to ₹10, on
   28 Nov 2026; both numbers are constants (`GOLD.cashback`,
   `MEMBERS.stampCashback`), never literals in a page.
+  **The copy promises "up to ₹50 cashback", the wallet still pays ₹10.** That
+  is the owner's call (28 Nov 2026): the wording changed and nothing else did.
+  The ceiling is `GOLD.maxCashback` (50) for display only — `/member`, `/join`,
+  `/profile`'s sign-up sheet and `llms.txt` carry the words, `app.html` builds
+  them from `rupee(GOLD.maxCashback)` — while `GOLD.cashback` (10) is what
+  `adminSetStatus` actually credits. The lines that name one order's money (the
+  cart's *Zeva Gold cashback +₹10 to Zeva Money on delivery*, the
+  `cashback_due` note after checkout, the Zeva Money ledger) keep the real
+  number on purpose: only the standing promise says "up to". Raising the payout
+  later means changing `GOLD.cashback`, not the copy.
   **One stamp a day per member** (`MEMBERS.stampsPerDay`), checked in
   `stampToday` at the top of `recordVisit` against midnight in India
   (`istEpoch(istDay(now), "00:00")`), so every path that gives a stamp — the
@@ -288,7 +298,8 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   the APK, the Notification API in a browser. Delivery therefore needs the app
   open or the tab alive; true background push would need FCM.
 - Zeva Gold: `GOLD = { price: 249, months: 12, cashback: 10, freeMetres: 6000 }`
-  at the top of `accounts.js`. Free delivery inside 6 km and ₹10 cashback per order are
+  at the top of `accounts.js` (`app.html` mirrors it with `maxCashback: 50` for
+  the "up to ₹50" words). Free delivery inside 6 km and the cashback are
   applied **server-side** in `createOrder`, never trusted from the browser.
   Ordinary delivery is free inside 2 km (`FREE_DELIVERY_M` in `menu.html` and
   `app.html`), then ₹55 for 2–3 km and ₹70 for 3–3.5 km; Gold widens the free
@@ -497,8 +508,8 @@ ten stamps pressed into it, and the prize wheel beside it.
 - **Gold is the same account.** `/member` shows the plan and, when signed in,
   the **Ask for Gold · ₹499** button, which is the existing `POST /api/gold/join`
   request the counter approves — no second signup path. The perks are free
-  delivery inside 5 km, ₹10 cashback into Zeva Money per delivered order, and
-  six months for ₹499.
+  delivery inside 6 km, up to ₹50 cashback into Zeva Money per delivered order
+  (₹10 in the wallet, as above), and a year for ₹249.
 - **Every signed-up member is data the shop owns.** `GET /api/admin/members`
   lists the last 500 with name, WhatsApp number, visits, spins, open prizes,
   Gold state and joined date, plus counts (total, on WhatsApp, Gold, visits).
