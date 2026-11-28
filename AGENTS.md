@@ -245,14 +245,21 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Zeva Money is the cashback wallet (`wallet` table). Cashback is credited in
   `adminSetStatus` when an order becomes `done`, never at order time, and a
   cancellation writes the matching negative row. Only once per order.
+  A visit stamp is money too: `recordVisit` writes a `kind = 'stamp'` wallet row
+  of `MEMBERS.stampCashback` (₹10) after the visit row lands, so the same
+  unique `visits.booking_id` that stops a double tap also stops a double ₹10,
+  and a walk-in stamp or a typed member code pays it the same way. The amount
+  raised from ₹5 an order to ₹10, and stamps from nothing to ₹10, on
+  28 Nov 2026; both numbers are constants (`GOLD.cashback`,
+  `MEMBERS.stampCashback`), never literals in a page.
 - Order updates: every status change inserts a row in `notices` for that
   customer, and the dashboard can send free-text messages (`/api/admin/notify`,
   all customers or one order's customer). The app polls `/api/notices?after=`
   and raises a system notification — the Capacitor LocalNotifications plugin in
   the APK, the Notification API in a browser. Delivery therefore needs the app
   open or the tab alive; true background push would need FCM.
-- Zeva Gold: `GOLD = { price: 249, months: 12, cashback: 5, freeMetres: 6000 }`
-  at the top of `accounts.js`. Free delivery inside 6 km and ₹5 cashback per order are
+- Zeva Gold: `GOLD = { price: 249, months: 12, cashback: 10, freeMetres: 6000 }`
+  at the top of `accounts.js`. Free delivery inside 6 km and ₹10 cashback per order are
   applied **server-side** in `createOrder`, never trusted from the browser.
   Ordinary delivery is free inside 2 km (`FREE_DELIVERY_M` in `menu.html` and
   `app.html`), then ₹55 for 2–3 km and ₹70 for 3–3.5 km; Gold widens the free
@@ -461,7 +468,7 @@ ten stamps pressed into it, and the prize wheel beside it.
 - **Gold is the same account.** `/member` shows the plan and, when signed in,
   the **Ask for Gold · ₹499** button, which is the existing `POST /api/gold/join`
   request the counter approves — no second signup path. The perks are free
-  delivery inside 5 km, ₹5 cashback into Zeva Money per delivered order, and
+  delivery inside 5 km, ₹10 cashback into Zeva Money per delivered order, and
   six months for ₹499.
 - **Every signed-up member is data the shop owns.** `GET /api/admin/members`
   lists the last 500 with name, WhatsApp number, visits, spins, open prizes,

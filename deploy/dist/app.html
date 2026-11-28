@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.54">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.55">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -763,7 +763,7 @@
   var APPVER = '';        // /version.json — scripts/bump-version.mjs bumps it on every app change
   var notifyState = 'default';
   var NOTICE_KEY = 'zeva_notice_after';
-  var GOLD = { price: 249, months: 12, cashback: 5, freeMetres: 6000 };
+  var GOLD = { price: 249, months: 12, cashback: 10, freeMetres: 6000 };
   var GOLD_FREE_M = 6000;
   var cashbackNote = '';
 
@@ -1895,7 +1895,7 @@
       achievementSection(ach, u) +
       '<div class="card"><h3>Zeva Money</h3>' +
         '<div class="bal">' + rupee(money) + '</div>' +
-        '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 ' + rupee(GOLD.cashback) + ' on every order while Gold is active. Show the balance at the counter to use it on your bill.</p>' +
+        '<p class="muted">Your cashback, in rupees. It lands here the moment an order is marked delivered \u2014 ' + rupee(GOLD.cashback) + ' on every order while Gold is active \u2014 and every visit the counter stamps adds \u20b910 more. Show the balance at the counter to use it on your bill.</p>' +
         ((ACCT.wallet.entries || []).length
           ? '<ul class="ledger">' + ACCT.wallet.entries.map(function (e) {
               return '<li><span>' + esc(e.note || e.kind) + '<span class="st">' + dateText(e.created_at) + '</span></span><span style="color:' + (e.amount < 0 ? 'var(--bad)' : 'var(--good)') + ';font-variant-numeric:tabular-nums">' + (e.amount < 0 ? '\u2212' : '+') + rupee(Math.abs(e.amount)) + '</span></li>';

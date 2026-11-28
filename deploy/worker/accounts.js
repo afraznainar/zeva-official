@@ -33,7 +33,7 @@ function upiMode(env) {
 export const GOLD = {
   price: 249,
   months: 12,
-  cashback: 5,
+  cashback: 10,
   freeMetres: 6000
 };
 
@@ -61,6 +61,9 @@ export const RESERVE = {
    the background and a correction in either table shows up immediately. */
 export const MEMBERS = {
   visitsPerSpin: 10,
+  // Every stamp the counter gives is Zeva Money too, not just a square on the
+  // card: ₹10 a visit, credited in recordVisit.
+  stampCashback: 10,
   prizes: [
     { key: "rasmalai", name: "Ras Malai", weight: 1 },
     { key: "anyjuice", name: "Any Fresh Juice", weight: 1 },
@@ -1593,7 +1596,8 @@ function shapeSpin(row) {
 }
 
 // One visit. The unique booking_id makes a repeated tap a no-op instead of a
-// second stamp.
+// second stamp — and because the wallet row is written only after the visit row
+// lands, a repeated tap cannot pay the stamp money twice either.
 async function recordVisit(env, userId, bookingId, source) {
   const db = await database(env);
   if (!db || !userId) return false;
@@ -1602,10 +1606,21 @@ async function recordVisit(env, userId, bookingId, source) {
       .prepare("INSERT INTO visits (user_id, booking_id, source, created_at) VALUES (?, ?, ?, ?)")
       .bind(userId, bookingId || null, source || "dine-in", Date.now())
       .run();
-    return true;
   } catch (error) {
     return false;
   }
+  // A stamp now carries money as well as a square: MEMBERS.stampCashback lands
+  // in Zeva Money the moment the counter records the visit. The stamp itself is
+  // already saved, so a failed wallet write must not lose the visit.
+  try {
+    await db
+      .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'stamp', ?, ?, ?)")
+      .bind(userId, MEMBERS.stampCashback, null, "Zeva Money \u00b7 visit stamp", Date.now())
+      .run();
+  } catch (error) {
+    /* the visit stands on its own */
+  }
+  return true;
 }
 
 export async function memberState(env, userId) {
@@ -1629,6 +1644,7 @@ export async function memberState(env, userId) {
     spins_taken: taken,
     spins_left: Math.max(0, earned - taken),
     to_next: into === 0 ? MEMBERS.visitsPerSpin : MEMBERS.visitsPerSpin - into,
+    stamp_cashback: MEMBERS.stampCashback,
     prizes: prizeNames(),
     open_prizes: (open.results || []).map(shapeSpin)
   };
