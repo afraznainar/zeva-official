@@ -447,6 +447,22 @@
           </div>
 
           <div class="compose">
+            <label class="field"><span>Zeva Money</span>
+              <input id="w_phone" type="text" inputmode="tel" placeholder="WhatsApp number of the member">
+            </label>
+            <label class="field"><span>Amount in rupees</span>
+              <input id="w_amount" type="number" inputmode="decimal" step="any" placeholder="e.g. 200">
+            </label>
+            <label class="field"><span>Reason (optional)</span>
+              <input id="w_note" type="text" maxlength="80" placeholder="e.g. late delivery, goodwill">
+            </label>
+            <div class="acts">
+              <button class="primary" type="button" id="w_add">Add to Zeva Money</button>
+            </div>
+            <p class="hint" id="w_state">Puts money in their wallet now, once \u2014 a minus sign takes it back. Up to &#8377;5,000 an entry; the member gets a message in the app.</p>
+          </div>
+
+          <div class="compose">
             <label class="field"><span>Member code</span>
               <input id="v_code" type="text" inputmode="text" autocomplete="off" placeholder="4-digit member code">
             </label>
@@ -1221,6 +1237,36 @@
         loadMembers();
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
+  });
+
+  $('w_add').addEventListener('click', function () {
+    var btn = $('w_add');
+    var phone = $('w_phone').value.trim();
+    var amount = Number($('w_amount').value);
+    var noteEl = $('w_state');
+    if (!phone) { $('w_phone').focus(); noteEl.textContent = 'Enter the member\u2019s WhatsApp number first.'; return; }
+    if (!amount) { $('w_amount').focus(); noteEl.textContent = 'Enter the amount in rupees.'; return; }
+    btn.disabled = true;
+    noteEl.textContent = 'Adding\u2026';
+    fetch('/api/admin/wallet', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phone: phone, amount: amount, note: $('w_note').value.trim() })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { noteEl.textContent = (d && d.error) || 'Could not add that.'; return; }
+        var rupee = function (n) { return '\u20b9' + Number(n || 0).toLocaleString('en-IN'); };
+        noteEl.textContent = (d.user && d.user.name ? d.user.name + ' \u00b7 ' : '') +
+          (d.amount > 0 ? rupee(d.amount) + ' added' : rupee(Math.abs(d.amount)) + ' taken back') +
+          ' \u00b7 balance ' + rupee(d.balance);
+        $('w_phone').value = '';
+        $('w_amount').value = '';
+        $('w_note').value = '';
+        loadMembers();
+      })
+      .catch(function () { btn.disabled = false; noteEl.textContent = 'Could not reach the server.'; });
   });
 
   $('v_code_add').addEventListener('click', function () {

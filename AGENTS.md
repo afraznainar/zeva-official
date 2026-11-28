@@ -252,6 +252,13 @@ Customer accounts, orders, wallet and Gold live in the Worker module
 - Zeva Money is the cashback wallet (`wallet` table). Cashback is credited in
   `adminSetStatus` when an order becomes `done`, never at order time, and a
   cancellation writes the matching negative row. Only once per order.
+  **The counter can pay in by hand**: `POST /api/admin/wallet {phone | user_id,
+  amount, note}` (the **Zeva Money** box on `/admin`) writes one `kind =
+  'credit'` row, optionally negative to take a wrong credit back, capped at
+  `WALLET_ENTRY_MAX` = ₹5,000 per entry so a stray keystroke cannot hand out
+  thousands, and answers the member's new balance. The app notice is written
+  too, because a wallet entry the customer never hears about reads like a
+  mistake — it is in-app only and spends no WhatsApp message.
   A visit stamp is money too: `recordVisit` writes a `kind = 'stamp'` wallet row
   of `MEMBERS.stampCashback` (₹10) after the visit row lands, so the same
   unique `visits.booking_id` that stops a double tap also stops a double ₹10,
@@ -559,8 +566,9 @@ order feed polled every 8 seconds with a WebAudio chime, desktop notification
 and tab-title counter, the status filter tabs (Pending, Preparing, Out, Finished, Cancelled, All — the
 choice is remembered per device), the Accept → Out for delivery → Delivered buttons, the
 message composer that reaches customer phones, Zeva Gold approvals, the
-**Members** list with its marketing composer, **Mark visit** on live bookings,
-and **Handed over** on a prize code.
+**Members** list with its marketing composer, the **Zeva Money** box that
+credits one member's wallet by hand, **Mark visit** on live bookings, and
+**Handed over** on a prize code.
 
 Sound only plays after someone taps **Enable sound** once on the device (browser
 autoplay rules); the choice is remembered per device. Nothing here is in the

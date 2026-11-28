@@ -2085,6 +2085,66 @@ export async function adminAddVisit(env, body) {
   return json(200, { ok: true, added: true, user: publicUser(user), membership: state, code: String(mc && mc.code || "").toUpperCase() });
 }
 
+// POST /api/admin/wallet — the counter puts money into one member's Zeva Money
+// once: a goodwill credit, a refund done by hand, or a correction. A negative
+// amount takes money back, because a wrong credit has to be fixable the same
+// day. One entry is capped so a stray keystroke cannot hand out thousands.
+const WALLET_ENTRY_MAX = 5000;
+
+export async function adminWalletCredit(env, body) {
+  const db = await database(env);
+  if (!db) return json(503, { error: "accounts are not configured" });
+  const amount = Math.round(Number((body && body.amount) || 0) * 100) / 100;
+  if (!Number.isFinite(amount) || amount === 0) return json(400, { error: "Enter how many rupees to add." });
+  if (Math.abs(amount) > WALLET_ENTRY_MAX) {
+    return json(400, {
+      error: "One entry is capped at " + rupees(WALLET_ENTRY_MAX) + ". Add it in parts if it really is that much."
+    });
+  }
+
+  let user = null;
+  const userId = String((body && body.user_id) || "").trim();
+  if (userId) {
+    user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+  } else {
+    const raw = String((body && body.phone) || "").trim();
+    const normalized = normalizePhone(env, raw);
+    if (normalized) user = await db.prepare("SELECT * FROM users WHERE phone = ?").bind(normalized).first();
+    if (!user) {
+      const digits = raw.replace(/\D/g, "");
+      if (digits) user = await db.prepare("SELECT * FROM users WHERE phone = ?").bind(digits).first();
+    }
+  }
+  if (!user) {
+    return json(404, { error: "No member with that number. They need to sign up with WhatsApp first." });
+  }
+
+  const reason = String((body && body.note) || "").trim().slice(0, 80);
+  const note =
+    "Zeva Money \u00b7 " + (reason || (amount > 0 ? "added by the counter" : "taken back by the counter"));
+  await db
+    .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'credit', ?, ?, ?)")
+    .bind(user.id, amount, null, note, Date.now())
+    .run();
+
+  const balance = await walletBalance(env, user.id);
+  // In the app only — a wallet entry the customer never hears about looks like a
+  // mistake. This costs no WhatsApp message.
+  await pushNotice(env, {
+    user_id: user.id,
+    title: (amount > 0 ? rupees(amount) + " in Zeva Money" : rupees(Math.abs(amount)) + " taken from Zeva Money"),
+    body:
+      (reason
+        ? reason.replace(/[.\s]+$/, "") + ". "
+        : amount > 0
+          ? "The counter added it to your wallet. "
+          : "The counter corrected your wallet. ") +
+      "New balance: " + rupees(balance) + "."
+  });
+
+  return json(200, { ok: true, user: publicUser(user), amount: amount, balance: balance, note: note });
+}
+
 // POST /api/admin/consume-code — the member types their code at the counter.
 // That one typed entry is one stamped visit, the same as a Mark-visit tap.
 export async function adminConsumeCode(env, body) {
@@ -3207,6 +3267,10 @@ export async function handleAccounts(request, env, url) {
     if (path === "/api/admin/consume-code" && request.method === "POST") {
       if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
       return adminConsumeCode(env, await readJson(request));
+    }
+    if (path === "/api/admin/wallet" && request.method === "POST") {
+      if (!sameOrigin(request, env)) return json(403, { error: "cross-origin request" });
+      return adminWalletCredit(env, await readJson(request));
     }
     if (path === "/api/admin/gold" && request.method === "GET") return adminGoldList(env);
     if (path === "/api/admin/gold" && request.method === "POST") {
