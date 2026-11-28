@@ -34,6 +34,10 @@
   input, textarea { font: inherit; color: var(--paper); }
   .wrap { max-width: 900px; margin: 0 auto; padding: 0 16px calc(30px + var(--safe-b)); }
 
+  /* The `hidden` attribute must win over layout rules like display:grid,
+     otherwise the passcode card stays on top of the list after signing in. */
+  [hidden] { display: none !important; }
+
   /* ---------- gate ---------- */
   .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
   .gate-card {
