@@ -64,6 +64,9 @@ export const MEMBERS = {
   // Every stamp the counter gives is Zeva Money too, not just a square on the
   // card: ₹10 a visit, credited in recordVisit.
   stampCashback: 10,
+  // One stamp a day, in India time. Every stamp pays out, so an accidental
+  // double tap or the same member entered twice must not pay twice.
+  stampsPerDay: 1,
   prizes: [
     { key: "rasmalai", name: "Ras Malai", weight: 1 },
     { key: "anyjuice", name: "Any Fresh Juice", weight: 1 },
@@ -1534,12 +1537,20 @@ export async function adminSetReservation(env, body) {
     const id = String(body.id || "").trim().toUpperCase();
     const row = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
     if (!row) return json(404, { error: "unknown booking" });
+    // The table is marked arrived either way; the stamp is what today's limit
+    // can refuse, and the counter is told which of the two happened.
+    let stamp = null;
     if (!row.arrived_at) {
       await db.prepare("UPDATE reservations SET arrived_at = ? WHERE id = ?").bind(Date.now(), id).run();
-      if (row.user_id) await recordVisit(env, row.user_id, id, "dine-in");
+      if (row.user_id) {
+        const result = await recordVisit(env, row.user_id, id, "dine-in");
+        stamp = result.added
+          ? { added: true }
+          : { added: false, reason: result.reason, stamped_at: Number(result.at || 0), error: stampRefusalText(result) };
+      }
     }
     const fresh = await db.prepare("SELECT * FROM reservations WHERE id = ?").bind(id).first();
-    return json(200, { ok: true, reservation: shapeReservation(fresh) });
+    return json(200, { ok: true, reservation: shapeReservation(fresh), stamp: stamp });
   }
   if (body && body.advance) {
     const db = await database(env);
@@ -1595,19 +1606,60 @@ function shapeSpin(row) {
   };
 }
 
+// When this member was stamped today (India time), or 0 if they have not been.
+// One stamp a day is the guard that makes the ₹10 safe: it is checked in
+// recordVisit, so the + stamp button, the walk-in box, a typed member code and
+// Mark visit on a booking all obey the same rule.
+async function stampToday(env, userId) {
+  const db = await database(env);
+  if (!db || !userId) return 0;
+  const midnight = istEpoch(istDay(Date.now()), "00:00");
+  const row = await db
+    .prepare("SELECT created_at FROM visits WHERE user_id = ? AND created_at >= ? ORDER BY created_at ASC LIMIT 1")
+    .bind(userId, midnight)
+    .first();
+  return Number((row && row.created_at) || 0);
+}
+
+// What the counter is told when a stamp is refused, so all four paths say the
+// same thing instead of each inventing its own wording.
+function stampRefusalText(result) {
+  if (result && result.reason === "already_today") {
+    const at = clockLabel(Number(result.at || 0));
+    return (
+      "Already stamped today" + (at ? " at " + at : "") + ". One stamp a day per member, \u20b9" +
+      MEMBERS.stampCashback + " a stamp \u2014 nothing was added and no rupee was paid."
+    );
+  }
+  return "That visit was already stamped, so nothing was added.";
+}
+
+function stampRefusal(result) {
+  return json(409, {
+    ok: false,
+    added: false,
+    reason: (result && result.reason) || "not stamped",
+    stamped_at: Number((result && result.at) || 0),
+    error: stampRefusalText(result)
+  });
+}
+
 // One visit. The unique booking_id makes a repeated tap a no-op instead of a
-// second stamp — and because the wallet row is written only after the visit row
-// lands, a repeated tap cannot pay the stamp money twice either.
+// second stamp; stampToday() makes a second visit the same day a no-op on every
+// path. The wallet row is written only after the visit row lands, so neither a
+// repeated tap nor a refused stamp can pay the ₹10 twice.
 async function recordVisit(env, userId, bookingId, source) {
   const db = await database(env);
-  if (!db || !userId) return false;
+  if (!db || !userId) return { added: false, reason: "no member" };
+  const already = await stampToday(env, userId);
+  if (already) return { added: false, reason: "already_today", at: already };
   try {
     await db
       .prepare("INSERT INTO visits (user_id, booking_id, source, created_at) VALUES (?, ?, ?, ?)")
       .bind(userId, bookingId || null, source || "dine-in", Date.now())
       .run();
   } catch (error) {
-    return false;
+    return { added: false, reason: "already_stamped" };
   }
   // A stamp now carries money as well as a square: MEMBERS.stampCashback lands
   // in Zeva Money the moment the counter records the visit. The stamp itself is
@@ -1620,7 +1672,7 @@ async function recordVisit(env, userId, bookingId, source) {
   } catch (error) {
     /* the visit stands on its own */
   }
-  return true;
+  return { added: true };
 }
 
 export async function memberState(env, userId) {
@@ -1716,11 +1768,15 @@ export async function spinTheWheel(request, env) {
 export async function adminMembers(env) {
   const db = await database(env);
   if (!db) return json(503, { error: "accounts are not configured" });
+  // Midnight in India, so the list can say who has already had today's stamp —
+  // the counter sees that before tapping, not after being refused.
+  const dayStart = istEpoch(istDay(Date.now()), "00:00");
   const rows = await db
     .prepare(
       "SELECT u.id, u.name, u.phone, u.email, u.created_at, u.last_seen_at, " +
         "(SELECT code FROM member_codes mc WHERE mc.user_id = u.id AND mc.used_at IS NULL LIMIT 1) AS member_code, " +
         "(SELECT COUNT(*) FROM visits v WHERE v.user_id = u.id) AS visits, " +
+        "(SELECT MAX(v0.created_at) FROM visits v0 WHERE v0.user_id = u.id AND v0.created_at >= " + Number(dayStart) + ") AS stamped_today, " +
         "(SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id) AS spins, " +
         "(SELECT COUNT(*) FROM spins s2 WHERE s2.user_id = u.id AND s2.used_at IS NULL) AS open_prizes, " +
         "(SELECT GROUP_CONCAT(s3.prize || ':' || s3.code, '|') FROM spins s3 WHERE s3.user_id = u.id AND s3.used_at IS NULL) AS open_list, " +
@@ -1747,6 +1803,8 @@ export async function adminMembers(env) {
           const cut = pair.lastIndexOf(":");
           return { prize: pair.slice(0, cut), code: pair.slice(cut + 1) };
         }),
+      // When today's stamp was given, 0 when there is still one to give.
+      stamped_today: Number(row.stamped_today || 0),
       gold: row.gold_status === "active" && (!row.gold_until || Number(row.gold_until) > Date.now()),
       joined: Number(row.created_at || 0),
       seen: row.last_seen_at ? Number(row.last_seen_at) : 0
@@ -2021,9 +2079,10 @@ export async function adminAddVisit(env, body) {
     return json(404, { error: "No member with that number. They need to sign up with WhatsApp first." });
   }
   const added = await recordVisit(env, user.id, null, "walk-in");
+  if (!added.added) return stampRefusal(added);
   const state = await memberState(env, user.id);
   const mc = await db.prepare("SELECT code FROM member_codes WHERE user_id = ? AND used_at IS NULL LIMIT 1").bind(user.id).first();
-  return json(200, { ok: true, added: added, user: publicUser(user), membership: state, code: String(mc && mc.code || "").toUpperCase() });
+  return json(200, { ok: true, added: true, user: publicUser(user), membership: state, code: String(mc && mc.code || "").toUpperCase() });
 }
 
 // POST /api/admin/consume-code — the member types their code at the counter.
@@ -2036,12 +2095,21 @@ export async function adminConsumeCode(env, body) {
   const row = await db.prepare("SELECT * FROM member_codes WHERE code = ?").bind(raw).first();
   if (!row) return json(404, { error: "no member with that code" });
   if (row.used_at) return json(409, { error: "that code was already used" });
+  // Asked before the code is burned: a member stamped earlier today keeps their
+  // code for tomorrow instead of losing it to a visit that earns nothing.
+  const already = await stampToday(env, row.user_id);
+  if (already) return stampRefusal({ reason: "already_today", at: already });
   await db.prepare("UPDATE member_codes SET used_at = ? WHERE id = ?").bind(Date.now(), row.id).run();
   const user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(row.user_id).first();
   if (!user) return json(500, { error: "member vanished" });
   const added = await recordVisit(env, user.id, null, "code");
+  if (!added.added) {
+    // A stamp landed between the check and the insert; give the code back.
+    await db.prepare("UPDATE member_codes SET used_at = NULL WHERE id = ?").bind(row.id).run();
+    return stampRefusal(added);
+  }
   const state = await memberState(env, user.id);
-  return json(200, { ok: true, added: added, user: publicUser(user), membership: state, code: raw });
+  return json(200, { ok: true, added: true, user: publicUser(user), membership: state, code: raw });
 }
 
 // POST /api/admin/spin — the counter hands over a prize and closes it out.

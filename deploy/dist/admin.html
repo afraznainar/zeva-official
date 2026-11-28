@@ -443,7 +443,7 @@
             <div class="acts">
               <button class="primary" type="button" id="v_add">Add a stamp</button>
             </div>
-            <p class="hint" id="v_state">Stamps a walk-in visit onto their card. 10 stamps earn a spin.</p>
+            <p class="hint" id="v_state">Stamps a walk-in visit onto their card: &#8377;10 into Zeva Money, one stamp a day per member. 10 stamps earn a spin.</p>
           </div>
 
           <div class="compose">
@@ -453,7 +453,7 @@
             <div class="acts">
               <button type="button" id="v_code_add">Use member code</button>
             </div>
-            <p class="hint" id="v_code_state">Marks one visit when a member brings their code. Older longer codes still work.</p>
+            <p class="hint" id="v_code_state">Marks one visit (&#8377;10) when a member brings their code — one a day, and the code is not used up if they were already stamped today. Older longer codes still work.</p>
           </div>
 
           <div class="compose">
@@ -996,14 +996,17 @@
     var visit = e.target.closest('[data-visit]');
     if (visit) {
       var visitId = visit.getAttribute('data-visit');
-      if (!window.confirm('Mark table ' + visitId + ' as arrived? That adds one stamp to the member card.')) return;
+      if (!window.confirm('Mark table ' + visitId + ' as arrived? That adds one stamp and \u20b910 to their Zeva Money \u2014 one stamp a day per member.')) return;
       visit.disabled = true;
       fetch('/api/admin/reservation', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: visitId, arrived: true })
       }).then(function (r) { return r.json().catch(function () { return {}; }); })
-        .then(function () { loadBookings(); loadMembers(); })
+        .then(function (d) {
+          if (d && d.stamp && d.stamp.added === false) alert(d.stamp.error || 'The table is marked, but this member was already stamped today.');
+          loadBookings(); loadMembers();
+        })
         .catch(function () { visit.disabled = false; });
       return;
     }
@@ -1023,7 +1026,7 @@
     var stamp = e.target.closest('[data-stamp]');
     if (stamp) {
       var stampId = stamp.getAttribute('data-stamp');
-      if (!window.confirm('Add one walk-in stamp to this member?')) return;
+      if (!window.confirm('Add one walk-in stamp to this member? That is \u20b910 into Zeva Money, and a member gets one a day.')) return;
       stamp.disabled = true;
       fetch('/api/admin/visit', {
         method: 'POST',
@@ -1182,7 +1185,11 @@
           ' \u00b7 joined ' + (m.joined ? new Date(m.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '\u2014') +
           '</div>' + prizes + '</div>' +
         '<div class="acts">' +
-          '<button data-stamp="' + esc(m.id) + '" type="button">+ stamp</button>' +
+          // One stamp a day pays money, so today's stamp is shown on the button
+          // instead of being discovered by being refused.
+          '<button data-stamp="' + esc(m.id) + '" type="button"' +
+            (m.stamped_today ? ' disabled title="Already stamped today \u2014 one stamp a day per member"' : '') + '>' +
+            (m.stamped_today ? 'stamped today' : '+ stamp') + '</button>' +
           (m.phone ? '<button data-num="' + esc(m.phone) + '">Message</button>' : '') +
         '</div>' +
       '</div>';
@@ -1209,7 +1216,7 @@
         note.textContent = (d.user && d.user.name ? d.user.name + ' \u00b7 ' : '') +
           (m.visits || 0) + ' visit' + ((m.visits === 1) ? '' : 's') +
           (m.spins_left ? ' \u00b7 ' + m.spins_left + ' spin ready' : '') +
-          (d.added === false ? ' (already stamped this booking)' : '');
+          ' \u00b7 \u20b910 in Zeva Money';
         $('v_phone').value = '';
         loadMembers();
       })

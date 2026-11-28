@@ -259,6 +259,21 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   raised from ₹5 an order to ₹10, and stamps from nothing to ₹10, on
   28 Nov 2026; both numbers are constants (`GOLD.cashback`,
   `MEMBERS.stampCashback`), never literals in a page.
+  **One stamp a day per member** (`MEMBERS.stampsPerDay`), checked in
+  `stampToday` at the top of `recordVisit` against midnight in India
+  (`istEpoch(istDay(now), "00:00")`), so every path that gives a stamp — the
+  member row's **+ stamp**, the walk-in box, a typed member code and **Mark
+  visit** on a booking — pays the ₹10 at most once a day. A second attempt
+  changes nothing and answers `409 {reason: "already_today", stamped_at,
+  error}` whose `error` names the time of the first stamp; the typed member code
+  is **not** burned in that case (it stays usable tomorrow, and is handed back
+  even if a stamp lands mid-request), and **Mark visit** still marks the table
+  arrived while its reply carries `stamp: {added: false, error}` for the
+  dashboard to show. `GET /api/admin/members` also returns `stamped_today` per
+  member, so the list shows **stamped today** on a disabled button instead of
+  letting staff find out by being refused. A genuinely second visit in one day
+  is therefore not stamped — that is the choice, because an accidental double
+  tap handing out ₹10 was the real risk.
 - Order updates: every status change inserts a row in `notices` for that
   customer, and the dashboard can send free-text messages (`/api/admin/notify`,
   all customers or one order's customer). The app polls `/api/notices?after=`
