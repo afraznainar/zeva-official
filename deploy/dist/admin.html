@@ -158,6 +158,12 @@
   .compose .mpic button { border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 11px; font-size: 12px; }
   .compose input[type="file"] { font-size: 12px; padding: 5px 0; }
   .hint { font-size: 11.5px; color: var(--text-3); }
+  /* The members list moved to its own page; this is the way through to it. */
+  .mlink {
+    display: inline-block; font-size: 14px; font-weight: 600; color: var(--brass-2);
+    text-decoration: none; border-bottom: 1px solid rgba(192, 133, 54, .45); padding-bottom: 2px;
+  }
+  .mlink:hover { color: var(--paper); }
 
   /* -------- members -------- */
   .mrow {
@@ -444,22 +450,6 @@
               <button class="primary" type="button" id="v_add">Add a stamp</button>
             </div>
             <p class="hint" id="v_state">Stamps a walk-in visit onto their card: &#8377;10 into Zeva Money, one stamp a day per member. 10 stamps earn a spin.</p>
-          </div>
-
-          <div class="compose">
-            <label class="field"><span>Zeva Money</span>
-              <input id="w_phone" type="text" inputmode="tel" placeholder="WhatsApp number of the member">
-            </label>
-            <label class="field"><span>Amount in rupees</span>
-              <input id="w_amount" type="number" inputmode="decimal" step="any" placeholder="e.g. 200">
-            </label>
-            <label class="field"><span>Reason (optional)</span>
-              <input id="w_note" type="text" maxlength="80" placeholder="e.g. late delivery, goodwill">
-            </label>
-            <div class="acts">
-              <button class="primary" type="button" id="w_add">Add to Zeva Money</button>
-            </div>
-            <p class="hint" id="w_state">Puts money in their wallet now, once &#8212; a minus sign takes it back. Up to &#8377;5,000 an entry; the member gets a message in the app.</p>
           </div>
 
           <div class="compose">
@@ -1181,35 +1171,13 @@
         stat(memberCounts.gold, 'Gold') +
         stat(memberCounts.visits, 'visits');
     }
-    if (!members.length) {
-      host.innerHTML = '<div class="empty">No one has signed in yet. Every WhatsApp sign-up on the site or app lands here, and each member gets a 5-digit code they show at the counter.</div>';
-      return;
-    }
-    host.innerHTML = members.map(function (m) {
-      var prizes = (m.open_list || []).map(function (p) {
-        return '<div class="prize">Prize due: ' + esc(p.prize) + ' \u00b7 <b>' + esc(p.code) + '</b> ' +
-          '<button data-spin="' + esc(p.code) + '" type="button">Handed over</button></div>';
-      }).join('');
-      return '<div class="mrow">' +
-        '<div class="info"><div class="nm">' + esc(m.name || 'Member') +
-          (m.gold ? ' <span class="badge gold">Gold</span>' : '') +
-          (m.visits >= 10 ? ' <span class="badge new">' + Math.floor(m.visits / 10) + ' spin</span>' : '') + '</div>' +
-          '<div class="sub">' + (m.phone ? '<a href="tel:' + esc(m.phone) + '">+' + esc(m.phone) + '</a>' : 'no phone \u2014 app only') +
-          ' \u00b7 ' + m.visits + (m.visits === 1 ? ' visit' : ' visits') +
-          ' \u00b7 ' + m.spins + (m.spins === 1 ? ' spin' : ' spins') +
-          (m.code ? ' \u00b7 code <b style="color:var(--brass-2)">' + esc(m.code) + '</b>' : '') +
-          ' \u00b7 joined ' + (m.joined ? new Date(m.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '\u2014') +
-          '</div>' + prizes + '</div>' +
-        '<div class="acts">' +
-          // One stamp a day pays money, so today's stamp is shown on the button
-          // instead of being discovered by being refused.
-          '<button data-stamp="' + esc(m.id) + '" type="button"' +
-            (m.stamped_today ? ' disabled title="Already stamped today \u2014 one stamp a day per member"' : '') + '>' +
-            (m.stamped_today ? 'stamped today' : '+ stamp') + '</button>' +
-          (m.phone ? '<button data-num="' + esc(m.phone) + '">Message</button>' : '') +
-        '</div>' +
-      '</div>';
-    }).join('');
+    // The list itself lives on /members, where it has a search box and a sheet
+    // per member (stamp, money, message). The counter keeps the two boxes below
+    // for a walk-in who is standing there without a booking.
+    host.innerHTML = members.length
+      ? '<a class="mlink" href="/members">Open the members list (' + members.length + ') &#8594;</a>' +
+        '<p class="hint" style="margin:8px 0 0">Search by name, number or code, and stamp, message or send money to one member.</p>'
+      : '<div class="empty">No one has signed in yet. Every WhatsApp sign-up on the site or app lands on the members list.</div>';
   }
 
   $('v_add').addEventListener('click', function () {
@@ -1237,36 +1205,6 @@
         loadMembers();
       })
       .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server.'; });
-  });
-
-  $('w_add').addEventListener('click', function () {
-    var btn = $('w_add');
-    var phone = $('w_phone').value.trim();
-    var amount = Number($('w_amount').value);
-    var noteEl = $('w_state');
-    if (!phone) { $('w_phone').focus(); noteEl.textContent = 'Enter the member\u2019s WhatsApp number first.'; return; }
-    if (!amount) { $('w_amount').focus(); noteEl.textContent = 'Enter the amount in rupees.'; return; }
-    btn.disabled = true;
-    noteEl.textContent = 'Adding\u2026';
-    fetch('/api/admin/wallet', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ phone: phone, amount: amount, note: $('w_note').value.trim() })
-    })
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (d) {
-        btn.disabled = false;
-        if (!d || !d.ok) { noteEl.textContent = (d && d.error) || 'Could not add that.'; return; }
-        var rupee = function (n) { return '\u20b9' + Number(n || 0).toLocaleString('en-IN'); };
-        noteEl.textContent = (d.user && d.user.name ? d.user.name + ' \u00b7 ' : '') +
-          (d.amount > 0 ? rupee(d.amount) + ' added' : rupee(Math.abs(d.amount)) + ' taken back') +
-          ' \u00b7 balance ' + rupee(d.balance);
-        $('w_phone').value = '';
-        $('w_amount').value = '';
-        $('w_note').value = '';
-        loadMembers();
-      })
-      .catch(function () { btn.disabled = false; noteEl.textContent = 'Could not reach the server.'; });
   });
 
   $('v_code_add').addEventListener('click', function () {

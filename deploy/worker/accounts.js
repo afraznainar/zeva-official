@@ -1777,6 +1777,7 @@ export async function adminMembers(env) {
         "(SELECT code FROM member_codes mc WHERE mc.user_id = u.id AND mc.used_at IS NULL LIMIT 1) AS member_code, " +
         "(SELECT COUNT(*) FROM visits v WHERE v.user_id = u.id) AS visits, " +
         "(SELECT MAX(v0.created_at) FROM visits v0 WHERE v0.user_id = u.id AND v0.created_at >= " + Number(dayStart) + ") AS stamped_today, " +
+        "(SELECT COALESCE(SUM(w0.amount), 0) FROM wallet w0 WHERE w0.user_id = u.id) AS balance, " +
         "(SELECT COUNT(*) FROM spins s WHERE s.user_id = u.id) AS spins, " +
         "(SELECT COUNT(*) FROM spins s2 WHERE s2.user_id = u.id AND s2.used_at IS NULL) AS open_prizes, " +
         "(SELECT GROUP_CONCAT(s3.prize || ':' || s3.code, '|') FROM spins s3 WHERE s3.user_id = u.id AND s3.used_at IS NULL) AS open_list, " +
@@ -1805,6 +1806,8 @@ export async function adminMembers(env) {
         }),
       // When today's stamp was given, 0 when there is still one to give.
       stamped_today: Number(row.stamped_today || 0),
+      // Zeva Money as it stands, so the list can show it without a second call.
+      balance: Math.round(Number(row.balance || 0) * 100) / 100,
       gold: row.gold_status === "active" && (!row.gold_until || Number(row.gold_until) > Date.now()),
       joined: Number(row.created_at || 0),
       seen: row.last_seen_at ? Number(row.last_seen_at) : 0

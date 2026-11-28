@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0e0a08">
+<title>Zeva members &mdash; card, money and messages</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/assets/img/favicon-48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<style>
+  :root {
+    --ink-950: #0e0a08; --ink-900: #15100d; --ink-850: #1b1512; --ink-800: #241c17;
+    --line: rgba(255, 244, 230, .09); --line-strong: rgba(255, 244, 230, .18);
+    --paper: #f6ede1; --text-2: #cdbfae; --text-3: #93826f;
+    --brass: #c08536; --brass-2: #e6b877;
+    --good: #6fbf8b; --bad: #e27a6a; --warn: #e0a94f;
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ink-950); color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  a { color: var(--brass-2); }
+  input, textarea { font: inherit; color: var(--paper); }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 16px calc(30px + var(--safe-b)); }
+
+  /* ---------- gate ---------- */
+  .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  .gate-card {
+    width: 100%; max-width: 380px; background: var(--ink-900);
+    border: 1px solid var(--line); border-radius: 18px; padding: 26px 22px;
+  }
+  .gate-mark { width: 34px; height: auto; display: block; margin-bottom: 16px; }
+  .gate-kicker { margin: 0 0 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+  .gate-card h1 { margin: 0 0 8px; font-family: var(--display); font-size: 26px; font-weight: 500; }
+  .gate-copy { margin: 0 0 16px; color: var(--text-2); font-size: 13.5px; }
+  .gate-foot { margin: 16px 0 0; font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
+  .err { margin-top: 10px; font-size: 12.5px; color: var(--bad); min-height: 17px; }
+
+  /* ---------- controls ---------- */
+  .field { display: block; margin-bottom: 10px; }
+  .field span { display: block; margin-bottom: 5px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+  .field input, .field textarea {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: var(--ink-850); border: 1px solid var(--line-strong);
+  }
+  .field textarea { min-height: 64px; resize: vertical; line-height: 1.5; }
+  .field input:focus, .field textarea:focus { outline: 2px solid rgba(192, 133, 54, .5); outline-offset: 1px; }
+  button.btn, .acts button {
+    border: 1px solid var(--line-strong); border-radius: 999px;
+    padding: 9px 15px; font-size: 13px; font-weight: 600; color: var(--text-2);
+    transition: border-color .15s, color .15s, background-color .15s;
+  }
+  button.btn:hover, .acts button:hover { border-color: var(--brass); color: var(--brass-2); }
+  button.primary { background: var(--brass); border-color: var(--brass); color: #1a1008; }
+  button.primary:hover { color: #1a1008; background: var(--brass-2); }
+  button:disabled { opacity: .45; cursor: default; }
+  .hint { font-size: 11.5px; color: var(--text-3); line-height: 1.55; }
+
+  /* ---------- page ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 10; background: rgba(14, 10, 8, .95);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; max-width: 900px; margin: 0 auto; }
+  .brandmark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--paper); }
+  .brandmark img { width: 22px; height: auto; }
+  .brandmark span { font-family: var(--display); font-size: 17px; line-height: 1.1; }
+  .brandmark small { display: block; font-family: inherit; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+  .head .spacer { flex: 1; }
+  .head a.plain { font-size: 12.5px; text-decoration: none; color: var(--text-2); }
+  .head a.plain:hover { color: var(--brass-2); }
+
+  h1.title { font-family: var(--display); font-size: 28px; font-weight: 500; margin: 22px 0 4px; }
+  .subtitle { margin: 0 0 16px; color: var(--text-3); font-size: 13px; }
+
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { flex: 1; min-width: 110px; border: 1px solid var(--line); border-radius: 12px; background: var(--ink-900); padding: 10px 12px; }
+  .stat b { display: block; font-family: var(--display); font-size: 21px; font-weight: 500; }
+  .stat span { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+
+  .search { position: sticky; top: 63px; z-index: 5; padding: 8px 0 10px; background: var(--ink-950); }
+  .search input {
+    width: 100%; padding: 12px 14px; border-radius: 999px; font-size: 15px;
+    background: var(--ink-850); border: 1px solid var(--line-strong);
+  }
+  .search input:focus { outline: 2px solid rgba(192, 133, 54, .5); outline-offset: 1px; }
+
+  .list { display: grid; gap: 8px; }
+  .mrow {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    border: 1px solid var(--line); border-radius: 14px; background: var(--ink-900);
+    padding: 12px 14px;
+  }
+  .mrow:hover { border-color: var(--line-strong); }
+  .mrow .who { flex: 1; min-width: 0; }
+  .mrow .nm { font-size: 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .mrow .sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .mrow .wallet { font-size: 13px; color: var(--good); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mrow .caret { color: var(--text-3); }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 999px; border: 1px solid var(--line-strong);
+  }
+  .badge.gold { color: var(--brass-2); border-color: rgba(192, 133, 54, .5); background: rgba(192, 133, 54, .12); }
+  .badge.new { color: var(--good); border-color: rgba(111, 191, 139, .4); }
+  .badge.today { color: var(--warn); border-color: rgba(224, 169, 79, .4); }
+  .empty { text-align: center; color: var(--text-3); font-size: 13.5px; padding: 30px 14px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  /* ---------- member sheet ---------- */
+  dialog#sheet {
+    width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow: auto;
+    border: 1px solid var(--line-strong); border-radius: 18px;
+    background: var(--ink-900); color: var(--paper); padding: 0;
+  }
+  dialog#sheet::backdrop { background: rgba(8, 5, 4, .72); backdrop-filter: blur(3px); }
+  .sheet-top {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 16px 16px 12px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--ink-900);
+  }
+  .sheet-top .who { flex: 1; min-width: 0; }
+  .sheet-top h2 { margin: 0; font-family: var(--display); font-size: 21px; font-weight: 500; }
+  .sheet-top .sub { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+  .sheet-top .x { font-size: 22px; line-height: 1; color: var(--text-3); padding: 4px 6px; }
+  .sheet-top .x:hover { color: var(--paper); }
+  .sheet-body { padding: 14px 16px 18px; }
+  .facts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .fact { flex: 1; min-width: 96px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .fact b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .fact span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+  .prize { font-size: 12px; color: var(--brass-2); margin: 0 0 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .prize button { font-size: 11.5px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 9px; }
+  .action { border-top: 1px solid var(--line); padding: 14px 0 0; margin-top: 14px; }
+  .action h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); font-weight: 700; }
+  .action .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .action .say { font-size: 12px; color: var(--text-2); min-height: 16px; margin-top: 8px; }
+  .action .say.good { color: var(--good); }
+  .action .say.bad { color: var(--bad); }
+  .row2 { display: flex; gap: 8px; }
+  .row2 .field { flex: 1; min-width: 0; }
+  @media (max-width: 420px) { .row2 { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate" hidden>
+  <div class="gate-card">
+    <img class="gate-mark" src="/assets/img/zeva-mark.webp" alt="" width="324" height="706">
+    <p class="gate-kicker">Zeva Mandi &amp; Grills · Bolar</p>
+    <h1>Counter sign-in</h1>
+    <p class="gate-copy">The members list is behind the same passcode as the counter.</p>
+    <label class="field"><span>Passcode</span>
+      <input id="pass" type="password" placeholder="••••••" autocomplete="current-password" inputmode="text">
+    </label>
+    <button class="btn primary" id="gatebtn" type="button">Open the members list</button>
+    <div class="err" id="gateerr"></div>
+    <p class="gate-foot">Every WhatsApp sign-up on the site or the app lands here, with their card, Zeva Money and messages.</p>
+  </div>
+</section>
+
+<div id="main" hidden>
+  <header class="top">
+    <div class="head">
+      <a class="brandmark" href="/members">
+        <img src="/assets/img/zeva-mark.webp" alt="" width="324" height="706">
+        <span>Zeva members<small>Card &amp; Zeva Money</small></span>
+      </a>
+      <span class="spacer"></span>
+      <a class="plain" href="/admin">Orders &amp; dashboard</a>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <h1 class="title">Members</h1>
+    <p class="subtitle">Tap a member for their stamp, a message or money into Zeva Money.</p>
+
+    <div class="stats" id="counts"></div>
+
+    <div class="search">
+      <input id="q" type="search" autocomplete="off" placeholder="Search by name, WhatsApp number or member code">
+    </div>
+
+    <div class="list" id="list"></div>
+    <p class="hint" id="foot" style="margin-top:14px"></p>
+  </div>
+</div>
+
+<dialog id="sheet" aria-labelledby="sheet-name">
+  <div class="sheet-top">
+    <div class="who">
+      <h2 id="sheet-name">Member</h2>
+      <div class="sub" id="sheet-sub"></div>
+    </div>
+    <button class="x" type="button" id="sheet-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="sheet-body">
+    <div class="facts" id="sheet-facts"></div>
+    <div id="sheet-prizes"></div>
+
+    <div class="action">
+      <h3>Stamp</h3>
+      <div class="acts">
+        <button class="primary" type="button" id="a-stamp">Add a stamp · ₹10</button>
+      </div>
+      <div class="say" id="stamp-say">One stamp a day per member. Each stamp is ₹10 into Zeva Money.</div>
+    </div>
+
+    <div class="action">
+      <h3>Send money to Zeva Money</h3>
+      <div class="row2">
+        <label class="field"><span>Amount in rupees</span>
+          <input id="money-amount" type="number" inputmode="decimal" step="any" placeholder="e.g. 200">
+        </label>
+        <label class="field"><span>Reason (optional)</span>
+          <input id="money-note" type="text" maxlength="80" placeholder="e.g. goodwill">
+        </label>
+      </div>
+      <div class="acts">
+        <button class="primary" type="button" id="a-money">Send money</button>
+      </div>
+      <div class="say" id="money-say">Up to ₹5,000 an entry; a minus sign takes money back. The member is told in the app.</div>
+    </div>
+
+    <div class="action">
+      <h3>Message on WhatsApp</h3>
+      <label class="field"><span>Message</span>
+        <textarea id="msg-text" maxlength="600" placeholder="e.g. Your table is ready, come on in."></textarea>
+      </label>
+      <div class="acts">
+        <button class="primary" type="button" id="a-message">Send message</button>
+      </div>
+      <div class="say" id="msg-say">Goes to their WhatsApp and to the app. Each message spends one from the monthly allowance.</div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function rupee(n) {
+    return '\u20b9' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  }
+  function day(ms) {
+    if (!ms) return '\u2014';
+    try {
+      return new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) { return '\u2014'; }
+  }
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  var members = [];
+  var counts = null;
+  var current = null;
+  var query = '';
+
+  /* ---------------- gate ---------------- */
+  function showGate(configured) {
+    $('gate').hidden = false;
+    $('main').hidden = true;
+    if (configured === false) {
+      $('gateerr').textContent = 'The passcode is not set on the server yet. Add ADMIN_PASSCODE in Sites \u2192 Secrets.';
+    }
+    if ($('pass')) $('pass').focus();
+  }
+
+  function showMain() {
+    $('gate').hidden = true;
+    $('main').hidden = false;
+    load();
+  }
+
+  function signIn() {
+    var pass = $('pass').value.trim();
+    if (!pass) { $('gateerr').textContent = 'Enter the passcode.'; return; }
+    $('gatebtn').disabled = true;
+    $('gateerr').textContent = '';
+    fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ passcode: pass })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        $('gatebtn').disabled = false;
+        if (!res.ok) { $('gateerr').textContent = (res.d && res.d.error) || 'That passcode did not work.'; return; }
+        $('pass').value = '';
+        showMain();
+      })
+      .catch(function () { $('gatebtn').disabled = false; $('gateerr').textContent = 'Could not reach the server.'; });
+  }
+
+  $('gatebtn').addEventListener('click', signIn);
+  $('pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') signIn(); });
+
+  /* ---------------- list ---------------- */
+  function load() {
+    return fetch('/api/admin/members', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) { showGate(); throw new Error('signed out'); }
+        return r.json();
+      })
+      .then(function (d) {
+        members = (d && d.members) || [];
+        counts = (d && d.counts) || null;
+        render();
+      })
+      .catch(function () {});
+  }
+
+  function shown() {
+    var q = query.trim().toLowerCase();
+    if (!q) return members;
+    var qd = digits(q);
+    return members.filter(function (m) {
+      if (String(m.name || '').toLowerCase().indexOf(q) >= 0) return true;
+      if (String(m.code || '').toLowerCase().indexOf(q) >= 0) return true;
+      if (qd && digits(m.phone).indexOf(qd) >= 0) return true;
+      return false;
+    });
+  }
+
+  function render() {
+    if (counts) {
+      $('counts').innerHTML =
+        '<div class="stat"><b>' + counts.total + '</b><span>members</span></div>' +
+        '<div class="stat"><b>' + counts.reachable + '</b><span>on WhatsApp</span></div>' +
+        '<div class="stat"><b>' + counts.gold + '</b><span>Gold</span></div>' +
+        '<div class="stat"><b>' + counts.visits + '</b><span>visits</span></div>';
+    }
+
+    var rows = shown();
+    if (!members.length) {
+      $('list').innerHTML = '<div class="empty">No one has signed in yet. Every WhatsApp sign-up on the site or app lands here.</div>';
+      $('foot').textContent = '';
+      return;
+    }
+    if (!rows.length) {
+      $('list').innerHTML = '<div class="empty">No member matches \u201c' + esc(query) + '\u201d.</div>';
+      $('foot').textContent = members.length + ' members in all.';
+      return;
+    }
+
+    $('list').innerHTML = rows.map(function (m) {
+      var badges =
+        (m.gold ? '<span class="badge gold">Gold</span>' : '') +
+        (m.stamped_today ? '<span class="badge today">stamped today</span>' : '');
+      return '<button class="mrow" type="button" data-member="' + esc(m.id) + '">' +
+        '<div class="who">' +
+          '<div class="nm">' + esc(m.name || 'Member') + badges + '</div>' +
+          '<div class="sub">' +
+            (m.phone ? '+' + esc(m.phone) : 'no phone \u2014 app only') +
+            ' \u00b7 ' + m.visits + (m.visits === 1 ? ' visit' : ' visits') +
+            (m.code ? ' \u00b7 code ' + esc(m.code) : '') +
+            (m.open_prizes ? ' \u00b7 ' + m.open_prizes + ' prize due' : '') +
+          '</div>' +
+        '</div>' +
+        '<span class="wallet">' + rupee(m.balance) + '</span>' +
+        '<span class="caret">\u203a</span>' +
+      '</button>';
+    }).join('');
+
+    $('foot').textContent = rows.length === members.length
+      ? members.length + ' members.'
+      : rows.length + ' of ' + members.length + ' members.';
+  }
+
+  $('q').addEventListener('input', function () {
+    query = this.value;
+    render();
+  });
+
+  $('list').addEventListener('click', function (e) {
+    var row = e.target.closest('[data-member]');
+    if (!row) return;
+    var id = row.getAttribute('data-member');
+    var member = null;
+    members.forEach(function (m) { if (m.id === id) member = m; });
+    if (member) openSheet(member);
+  });
+
+  /* ---------------- member sheet ---------------- */
+  function say(el, text, tone) {
+    el.className = 'say' + (tone ? ' ' + tone : '');
+    el.textContent = text;
+  }
+
+  function findings(m) {
+    $('sheet-facts').innerHTML =
+      '<div class="fact"><b>' + m.visits + '</b><span>visits</span></div>' +
+      '<div class="fact"><b>' + m.spins + '</b><span>spins</span></div>' +
+      '<div class="fact"><b>' + rupee(m.balance) + '</b><span>Zeva Money</span></div>' +
+      '<div class="fact"><b>' + (m.stamped_today ? 'Yes' : 'No') + '</b><span>stamped today</span></div>';
+  }
+
+  function openSheet(m) {
+    current = m;
+    $('sheet-name').textContent = m.name || 'Member';
+    $('sheet-sub').textContent =
+      (m.phone ? '+' + m.phone + ' \u00b7 ' : '') +
+      (m.code ? 'code ' + m.code + ' \u00b7 ' : '') +
+      (m.gold ? 'Zeva Gold \u00b7 ' : '') +
+      'joined ' + day(m.joined);
+    findings(m);
+
+    $('sheet-prizes').innerHTML = (m.open_list || []).map(function (p) {
+      return '<div class="prize">Prize due: ' + esc(p.prize) + ' \u00b7 <b>' + esc(p.code) + '</b> ' +
+        '<button type="button" data-spin="' + esc(p.code) + '">Handed over</button></div>';
+    }).join('');
+
+    $('a-stamp').disabled = Boolean(m.stamped_today);
+    $('a-stamp').textContent = m.stamped_today ? 'Stamped today' : 'Add a stamp \u00b7 \u20b910';
+    say($('stamp-say'), m.stamped_today
+      ? 'Already stamped today \u2014 one stamp a day per member.'
+      : 'One stamp a day per member. Each stamp is \u20b910 into Zeva Money.');
+
+    $('money-amount').value = '';
+    $('money-note').value = '';
+    say($('money-say'), 'Up to \u20b95,000 an entry; a minus sign takes money back. The member is told in the app.');
+
+    $('msg-text').value = '';
+    say($('msg-say'), m.phone
+      ? 'Goes to their WhatsApp and to the app. Each message spends one from the monthly allowance.'
+      : 'No number on this account, so this only reaches the app.');
+
+    if (typeof $('sheet').showModal === 'function') $('sheet').showModal();
+    else $('sheet').setAttribute('open', '');
+  }
+
+  function closeSheet() {
+    if (typeof $('sheet').close === 'function') $('sheet').close();
+    else $('sheet').removeAttribute('open');
+    current = null;
+  }
+
+  $('sheet-close').addEventListener('click', closeSheet);
+  $('sheet').addEventListener('click', function (e) {
+    if (e.target === $('sheet')) closeSheet();
+  });
+
+  function afterAction(fresh) {
+    if (!current) return;
+    if (fresh) {
+      Object.keys(fresh).forEach(function (key) { current[key] = fresh[key]; });
+    }
+    findings(current);
+    load();
+  }
+
+  $('a-stamp').addEventListener('click', function () {
+    if (!current) return;
+    var btn = $('a-stamp');
+    btn.disabled = true;
+    say($('stamp-say'), 'Adding\u2026');
+    fetch('/api/admin/visit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user_id: current.id })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        if (!d || !d.ok) {
+          say($('stamp-say'), (d && d.error) || 'Could not stamp.', 'bad');
+          btn.textContent = 'Add a stamp \u00b7 \u20b910';
+          btn.disabled = Boolean(d && d.reason === 'already_today');
+          return;
+        }
+        var m = d.membership || {};
+        current.visits = m.visits || current.visits + 1;
+        current.spins = m.spins_taken || current.spins;
+        current.stamped_today = Date.now();
+        current.balance = Number(current.balance || 0) + 10;
+        btn.textContent = 'Stamped today';
+        btn.disabled = true;
+        say($('stamp-say'), 'Stamped \u00b7 ' + current.visits + ' visits \u00b7 \u20b910 added to Zeva Money.', 'good');
+        afterAction(null);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        say($('stamp-say'), 'Could not reach the server.', 'bad');
+      });
+  });
+
+  $('a-money').addEventListener('click', function () {
+    if (!current) return;
+    var btn = $('a-money');
+    var amount = Number($('money-amount').value);
+    if (!amount) {
+      $('money-amount').focus();
+      say($('money-say'), 'Enter the amount in rupees.', 'bad');
+      return;
+    }
+    btn.disabled = true;
+    say($('money-say'), 'Sending\u2026');
+    fetch('/api/admin/wallet', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user_id: current.id, amount: amount, note: $('money-note').value.trim() })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { say($('money-say'), (d && d.error) || 'Could not send that.', 'bad'); return; }
+        current.balance = d.balance;
+        $('money-amount').value = '';
+        $('money-note').value = '';
+        say($('money-say'),
+          (d.amount > 0 ? rupee(d.amount) + ' added' : rupee(Math.abs(d.amount)) + ' taken back') +
+          ' \u00b7 balance ' + rupee(d.balance), 'good');
+        afterAction(null);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        say($('money-say'), 'Could not reach the server.', 'bad');
+      });
+  });
+
+  $('a-message').addEventListener('click', function () {
+    if (!current) return;
+    var btn = $('a-message');
+    var text = $('msg-text').value.trim();
+    if (text.length < 3) { $('msg-text').focus(); say($('msg-say'), 'Write the message first.', 'bad'); return; }
+    btn.disabled = true;
+    say($('msg-say'), 'Sending\u2026');
+    fetch('/api/admin/notify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user_id: current.id, title: 'From Zeva', body: text })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.ok) { say($('msg-say'), (d && d.error) || 'Could not send.', 'bad'); return; }
+        $('msg-text').value = '';
+        if (d.whatsapp === 'sent') say($('msg-say'), 'Sent on WhatsApp and into the app.', 'good');
+        else if (d.whatsapp === 'no number') say($('msg-say'), 'No WhatsApp number on this account \u2014 delivered in the app only.', 'good');
+        else say($('msg-say'), 'Left in the app; WhatsApp said: ' + (d.whatsapp || 'not sent') + '.', 'bad');
+        afterAction(null);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        say($('msg-say'), 'Could not reach the server.', 'bad');
+      });
+  });
+
+  $('sheet-prizes').addEventListener('click', function (e) {
+    var prize = e.target.closest('[data-spin]');
+    if (!prize || !current) return;
+    var code = prize.getAttribute('data-spin');
+    prize.disabled = true;
+    fetch('/api/admin/spin', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        if (!d || !d.ok) { prize.disabled = false; say($('stamp-say'), (d && d.error) || 'Could not mark that prize.', 'bad'); return; }
+        current.open_list = (current.open_list || []).filter(function (p) { return p.code !== code; });
+        current.open_prizes = Math.max(0, Number(current.open_prizes || 0) - 1);
+        $('sheet-prizes').innerHTML = (current.open_list || []).map(function (p) {
+          return '<div class="prize">Prize due: ' + esc(p.prize) + ' \u00b7 <b>' + esc(p.code) + '</b> ' +
+            '<button type="button" data-spin="' + esc(p.code) + '">Handed over</button></div>';
+        }).join('');
+        load();
+      })
+      .catch(function () { prize.disabled = false; });
+  });
+
+  /* ---------------- boot ---------------- */
+  fetch('/api/admin/session', { headers: { accept: 'application/json' }, cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.signed_in) showMain();
+      else showGate(d ? d.configured : true);
+    })
+    .catch(function () { showGate(true); });
+})();
+</script>
+</body>
+</html>

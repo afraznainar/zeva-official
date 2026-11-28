@@ -575,6 +575,24 @@ autoplay rules); the choice is remembered per device. Nothing here is in the
 public nav — share `/admin` and the passcode with staff only. The passcode is
 kept on disk at `deploy/admin-passcode.secret` (gitignored).
 
+## Members page
+
+`deploy/dist/members.html` is **`/members`** — the members list on a page of its
+own, behind the same passcode gate as `/admin` (`/api/admin/session`,
+`/api/admin/login`; the cookie is shared, so signing in to one signs in the
+other). A search box filters by name, WhatsApp number (digits only, so spaces
+and +91 still match) or member code, and the counts row stays above it. Tapping
+a member opens a native `<dialog>` with their card facts (visits, spins, Zeva
+Money balance, whether today's stamp is already given) and the three things the
+counter does to one person: **Stamp** (`POST /api/admin/visit`, one a day, ₹10),
+**Send money** (`POST /api/admin/wallet`, cap and minus-sign rules included) and
+**Message** (`POST /api/admin/notify`, WhatsApp + app notice). Prize codes still
+on the card carry a **Handed over** button (`POST /api/admin/spin`). `/admin`
+keeps the counts, the **Add a stamp** and **Member code** boxes for a walk-in,
+and the marketing composer, and links here instead of drawing the list itself —
+so the list has one home. `GET /api/admin/members` carries `balance` and
+`stamped_today` per member for this page.
+
 ## Android APK (Capacitor)
 
 `apk/` wraps the same live `/app` page in a Capacitor WebView (`com.zeva.mandi`);
