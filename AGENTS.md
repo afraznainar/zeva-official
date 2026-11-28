@@ -50,6 +50,13 @@ so run it if the domain ever changes. The platform's own Production address
 (`https://site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page`) still serves the
 same Worker, which is how to tell "the domain" apart from "the deploy".
 
+**The asset uploader refuses hidden files**, and `.well-known` is a hidden
+folder: a card committed at `deploy/dist/.well-known/mcp/server-card.json`
+(27 Nov 2026) made every deploy fail with *“Assets must contain only public
+build output: no hidden files…”*, not just that file's. Anything under
+`.well-known` is therefore a Worker route — `MCP_CARD` in `worker/index.js`
+serves `/.well-known/mcp/server-card.json`.
+
 **Two environments, two databases.** Preview (`site-67005eaa…`) is now staging:
 its D1 holds the orders and accounts from before the domain launched.
 Production (`site-4c9327bc34754be687ddbfa2271b7f56.freebuff.page`) is the

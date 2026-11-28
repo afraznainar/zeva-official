@@ -11,6 +11,22 @@ import { handleAccounts } from "./accounts.js";
 
 const SITE = "https://www.zevamandiandgrills.in";
 
+// The machine-readable card AI agents look for. It is a route rather than a
+// file in dist/ because .well-known is a hidden folder and the platform refuses
+// to upload hidden paths — as a static asset it blocked every deploy.
+const MCP_CARD = {
+  name: "Zeva Mandi & Grills",
+  version: "1.0.0",
+  description: "Machine-readable discovery for menu, location, hours and reservations.",
+  homepage: "https://www.zevamandiandgrills.in/",
+  capabilities: ["site_facts", "menu", "location", "reservations"],
+  tools: [
+    { name: "get_site_facts", description: "Read official restaurant facts and contact details from llms.txt." },
+    { name: "get_menu", description: "Read the official menu page." },
+    { name: "get_location_and_hours", description: "Read the official location and opening hours." }
+  ]
+};
+
 const KNOWLEDGE = `
 RESTAURANT
 - Name: Zeva Mandi & Grills (Turkish & Arabic themed multi-cuisine restaurant).
@@ -239,6 +255,18 @@ export default {
       }
       console.log("[print] order=" + (body.id || "unknown") + " sent to BILL printer");
       return json(200, { ok: true, queued: true, printer: "BILL" });
+    }
+
+    // GET /.well-known/mcp/server-card.json -> what an AI agent fetches to find
+    // the menu, hours and booking links without scraping the pages.
+    if (url.pathname === "/.well-known/mcp/server-card.json") {
+      return new Response(JSON.stringify(MCP_CARD, null, 2), {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "public, max-age=3600"
+        }
+      });
     }
 
     // GET /apk -> the installable Android build shipped with this deploy, so a
