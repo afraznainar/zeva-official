@@ -2219,51 +2219,67 @@ export async function createOrder(request, env, body) {
   const freeDelivery = Boolean(gold.active && mode === "delivery" && distance > 0 && distance <= GOLD.freeMetres);
   const delivery = freeDelivery ? 0 : requestedDelivery;
   const billTotal = money(itemsTotal + cgst + sgst + delivery + money(body.tip));
-  // A signed-in customer pays with whatever Zeva Money they have, up to the
-  // bill total. The server owns this calculation; the browser only displays it.
-  const walletAvailable = user ? await walletBalance(env, user.id) : 0;
-  const walletRedeemed = user ? Math.min(walletAvailable, billTotal) : 0;
-  const total = money(billTotal - walletRedeemed);
   const now = Date.now();
 
   const existing = await db.prepare("SELECT id FROM orders WHERE id = ?").bind(id).first();
   if (existing) return json(409, { error: "duplicate order" });
 
-  await db
-    .prepare(
-      "INSERT INTO orders (id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, wallet_redeemed, distance_m, status, gold_delivery, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(
-      id,
-      (user && user.id) || null,
-      String(body.name || "").slice(0, 80),
-      String(body.phone || "").slice(0, 20),
-      String(body.address || "").slice(0, 400),
-      String(body.note || "").slice(0, 400),
-      mode,
-      body.payment === "upi" ? "upi" : "cash",
-      JSON.stringify(body.items).slice(0, 8000),
-      itemsTotal,
-      cgst,
-      sgst,
-      delivery,
-      total,
-      walletRedeemed,
-      Math.round(distance),
-      "pending",
-      freeDelivery ? 1 : 0,
-      now
-    )
-    .run();
-
-  // Spend the redeemed Zeva Money now, so the balance the customer sees is
-  // already net of this order.
-  if (user && walletRedeemed > 0) {
-    await db
-      .prepare("INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) VALUES (?, ?, 'redeem', ?, ?, ?)")
-      .bind(user.id, -walletRedeemed, id, "Zeva Money redeemed \u00b7 #" + id, Date.now())
-      .run();
+  // The order and its Zeva Money spend go in one batch. The spend itself is a
+  // single INSERT ... SELECT that reads the live balance and writes the debit at
+  // the same time, so two orders placed together cannot both spend the same
+  // rupees: whichever statement runs second sees the first one's row and stops
+  // at zero. The order starts at the full bill and is cut down afterwards from
+  // whatever the database actually debited, never from a balance read earlier.
+  const statements = [
+    db
+      .prepare(
+        "INSERT INTO orders (id, user_id, name, phone, address, note, mode, payment, items, items_total, cgst, sgst, delivery, total, wallet_redeemed, distance_m, status, gold_delivery, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+      )
+      .bind(
+        id,
+        (user && user.id) || null,
+        String(body.name || "").slice(0, 80),
+        String(body.phone || "").slice(0, 20),
+        String(body.address || "").slice(0, 400),
+        String(body.note || "").slice(0, 400),
+        mode,
+        body.payment === "upi" ? "upi" : "cash",
+        JSON.stringify(body.items).slice(0, 8000),
+        itemsTotal,
+        cgst,
+        sgst,
+        delivery,
+        billTotal,
+        Math.round(distance),
+        "pending",
+        freeDelivery ? 1 : 0,
+        now
+      )
+  ];
+  if (user) {
+    const balanceNow = "COALESCE((SELECT SUM(w0.amount) FROM wallet w0 WHERE w0.user_id = ?), 0)";
+    statements.push(
+      db
+        .prepare(
+          "INSERT INTO wallet (user_id, amount, kind, order_id, note, created_at) " +
+            "SELECT ?, -MIN(?, MAX(" + balanceNow + ", 0)), 'redeem', ?, ?, ? " +
+            "WHERE MIN(?, MAX(" + balanceNow + ", 0)) > 0"
+        )
+        .bind(user.id, billTotal, user.id, id, "Zeva Money redeemed \u00b7 #" + id, now, billTotal, user.id),
+      db
+        .prepare(
+          "UPDATE orders SET wallet_redeemed = -COALESCE((SELECT SUM(amount) FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'redeem'), 0), " +
+            "total = ? + COALESCE((SELECT SUM(amount) FROM wallet WHERE user_id = ? AND order_id = ? AND kind = 'redeem'), 0) " +
+            "WHERE id = ?"
+        )
+        .bind(user.id, id, billTotal, user.id, id, id)
+    );
   }
+  await db.batch(statements);
+
+  const written = await db.prepare("SELECT total, wallet_redeemed FROM orders WHERE id = ?").bind(id).first();
+  const total = money(written && written.total);
+  const walletRedeemed = money(written && written.wallet_redeemed);
 
   // Keep the delivery address on the profile so the next order is one tap.
   const orderAddress = String(body.address || "").slice(0, 400);

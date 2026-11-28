@@ -286,6 +286,13 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   shows it beside the delivery line, and the WhatsApp order text says it too.
   Cancelling an order writes one `kind = 'refund'` row for exactly what was
   spent, so a double cancel refunds nothing twice.
+  **Two orders cannot spend the same rupees.** The spend is not computed from a
+  balance read in JavaScript; it is one `INSERT ... SELECT` that reads the live
+  `SUM(wallet.amount)` and writes the debit in the same statement, inside a
+  `DB.batch` with the order insert and the total update. Whichever concurrent
+  order gets there second sees the first one's row and stops at zero, so the
+  wallet can never go negative. The order row is cut down from the amount the
+  database actually debited, never from the earlier browser/JS figure.
   **The counter can pay in by hand**: `POST /api/admin/wallet {phone | user_id,
   amount, note}` (the **Zeva Money** box on `/admin`) writes one `kind =
   'credit'` row, optionally negative to take a wrong credit back, capped at
