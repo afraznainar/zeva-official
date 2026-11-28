@@ -296,6 +296,17 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   order gets there second sees the first one's row and stops at zero, so the
   wallet can never go negative. The order row is cut down from the amount the
   database actually debited, never from the earlier browser/JS figure.
+  **The page's balance comes from the order's own reply.** A placed order spends
+  whatever was redeemed, so a checkout that kept the balance it loaded with
+  offered the same rupees to the next order, which then showed a total the
+  counter never charged. `createOrder` answers with `wallet_balance` (what the
+  database holds after the debit) and both pages take that figure: `menu.html` in
+  `afterOrder()`, which also remembers `placedTotal` — the server's own total —
+  so the done card's *Pay ₹X* cannot move when the balance lands a moment later;
+  `app.html` in `sendOrder()`'s success branch, which turns `walletOn` off at the
+  same time, because the next order's discount is that order's own choice. A
+  409 (a retry of an order that already landed) carries no body, so the menu
+  re-reads `/api/me` instead.
   **The counter can pay in by hand**: `POST /api/admin/wallet {phone | user_id,
   amount, note}` (the **Zeva Money** box on `/admin`) writes one `kind =
   'credit'` row, optionally negative to take a wrong credit back, capped at

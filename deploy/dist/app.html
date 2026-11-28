@@ -43,7 +43,7 @@
 <meta name="theme-color" content="#0e0a08">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zeva 1.2.69">
+<meta name="apple-mobile-web-app-title" content="Zeva 1.2.70">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
 <link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon-48.png">
@@ -1242,6 +1242,17 @@
           if (d && d.cashback_due) cashbackNote = rupee(d.cashback_due) + ' cashback will land in Zeva Money when this order is delivered.';
           if (d && d.free_delivery) cashbackNote += (cashbackNote ? ' ' : '') + 'Zeva Gold paid the delivery charge.';
           if (orderState === 'ok') {
+            // The order spent whatever Zeva Money was redeemed, and the reply
+            // carries the balance the database holds now: take it, and turn the
+            // redeem switch off, because the next order's discount is its own
+            // choice. Without this a second order in the same visit still
+            // offered rupees the server had already taken. loadAccount() then
+            // reads the rest of the account back.
+            walletOn = false;
+            if (d && typeof d.wallet_balance !== 'undefined') {
+              ACCT = ACCT || {};
+              ACCT.wallet = Object.assign({}, ACCT.wallet || {}, { balance: Number(d.wallet_balance) || 0 });
+            }
             loadAccount();
             cart = [];
             write(CART_KEY, cart);

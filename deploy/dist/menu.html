@@ -1134,6 +1134,7 @@
   // placed, so this is only what the drawer shows — it always matches what the
   // counter will charge.
   var ME = { signed: false, balance: 0, use: false };
+  var placedTotal = null;   // the server's own total for the order just sent
   function loadWallet() {
     fetch('/api/me', { headers: { accept: 'application/json' }, cache: 'no-store' })
       .then(function (r) { return r.json(); })
@@ -1192,7 +1193,7 @@
     save(); render();
   }
   function removeLine(id) { cart = cart.filter(function (l) { return l.id !== id; }); save(); render(); }
-  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; orderRef = ''; ME.use = false; save(); render(); }
+  function clearCart() { cart = []; pos = { state: 'idle', lat: null, lon: null, metres: null, accuracy: null, source: null }; mode = ''; tip = 0; gateNote = false; formErr = false; modeMsg = ''; geoMsg = ''; orderRef = ''; ME.use = false; placedTotal = null; save(); render(); }
 
   function distanceKnown() { return pos.metres !== null; }
   // Delivery is never gated on distance: when the guest types a distance the fee
@@ -1353,6 +1354,23 @@
     };
   }
 
+  // A placed order spends whatever Zeva Money was redeemed, so the balance this
+  // page holds is out of date the moment the counter takes it. The reply carries
+  // the balance the database holds now: take that figure, and turn the redeem
+  // switch off because the next order's discount is that order's own choice.
+  // Without this a second order in the same visit still offered rupees that were
+  // already gone and showed a total the counter never charged.
+  function afterOrder(reply) {
+    if (placedTotal === null) placedTotal = reply && typeof reply.total === 'number' ? reply.total : grandTotal();
+    ME.use = false;
+    if (reply && typeof reply.wallet_balance !== 'undefined') {
+      ME.balance = Number(reply.wallet_balance) || 0;
+      render();
+    } else {
+      loadWallet();   // a duplicate (409) carries no body, so ask for the balance
+    }
+  }
+
   // Hand the order to the server so the counter dashboard records it, the
   // printer can print the bill and PetPooja can receive it. WhatsApp stays the
   // customer's copy. The WhatsApp tab has to open inside the tap (browsers
@@ -1372,7 +1390,10 @@
           body: payload,
           keepalive: true
         }).then(function (r) {
-          if (r.ok || r.status === 409) return;
+          if (r.ok || r.status === 409) {
+            r.json().then(afterOrder).catch(function () { afterOrder(null); });
+            return;
+          }
           if (attempt < 2) setTimeout(send, 1500);
         }).catch(function () {
           if (attempt < 2) setTimeout(send, 1500);
@@ -1457,7 +1478,9 @@
     h += '<h3>Order sent \u2014 pending confirmation</h3>';
     h += '<div class="co-status">\u23e9 Sent as order <strong>#' + esc(orderRef) + '</strong> to our WhatsApp (' + distTxt + ').</div>';
     h += '<div class="co-hint"><strong>Your order is PENDING.</strong> It is <em>not</em> confirmed yet. Our team must reply <strong>CONFIRM</strong> on WhatsApp to accept it. If you don\u2019t get a confirmation, please call <a href="tel:+917022771888">070227 71888</a>.</div>';
-    h += '<div class="co-status">\ud83d\udcb0 Pay ' + rupee(grandTotal()) + ' when the bill reaches you \u2014 cash or UPI.</div>';
+    // The server's figure once it answers, so the amount on this card never
+    // moves when the wallet balance behind it is refreshed a moment later.
+    h += '<div class="co-status">\ud83d\udcb0 Pay ' + rupee(placedTotal === null ? grandTotal() : placedTotal) + ' when the bill reaches you \u2014 cash or UPI.</div>';
     h += '<div class="co-btn-row"><button class="btn btn-outline" data-act="neworder">Start another order</button></div>';
     h += '</div>';
     return h;
