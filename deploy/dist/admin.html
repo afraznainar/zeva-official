@@ -870,10 +870,16 @@
     if (print.bill && !print.bill.ok) {
       failed.push('Bill (' + (print.bill.printer || 'bill printer') + '): ' + (print.bill.error || 'did not print'));
     }
-    if (failed.length) {
-      window.alert('Order #' + orderId + ' is accepted, but a copy did not print.\n\n' + failed.join('\n\n') +
-        '\n\nCheck the printer and paper, then use Print again on the order.');
+    if (!failed.length) return;
+    // The usual first run: nothing is configured yet, so say what that means
+    // instead of naming two printers that were never set up.
+    if (/printer bridge not configured/i.test(failed.join(' '))) {
+      window.alert('Order #' + orderId + ' is accepted, but printing is not set up yet, so nothing came out.\n\n' +
+        'Set PRINT_BRIDGE_URL and PRINT_BRIDGE_TOKEN in Sites \u2192 Secrets, and keep start-print.cmd running on the counter computer.');
+      return;
     }
+    window.alert('Order #' + orderId + ' is accepted, but a copy did not print.\n\n' + failed.join('\n\n') +
+      '\n\nCheck the printer and paper, then use Print again on the order.');
   }
 
   /* ---------------- messages to the customer's phone ---------------- */

@@ -2882,26 +2882,30 @@ function printBridge(env) {
 }
 
 async function printCopy(env, order, kind) {
-  const printer = kind === "kitchen"
-    ? String(env.PRINT_KITCHEN_PRINTER || "KITCHEN")
-    : String(env.PRINT_BILL_PRINTER || "BILL");
+  // The queue name is optional here on purpose: the kind already tells the
+  // bridge which of its two printers to use, so the name can be set either in
+  // Sites (below) or in the bridge's own environment, and the bridge wins.
+  const override = kind === "kitchen"
+    ? String(env.PRINT_KITCHEN_PRINTER || "").trim()
+    : String(env.PRINT_BILL_PRINTER || "").trim();
+  const label = override || (kind === "kitchen" ? "kitchen printer" : "bill printer");
   const bridge = printBridge(env);
-  if (!bridge) return { ok: false, kind: kind, printer: printer, error: "printer bridge not configured" };
+  if (!bridge) return { ok: false, kind: kind, printer: label, error: "printer bridge not configured" };
   const headers = { "content-type": "application/json" };
   if (env.PRINT_BRIDGE_TOKEN) headers["x-print-token"] = String(env.PRINT_BRIDGE_TOKEN);
   try {
     const response = await fetch(bridge, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ id: order.id, kind: kind, printer: printer, order: order })
+      body: JSON.stringify({ id: order.id, kind: kind, printer: override, order: order })
     });
     const data = await response.json().catch(function () { return {}; });
     if (!response.ok || !(data && data.ok)) {
-      return { ok: false, kind: kind, printer: printer, error: (data && data.error) || "printer bridge error " + response.status };
+      return { ok: false, kind: kind, printer: label, error: (data && data.error) || "printer bridge error " + response.status };
     }
-    return { ok: true, kind: kind, printer: data.printer || printer };
+    return { ok: true, kind: kind, printer: data.printer || label };
   } catch (error) {
-    return { ok: false, kind: kind, printer: printer, error: "printer bridge unreachable: " + error.message };
+    return { ok: false, kind: kind, printer: label, error: "printer bridge unreachable: " + error.message };
   }
 }
 

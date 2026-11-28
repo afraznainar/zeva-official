@@ -253,9 +253,12 @@ Customer accounts, orders, wallet and Gold live in the Worker module
   Accept button is `POST /api/admin/order {id, status:'preparing'}`, so
   `adminSetStatus` sends the order through the counter's print bridge twice: a
   kitchen ticket (`kind:'kitchen'` — quantities and the customer's note, no
-  prices, rendered by `renderTicket` in `print-core.js`) to
-  `PRINT_KITCHEN_PRINTER` (default `KITCHEN`), and the customer's bill to
-  `PRINT_BILL_PRINTER` (default `BILL`). Both go to `PRINT_BRIDGE_URL`
+  prices, rendered by `renderTicket` in `print-core.js`) and the customer's
+  bill. The queue names are optional — `PRINT_KITCHEN_PRINTER` and
+  `PRINT_BILL_PRINTER` override them in Sites, and with neither set the bridge
+  uses its own `PRINT_KITCHEN_PRINTER` (default `KITCHEN`) and `PRINT_PRINTER`
+  (default `BILL`), because the kind already routes the job. Both go to
+  `PRINT_BRIDGE_URL`
   (`printer-bridge.js`), because the site runs in a data centre and the printers
   sit in the restaurant; the bridge picks the Windows queue from the job's
   `printer`. Only the first acceptance prints (`before !== 'preparing'`), so
